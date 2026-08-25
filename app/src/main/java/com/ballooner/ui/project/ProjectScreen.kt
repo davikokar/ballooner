@@ -73,9 +73,6 @@ import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.atan2
-import kotlin.math.hypot
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Composable
@@ -382,12 +379,8 @@ private fun Handles(
         keyId = balloon.id,
         onDrag = { d ->
             val b = base()
-            val c = b.bodyCenter(canvasSize)
-            val tip = b.tailTip(canvasSize) + d
-            val angle = Math.toDegrees(atan2((tip.y - c.y).toDouble(), (tip.x - c.x).toDouble()))
-            val avgRadius = (b.width * w / 2f + b.height * h / 2f) / 2f
-            val length = (hypot(tip.x - c.x, tip.y - c.y) - avgRadius) / min(w, h)
-            onLiveChange(b.copy(tailAngleDegrees = angle.toFloat(), tailLength = length.coerceAtLeast(0f)))
+            val target = b.tailTip(canvasSize) + d
+            onLiveChange(b.tailAtPoint(target, canvasSize))
         },
         onDragEnd = onCommit,
     )
