@@ -1,6 +1,7 @@
 package com.ballooner.data.balloon
 
 import com.ballooner.domain.model.Balloon
+import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -31,6 +32,8 @@ private fun BalloonEntity.toDomain() = Balloon(
     tailLength = tailLength,
     cornerRoundness = cornerRoundness,
     tailWidth = tailWidth,
+    fontSize = fontSize,
+    font = BalloonFont.valueOf(font),
 )
 
 private fun Balloon.toEntity(projectId: Long) = BalloonEntity(

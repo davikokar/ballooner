@@ -81,6 +81,7 @@ class ProjectViewModel @Inject constructor(
         tailLength = tailLength.coerceIn(0f, MAX_TAIL_LENGTH),
         cornerRoundness = cornerRoundness.coerceIn(0f, 1f),
         tailWidth = tailWidth.coerceIn(MIN_TAIL_WIDTH, MAX_TAIL_WIDTH),
+        fontSize = fontSize.coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE),
     )
 
     private companion object {
@@ -89,5 +90,7 @@ class ProjectViewModel @Inject constructor(
         const val MAX_TAIL_LENGTH = 0.4f
         const val MIN_TAIL_WIDTH = 0.1f
         const val MAX_TAIL_WIDTH = 1.5f
+        const val MIN_FONT_SIZE = 8f
+        const val MAX_FONT_SIZE = 48f
     }
 }

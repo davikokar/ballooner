@@ -32,4 +32,6 @@ data class BalloonEntity(
     val tailLength: Float,
     @ColumnInfo(defaultValue = "1.0") val cornerRoundness: Float = 1f,
     @ColumnInfo(defaultValue = "0.5") val tailWidth: Float = 0.5f,
+    @ColumnInfo(defaultValue = "14.0") val fontSize: Float = 14f,
+    @ColumnInfo(defaultValue = "'DEFAULT'") val font: String = "DEFAULT",
 )

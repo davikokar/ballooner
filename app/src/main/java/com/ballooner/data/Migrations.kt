@@ -33,3 +33,11 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE `balloon` ADD COLUMN `tailWidth` REAL NOT NULL DEFAULT 0.5")
     }
 }
+
+/** Adds text controls: font size and font family. */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `balloon` ADD COLUMN `fontSize` REAL NOT NULL DEFAULT 14.0")
+        db.execSQL("ALTER TABLE `balloon` ADD COLUMN `font` TEXT NOT NULL DEFAULT 'DEFAULT'")
+    }
+}

@@ -9,7 +9,7 @@ import com.ballooner.data.project.ProjectEntity
 
 @Database(
     entities = [ProjectEntity::class, BalloonEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

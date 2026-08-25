@@ -24,4 +24,8 @@ data class Balloon(
     val cornerRoundness: Float = 1f,
     // Half-width of the tail base, as a fraction of the body's smaller radius.
     val tailWidth: Float = 0.5f,
+    // Text size in scale-independent pixels.
+    val fontSize: Float = 14f,
+    // Font family used to render the text.
+    val font: BalloonFont = BalloonFont.DEFAULT,
 )

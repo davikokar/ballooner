@@ -89,7 +89,14 @@ class ProjectViewModelTest {
             val balloon = expectMostRecentItem().balloons.single()
 
             viewModel.commitBalloon(
-                balloon.copy(width = 5f, height = 5f, tailLength = 5f, cornerRoundness = 5f, tailWidth = 9f),
+                balloon.copy(
+                    width = 5f,
+                    height = 5f,
+                    tailLength = 5f,
+                    cornerRoundness = 5f,
+                    tailWidth = 9f,
+                    fontSize = 99f,
+                ),
             )
             advanceUntilIdle()
 
@@ -99,6 +106,7 @@ class ProjectViewModelTest {
             assertEquals(0.4f, saved.tailLength)
             assertEquals(1f, saved.cornerRoundness)
             assertEquals(1.5f, saved.tailWidth)
+            assertEquals(48f, saved.fontSize)
             cancelAndConsumeRemainingEvents()
         }
     }

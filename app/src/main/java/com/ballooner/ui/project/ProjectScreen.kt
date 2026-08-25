@@ -61,6 +61,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -71,6 +72,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
+import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -267,15 +269,67 @@ private fun Editor(
             }
         }
 
-        if (selected != null &&
-            (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
-        ) {
-            ShapeSlider(
-                roundness = selected.cornerRoundness,
-                onChange = { live = (live ?: selected).copy(cornerRoundness = it) },
-                onChangeFinished = { live?.let(onCommitBalloon) },
+        selected?.let { sel ->
+            TextControls(
+                font = sel.font,
+                fontSize = sel.fontSize,
+                onFontChange = {
+                    live = (live ?: sel).copy(font = it)
+                    live?.let(onCommitBalloon)
+                },
+                onSizeChange = { live = (live ?: sel).copy(fontSize = it) },
+                onSizeChangeFinished = { live?.let(onCommitBalloon) },
             )
+            if (sel.type == BalloonType.SPEAK || sel.type == BalloonType.WHISPER) {
+                ShapeSlider(
+                    roundness = sel.cornerRoundness,
+                    onChange = { live = (live ?: sel).copy(cornerRoundness = it) },
+                    onChangeFinished = { live?.let(onCommitBalloon) },
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun TextControls(
+    font: BalloonFont,
+    fontSize: Float,
+    onFontChange: (BalloonFont) -> Unit,
+    onSizeChange: (Float) -> Unit,
+    onSizeChangeFinished: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        var expanded by remember { mutableStateOf(false) }
+        Box {
+            OutlinedButton(onClick = { expanded = true }) {
+                Text(font.label())
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                BalloonFont.entries.forEach { entry ->
+                    DropdownMenuItem(
+                        text = { Text(entry.label()) },
+                        onClick = {
+                            onFontChange(entry)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+        Text(text = "Size", style = MaterialTheme.typography.labelLarge)
+        Slider(
+            value = fontSize,
+            onValueChange = onSizeChange,
+            onValueChangeFinished = onSizeChangeFinished,
+            valueRange = 8f..48f,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -331,7 +385,8 @@ private fun BalloonText(
             },
             textStyle = TextStyle(
                 color = Color.Black,
-                fontSize = 14.sp,
+                fontSize = balloon.fontSize.sp,
+                fontFamily = balloon.font.toFontFamily(),
                 textAlign = TextAlign.Center,
             ),
             modifier = Modifier
@@ -504,6 +559,22 @@ private fun BalloonType.label(): String = when (this) {
     BalloonType.THINK -> "Think"
     BalloonType.WHISPER -> "Whisper"
     BalloonType.YELL -> "Yell"
+}
+
+private fun BalloonFont.label(): String = when (this) {
+    BalloonFont.DEFAULT -> "Default"
+    BalloonFont.SANS_SERIF -> "Sans"
+    BalloonFont.SERIF -> "Serif"
+    BalloonFont.MONOSPACE -> "Mono"
+    BalloonFont.CURSIVE -> "Cursive"
+}
+
+private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
+    BalloonFont.DEFAULT -> FontFamily.Default
+    BalloonFont.SANS_SERIF -> FontFamily.SansSerif
+    BalloonFont.SERIF -> FontFamily.Serif
+    BalloonFont.MONOSPACE -> FontFamily.Monospace
+    BalloonFont.CURSIVE -> FontFamily.Cursive
 }
 
 @Composable
