@@ -563,10 +563,18 @@ private fun BalloonType.label(): String = when (this) {
 
 private fun BalloonFont.label(): String = when (this) {
     BalloonFont.DEFAULT -> "Default"
-    BalloonFont.SANS_SERIF -> "Sans"
+    BalloonFont.SANS_SERIF -> "Sans serif"
     BalloonFont.SERIF -> "Serif"
-    BalloonFont.MONOSPACE -> "Mono"
+    BalloonFont.MONOSPACE -> "Fixed width"
     BalloonFont.CURSIVE -> "Cursive"
+    BalloonFont.WIDE -> "Wide"
+    BalloonFont.NARROW -> "Narrow"
+    BalloonFont.COMIC_SANS_MS -> "Comic Sans MS"
+    BalloonFont.GARAMOND -> "Garamond"
+    BalloonFont.GEORGIA -> "Georgia"
+    BalloonFont.TAHOMA -> "Tahoma"
+    BalloonFont.TREBUCHET -> "Trebuchet"
+    BalloonFont.VERDANA -> "Verdana"
 }
 
 private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
@@ -575,6 +583,14 @@ private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
     BalloonFont.SERIF -> FontFamily.Serif
     BalloonFont.MONOSPACE -> FontFamily.Monospace
     BalloonFont.CURSIVE -> FontFamily.Cursive
+    BalloonFont.WIDE -> googleFontFamily("Michroma")
+    BalloonFont.NARROW -> googleFontFamily("Archivo Narrow")
+    BalloonFont.COMIC_SANS_MS -> googleFontFamily("Comic Neue")
+    BalloonFont.GARAMOND -> googleFontFamily("EB Garamond")
+    BalloonFont.GEORGIA -> googleFontFamily("Gelasio")
+    BalloonFont.TAHOMA -> googleFontFamily("PT Sans")
+    BalloonFont.TREBUCHET -> googleFontFamily("Fira Sans")
+    BalloonFont.VERDANA -> googleFontFamily("Noto Sans")
 }
 
 @Composable

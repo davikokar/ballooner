@@ -7,4 +7,12 @@ enum class BalloonFont {
     SERIF,
     MONOSPACE,
     CURSIVE,
+    WIDE,
+    NARROW,
+    COMIC_SANS_MS,
+    GARAMOND,
+    GEORGIA,
+    TAHOMA,
+    TREBUCHET,
+    VERDANA,
 }
