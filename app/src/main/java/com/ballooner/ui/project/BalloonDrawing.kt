@@ -133,9 +133,9 @@ fun DrawScope.drawBalloon(
 
     if (balloon.type == BalloonType.THINK) {
         drawThinkTail(g, bodyColor, outlineColor, strokeWidth)
-        // More bumps for a bigger cloud.
-        val bumpCount = ((g.radiusX + g.radiusY) / (canvasSize.minDimension * 0.09f))
-            .roundToInt().coerceIn(7, 18)
+        // More bumps for a bigger cloud, but always enough to read as a cloud.
+        val bumpCount = ((g.radiusX + g.radiusY) / (canvasSize.minDimension * 0.08f))
+            .roundToInt().coerceIn(9, 20)
         val cloud = cloudPath(g, bumpCount)
         drawPath(cloud, color = bodyColor)
         drawPath(cloud, color = outlineColor, style = Stroke(width = strokeWidth))
@@ -196,9 +196,12 @@ private fun starburstPath(g: BalloonGeometry): Path {
 private fun cloudPath(g: BalloonGeometry, bumpCount: Int): Path {
     val cx = g.center.x
     val cy = g.center.y
-    val innerRx = g.radiusX * 0.70f
-    val innerRy = g.radiusY * 0.70f
-    val bumpRadius = min(g.radiusX, g.radiusY) * 0.32f
+    val innerRx = g.radiusX * 0.62f
+    val innerRy = g.radiusY * 0.62f
+    // Size the puffs from their spacing so scallops stay distinct at any size.
+    val avgInner = (innerRx + innerRy) / 2f
+    val chord = 2f * avgInner * sin((Math.PI / bumpCount).toFloat())
+    val bumpRadius = max(chord * 0.62f, min(g.radiusX, g.radiusY) * 0.2f)
     var cloud = Path().apply { addOval(Rect(cx - innerRx, cy - innerRy, cx + innerRx, cy + innerRy)) }
     for (i in 0 until bumpCount) {
         val angle = (2.0 * Math.PI * i / bumpCount).toFloat()
@@ -230,8 +233,8 @@ private fun DrawScope.drawThinkTail(
     strokeWidth: Float,
 ) {
     if (g.tailLengthPx <= 0f) return
-    // More bubbles for a longer tail.
-    val bubbles = (g.tailLengthPx / (min(g.radiusX, g.radiusY) * 0.5f)).roundToInt().coerceIn(2, 7)
+    // At least three bubbles; more for a longer tail.
+    val bubbles = (g.tailLengthPx / (min(g.radiusX, g.radiusY) * 0.5f)).roundToInt().coerceIn(3, 8)
     for (i in 1..bubbles) {
         val t = i.toFloat() / bubbles
         val pos = g.edge + (g.tip - g.edge) * t
