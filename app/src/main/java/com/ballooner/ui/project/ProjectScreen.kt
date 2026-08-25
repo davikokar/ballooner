@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +45,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -121,6 +123,12 @@ fun ProjectScreen(
     }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
+    // Keep a balloon selected in edit mode so the controls stay visible.
+    LaunchedEffect(editMode, uiState.balloons, uiState.selectedBalloonId) {
+        if (editMode && uiState.selectedBalloonId == null && uiState.balloons.isNotEmpty()) {
+            onSelectBalloon(uiState.balloons.last().id)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -132,22 +140,9 @@ fun ProjectScreen(
                     }
                 },
                 actions = {
-                    if (uiState.hasImage) {
-                        if (editMode) {
-                            IconButton(onClick = { launchPicker() }) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Change image")
-                            }
-                        }
-                        IconButton(
-                            onClick = {
-                                editMode = !editMode
-                                if (!editMode) onSelectBalloon(null)
-                            },
-                        ) {
-                            Icon(
-                                imageVector = if (editMode) Icons.Default.Done else Icons.Default.Edit,
-                                contentDescription = if (editMode) "Switch to view mode" else "Switch to edit mode",
-                            )
+                    if (uiState.hasImage && editMode) {
+                        IconButton(onClick = { launchPicker() }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Change image")
                         }
                     }
                 },
@@ -161,9 +156,11 @@ fun ProjectScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    if (editMode) {
-                        Toolbar(onAddBalloon = onAddBalloon)
-                    }
+                    Toolbar(
+                        editMode = editMode,
+                        onAddBalloon = onAddBalloon,
+                        onToggleMode = { editMode = !editMode },
+                    )
                     Editor(
                         imageUri = uiState.imageUri!!,
                         balloons = uiState.balloons,
@@ -181,7 +178,11 @@ fun ProjectScreen(
 }
 
 @Composable
-private fun Toolbar(onAddBalloon: (BalloonType) -> Unit) {
+private fun Toolbar(
+    editMode: Boolean,
+    onAddBalloon: (BalloonType) -> Unit,
+    onToggleMode: () -> Unit,
+) {
     var type by remember { mutableStateOf(BalloonType.SPEAK) }
     var expanded by remember { mutableStateOf(false) }
     Row(
@@ -189,26 +190,35 @@ private fun Toolbar(onAddBalloon: (BalloonType) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box {
-            OutlinedButton(onClick = { expanded = true }) {
-                Text(type.label())
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                BalloonType.entries.forEach { entry ->
-                    DropdownMenuItem(
-                        text = { Text(entry.label()) },
-                        onClick = {
-                            type = entry
-                            expanded = false
-                        },
-                    )
+        if (editMode) {
+            Box {
+                OutlinedButton(onClick = { expanded = true }) {
+                    Text(type.label())
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    BalloonType.entries.forEach { entry ->
+                        DropdownMenuItem(
+                            text = { Text(entry.label()) },
+                            onClick = {
+                                type = entry
+                                expanded = false
+                            },
+                        )
+                    }
                 }
             }
+            Button(onClick = { onAddBalloon(type) }) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Text(text = "Add", modifier = Modifier.padding(start = 4.dp))
+            }
         }
-        Button(onClick = { onAddBalloon(type) }) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Text(text = "Add", modifier = Modifier.padding(start = 4.dp))
+        Spacer(modifier = Modifier.weight(1f))
+        IconButton(onClick = onToggleMode) {
+            Icon(
+                imageVector = if (editMode) Icons.Default.Done else Icons.Default.Edit,
+                contentDescription = if (editMode) "Switch to view mode" else "Switch to edit mode",
+            )
         }
     }
 }
@@ -249,7 +259,7 @@ private fun Editor(
                                 if (!editMode) return@detectTapGestures
                                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                                 val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
-                                onSelectBalloon(hit?.id)
+                                if (hit != null) onSelectBalloon(hit.id)
                             }
                         },
                 ) {
