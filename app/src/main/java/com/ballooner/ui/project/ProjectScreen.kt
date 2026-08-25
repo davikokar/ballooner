@@ -2,8 +2,10 @@ package com.ballooner.ui.project
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -43,6 +45,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,28 +53,39 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -80,6 +94,7 @@ import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
@@ -137,6 +152,31 @@ fun ProjectScreen(
     val launchPicker = {
         pickMedia.launch(arrayOf("image/*"))
     }
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val scope = rememberCoroutineScope()
+    // Displayed image width in px, used to scale text to the exported resolution.
+    var displayedWidth by remember { mutableStateOf(0) }
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("image/png"),
+    ) { uri: Uri? ->
+        val imageUri = uiState.imageUri
+        if (uri != null && imageUri != null) {
+            scope.launch {
+                val ok = exportComic(
+                    context = context,
+                    outUri = uri,
+                    imageUri = imageUri,
+                    balloons = uiState.balloons,
+                    displayedWidth = displayedWidth,
+                    textMeasurer = textMeasurer,
+                    density = density,
+                )
+                Toast.makeText(context, if (ok) "Saved image" else "Save failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    val onSave = { saveLauncher.launch("${projectName.ifBlank { "comic" }}.png") }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
     // A freshly created project jumps straight to image selection.
@@ -185,6 +225,7 @@ fun ProjectScreen(
                     Toolbar(
                         editMode = editMode,
                         onAddBalloon = onAddBalloon,
+                        onSave = onSave,
                         onToggleMode = { editMode = !editMode },
                     )
                     Editor(
@@ -196,6 +237,7 @@ fun ProjectScreen(
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
                         onOpenImagePicker = { launchPicker() },
+                        onLayerWidth = { displayedWidth = it },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -237,6 +279,7 @@ private fun EditableTitle(name: String, onRename: (String) -> Unit) {
 private fun Toolbar(
     editMode: Boolean,
     onAddBalloon: (BalloonType) -> Unit,
+    onSave: () -> Unit,
     onToggleMode: () -> Unit,
 ) {
     var type by remember { mutableStateOf(BalloonType.SPEAK) }
@@ -270,6 +313,7 @@ private fun Toolbar(
             }
         }
         Spacer(modifier = Modifier.weight(1f))
+        TextButton(onClick = onSave) { Text("Save") }
         IconButton(onClick = onToggleMode) {
             Icon(
                 imageVector = if (editMode) Icons.Default.Done else Icons.Default.Edit,
@@ -289,6 +333,7 @@ private fun Editor(
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
     onOpenImagePicker: () -> Unit,
+    onLayerWidth: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageState = rememberImageState(imageUri)
@@ -318,7 +363,10 @@ private fun Editor(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(image.width.toFloat() / image.height.toFloat())
-                        .onSizeChanged { layerSize = it }
+                        .onSizeChanged {
+                            layerSize = it
+                            onLayerWidth(it.width)
+                        }
                         .pointerInput(balloons, editMode) {
                             detectTapGestures { offset ->
                                 if (!editMode) return@detectTapGestures
@@ -727,6 +775,65 @@ private suspend fun loadBitmap(context: Context, uri: String): ImageBitmap? =
             }
         }.getOrNull()
     }
+
+/** Renders the image + balloons (with text) to a PNG at native resolution and writes it to [outUri]. */
+private suspend fun exportComic(
+    context: Context,
+    outUri: Uri,
+    imageUri: String,
+    balloons: List<Balloon>,
+    displayedWidth: Int,
+    textMeasurer: TextMeasurer,
+    density: Density,
+): Boolean {
+    val source = loadBitmap(context, imageUri) ?: return false
+    val width = source.width
+    val height = source.height
+    // The screen shows fixed-sp text over a scaled-down image, so scale text up to native size.
+    val scale = if (displayedWidth > 0) width.toFloat() / displayedWidth else 1f
+    val output = ImageBitmap(width, height)
+    val canvas = Canvas(output)
+    val size = Size(width.toFloat(), height.toFloat())
+    CanvasDrawScope().draw(density, LayoutDirection.Ltr, canvas, size) {
+        drawImage(source)
+        balloons.forEach { drawBalloon(it, size, bodyColor = Color.White, outlineColor = Color.Black) }
+        balloons.forEach { drawExportText(it, size, textMeasurer, scale) }
+    }
+    return withContext(Dispatchers.IO) {
+        runCatching {
+            context.contentResolver.openOutputStream(outUri)?.use { stream ->
+                output.asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, stream)
+            } ?: return@runCatching false
+            true
+        }.getOrDefault(false)
+    }
+}
+
+private fun DrawScope.drawExportText(
+    balloon: Balloon,
+    canvasSize: Size,
+    textMeasurer: TextMeasurer,
+    scale: Float,
+) {
+    if (balloon.text.isBlank()) return
+    val boxW = balloon.width * canvasSize.width
+    val boxH = balloon.height * canvasSize.height
+    val maxW = (boxW * 0.82f).toInt().coerceAtLeast(1)
+    val maxH = (boxH * 0.82f).toInt().coerceAtLeast(1)
+    val result = textMeasurer.measure(
+        text = balloon.text,
+        style = TextStyle(
+            color = Color.Black,
+            fontSize = (balloon.fontSize * scale).sp,
+            fontFamily = balloon.font.toFontFamily(),
+            textAlign = TextAlign.Center,
+        ),
+        constraints = Constraints(maxWidth = maxW, maxHeight = maxH),
+    )
+    val cx = balloon.centerX * canvasSize.width
+    val cy = balloon.centerY * canvasSize.height
+    drawText(result, topLeft = Offset(cx - result.size.width / 2f, cy - result.size.height / 2f))
+}
 
 @Preview
 @Composable
