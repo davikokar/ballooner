@@ -67,12 +67,7 @@ class ProjectViewModel @Inject constructor(
         }
     }
 
-    fun setText(id: Long, text: String) {
-        val current = uiState.value.balloons.firstOrNull { it.id == id } ?: return
-        commitBalloon(current.copy(text = text))
-    }
-
-    /** Persists a balloon after a direct-manipulation gesture (move / resize / tail). */
+    /** Persists a balloon after a direct-manipulation gesture (move / resize / tail / text). */
     fun commitBalloon(balloon: Balloon) {
         viewModelScope.launch { balloonRepository.upsertBalloon(projectId, balloon.sanitized()) }
     }

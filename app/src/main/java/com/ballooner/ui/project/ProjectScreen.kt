@@ -90,7 +90,6 @@ fun ProjectRoute(
         onAddBalloon = viewModel::addBalloon,
         onSelectBalloon = viewModel::selectBalloon,
         onCommitBalloon = viewModel::commitBalloon,
-        onTextChange = viewModel::setText,
         onDeleteSelected = viewModel::deleteSelectedBalloon,
     )
 }
@@ -105,7 +104,6 @@ fun ProjectScreen(
     onAddBalloon: (BalloonType) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
-    onTextChange: (Long, String) -> Unit,
     onDeleteSelected: () -> Unit,
 ) {
     val pickMedia = rememberLauncherForActivityResult(
@@ -150,7 +148,6 @@ fun ProjectScreen(
                         selectedBalloonId = uiState.selectedBalloonId,
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
-                        onTextChange = onTextChange,
                         onDeleteSelected = onDeleteSelected,
                         modifier = Modifier.weight(1f),
                     )
@@ -200,15 +197,16 @@ private fun Editor(
     selectedBalloonId: Long?,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
-    onTextChange: (Long, String) -> Unit,
     onDeleteSelected: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val image = rememberImageBitmap(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
-    // Balloon currently being manipulated by a gesture; kept local for smooth,
-    // synchronous updates. Persisted once via onCommitBalloon when the gesture ends.
-    var live by remember { mutableStateOf<Balloon?>(null) }
+    // Working copy of the selected balloon. Seeded when the selection changes and
+    // kept across gestures so size / position / tail / text edits accumulate
+    // instead of overwriting each other before Room has round-tripped a commit.
+    val selectedPersisted = balloons.firstOrNull { it.id == selectedBalloonId }
+    var live by remember(selectedBalloonId) { mutableStateOf(selectedPersisted) }
 
     Box(modifier = modifier.fillMaxSize().padding(8.dp), contentAlignment = Alignment.Center) {
         if (image == null) {
@@ -216,7 +214,7 @@ private fun Editor(
             return@Box
         }
 
-        val effective = balloons.map { if (it.id == live?.id) live!! else it }
+        val effective = balloons.map { b -> live?.takeIf { it.id == b.id } ?: b }
         val selected = effective.firstOrNull { it.id == selectedBalloonId }
 
         Box(
@@ -245,7 +243,12 @@ private fun Editor(
                     BalloonText(
                         balloon = balloon,
                         canvasSize = size,
-                        onTextChange = { onTextChange(balloon.id, it) },
+                        onTextChange = { newText ->
+                            val current = live?.takeIf { it.id == balloon.id } ?: balloon
+                            val updated = current.copy(text = newText)
+                            if (selectedBalloonId == balloon.id) live = updated
+                            onCommitBalloon(updated)
+                        },
                         onFocused = { onSelectBalloon(balloon.id) },
                     )
                 }
@@ -256,10 +259,7 @@ private fun Editor(
                         canvasSize = size,
                         base = { live ?: sel },
                         onLiveChange = { live = it },
-                        onCommit = {
-                            live?.let(onCommitBalloon)
-                            live = null
-                        },
+                        onCommit = { live?.let(onCommitBalloon) },
                         onDelete = onDeleteSelected,
                     )
                 }
@@ -486,7 +486,6 @@ private fun ProjectScreenNoImagePreview() {
         onAddBalloon = {},
         onSelectBalloon = {},
         onCommitBalloon = {},
-        onTextChange = { _, _ -> },
         onDeleteSelected = {},
     )
 }

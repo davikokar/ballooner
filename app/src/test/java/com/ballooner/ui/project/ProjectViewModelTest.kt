@@ -69,9 +69,9 @@ class ProjectViewModelTest {
         viewModel.uiState.test {
             viewModel.addBalloon(BalloonType.SPEAK)
             advanceUntilIdle()
-            val id = expectMostRecentItem().balloons.single().id
+            val balloon = expectMostRecentItem().balloons.single()
 
-            viewModel.setText(id, "Kapow!")
+            viewModel.commitBalloon(balloon.copy(text = "Kapow!"))
             advanceUntilIdle()
 
             assertEquals("Kapow!", expectMostRecentItem().balloons.single().text)
