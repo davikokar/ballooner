@@ -30,4 +30,14 @@ class BalloonTailTest {
 
         assertEquals(0f, updated.tailLength, 0.0001f)
     }
+
+    @Test
+    fun `tailWidthFromPoint round-trips the tail base handle position`() {
+        val canvas = Size(1000f, 800f)
+        val balloon = Balloon(id = 1, type = BalloonType.SPEAK)
+
+        val updated = balloon.tailWidthFromPoint(balloon.tailBaseHandle(canvas), canvas)
+
+        assertEquals(balloon.tailWidth, updated.tailWidth, 0.001f)
+    }
 }

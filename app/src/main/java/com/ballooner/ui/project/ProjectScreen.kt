@@ -38,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -207,64 +208,96 @@ private fun Editor(
     // instead of overwriting each other before Room has round-tripped a commit.
     val selectedPersisted = balloons.firstOrNull { it.id == selectedBalloonId }
     var live by remember(selectedBalloonId) { mutableStateOf(selectedPersisted) }
+    val effective = balloons.map { b -> live?.takeIf { it.id == b.id } ?: b }
+    val selected = effective.firstOrNull { it.id == selectedBalloonId }
 
-    Box(modifier = modifier.fillMaxSize().padding(8.dp), contentAlignment = Alignment.Center) {
-        if (image == null) {
-            Text("Loading image\u2026")
-            return@Box
-        }
-
-        val effective = balloons.map { b -> live?.takeIf { it.id == b.id } ?: b }
-        val selected = effective.firstOrNull { it.id == selectedBalloonId }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(image.width.toFloat() / image.height.toFloat())
-                .onSizeChanged { layerSize = it }
-                .pointerInput(balloons) {
-                    detectTapGestures { offset ->
-                        val canvas = Size(size.width.toFloat(), size.height.toFloat())
-                        val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
-                        onSelectBalloon(hit?.id)
-                    }
-                },
-        ) {
-            Canvas(modifier = Modifier.matchParentSize()) {
-                drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
-                effective.forEach { balloon ->
-                    drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
-                }
-            }
-
-            val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
-            if (size.width > 0f && size.height > 0f) {
-                effective.forEach { balloon ->
-                    BalloonText(
-                        balloon = balloon,
-                        canvasSize = size,
-                        onTextChange = { newText ->
-                            val current = live?.takeIf { it.id == balloon.id } ?: balloon
-                            val updated = current.copy(text = newText)
-                            if (selectedBalloonId == balloon.id) live = updated
-                            onCommitBalloon(updated)
+    Column(modifier = modifier.fillMaxSize().padding(8.dp)) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            if (image == null) {
+                Text("Loading image\u2026")
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(image.width.toFloat() / image.height.toFloat())
+                        .onSizeChanged { layerSize = it }
+                        .pointerInput(balloons) {
+                            detectTapGestures { offset ->
+                                val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                                val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
+                                onSelectBalloon(hit?.id)
+                            }
                         },
-                        onFocused = { onSelectBalloon(balloon.id) },
-                    )
-                }
+                ) {
+                    Canvas(modifier = Modifier.matchParentSize()) {
+                        drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                        effective.forEach { balloon ->
+                            drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
+                        }
+                    }
 
-                selected?.let { sel ->
-                    Handles(
-                        balloon = sel,
-                        canvasSize = size,
-                        base = { live ?: sel },
-                        onLiveChange = { live = it },
-                        onCommit = { live?.let(onCommitBalloon) },
-                        onDelete = onDeleteSelected,
-                    )
+                    val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
+                    if (size.width > 0f && size.height > 0f) {
+                        effective.forEach { balloon ->
+                            BalloonText(
+                                balloon = balloon,
+                                canvasSize = size,
+                                onTextChange = { newText ->
+                                    val current = live?.takeIf { it.id == balloon.id } ?: balloon
+                                    val updated = current.copy(text = newText)
+                                    if (selectedBalloonId == balloon.id) live = updated
+                                    onCommitBalloon(updated)
+                                },
+                                onFocused = { onSelectBalloon(balloon.id) },
+                            )
+                        }
+
+                        selected?.let { sel ->
+                            Handles(
+                                balloon = sel,
+                                canvasSize = size,
+                                base = { live ?: sel },
+                                onLiveChange = { live = it },
+                                onCommit = { live?.let(onCommitBalloon) },
+                                onDelete = onDeleteSelected,
+                            )
+                        }
+                    }
                 }
             }
         }
+
+        if (selected != null &&
+            (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
+        ) {
+            ShapeSlider(
+                roundness = selected.cornerRoundness,
+                onChange = { live = (live ?: selected).copy(cornerRoundness = it) },
+                onChangeFinished = { live?.let(onCommitBalloon) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShapeSlider(
+    roundness: Float,
+    onChange: (Float) -> Unit,
+    onChangeFinished: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(text = "Shape", style = MaterialTheme.typography.labelLarge)
+        Slider(
+            value = roundness,
+            onValueChange = onChange,
+            onValueChangeFinished = onChangeFinished,
+            valueRange = 0f..1f,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -381,6 +414,21 @@ private fun Handles(
             val b = base()
             val target = b.tailTip(canvasSize) + d
             onLiveChange(b.tailAtPoint(target, canvasSize))
+        },
+        onDragEnd = onCommit,
+    )
+
+    // Tail-width handle (drag sideways to set the tail thickness).
+    DragHandle(
+        centerPx = balloon.tailBaseHandle(canvasSize),
+        sizeDp = 24.dp,
+        color = Color(0xFF2ECC71),
+        shape = CircleShape,
+        keyId = balloon.id,
+        onDrag = { d ->
+            val b = base()
+            val target = b.tailBaseHandle(canvasSize) + d
+            onLiveChange(b.tailWidthFromPoint(target, canvasSize))
         },
         onDragEnd = onCommit,
     )

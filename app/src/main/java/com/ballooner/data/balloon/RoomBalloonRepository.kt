@@ -29,6 +29,8 @@ private fun BalloonEntity.toDomain() = Balloon(
     height = height,
     tailAngleDegrees = tailAngleDegrees,
     tailLength = tailLength,
+    cornerRoundness = cornerRoundness,
+    tailWidth = tailWidth,
 )
 
 private fun Balloon.toEntity(projectId: Long) = BalloonEntity(
@@ -42,4 +44,6 @@ private fun Balloon.toEntity(projectId: Long) = BalloonEntity(
     height = height,
     tailAngleDegrees = tailAngleDegrees,
     tailLength = tailLength,
+    cornerRoundness = cornerRoundness,
+    tailWidth = tailWidth,
 )

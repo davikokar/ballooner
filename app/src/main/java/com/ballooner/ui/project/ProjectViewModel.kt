@@ -79,11 +79,15 @@ class ProjectViewModel @Inject constructor(
         height = height.coerceIn(MIN_SIZE, 1f),
         tailAngleDegrees = tailAngleDegrees.mod(360f),
         tailLength = tailLength.coerceIn(0f, MAX_TAIL_LENGTH),
+        cornerRoundness = cornerRoundness.coerceIn(0f, 1f),
+        tailWidth = tailWidth.coerceIn(MIN_TAIL_WIDTH, MAX_TAIL_WIDTH),
     )
 
     private companion object {
         const val PROJECT_ID_KEY = "projectId"
         const val MIN_SIZE = 0.1f
         const val MAX_TAIL_LENGTH = 0.4f
+        const val MIN_TAIL_WIDTH = 0.1f
+        const val MAX_TAIL_WIDTH = 1.5f
     }
 }

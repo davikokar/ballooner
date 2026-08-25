@@ -1,5 +1,6 @@
 package com.ballooner.data.balloon
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -29,4 +30,6 @@ data class BalloonEntity(
     val height: Float,
     val tailAngleDegrees: Float,
     val tailLength: Float,
+    @ColumnInfo(defaultValue = "1.0") val cornerRoundness: Float = 1f,
+    @ColumnInfo(defaultValue = "0.5") val tailWidth: Float = 0.5f,
 )

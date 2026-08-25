@@ -1,7 +1,9 @@
 package com.ballooner.ui.project
 
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -12,12 +14,16 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
 import kotlin.math.atan2
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
+
+// How far inside the body edge the tail base sits, so the union overlaps cleanly.
+private const val TAIL_BASE_INSET = 0.7f
 
 /** Geometry of a balloon expressed in canvas pixels. */
 private data class BalloonGeometry(
@@ -60,6 +66,29 @@ fun Balloon.bodyCenter(canvasSize: Size): Offset = geometry(canvasSize).center
 
 /** The tip of the tail in canvas pixels. */
 fun Balloon.tailTip(canvasSize: Size): Offset = geometry(canvasSize).tip
+
+/** One of the two points where the tail base meets the body, in canvas pixels. */
+fun Balloon.tailBaseHandle(canvasSize: Size): Offset {
+    val g = geometry(canvasSize)
+    val perp = Offset(-g.tailDir.y, g.tailDir.x)
+    val baseCenter = tailBaseCenter(g)
+    val baseHalf = tailWidth * min(g.radiusX, g.radiusY)
+    return baseCenter + Offset(perp.x * baseHalf, perp.y * baseHalf)
+}
+
+/** Returns a copy whose tail base half-width matches [target]'s distance from the tail axis. */
+fun Balloon.tailWidthFromPoint(target: Offset, canvasSize: Size): Balloon {
+    val g = geometry(canvasSize)
+    val perp = Offset(-g.tailDir.y, g.tailDir.x)
+    val baseCenter = tailBaseCenter(g)
+    val signed = (target.x - baseCenter.x) * perp.x + (target.y - baseCenter.y) * perp.y
+    val minRadius = min(g.radiusX, g.radiusY)
+    val newWidth = if (minRadius > 0f) abs(signed) / minRadius else tailWidth
+    return copy(tailWidth = newWidth)
+}
+
+private fun tailBaseCenter(g: BalloonGeometry): Offset =
+    g.center + Offset(g.tailDir.x * g.edgeRadius * TAIL_BASE_INSET, g.tailDir.y * g.edgeRadius * TAIL_BASE_INSET)
 
 /**
  * Returns a copy whose tail points at [target] (in canvas pixels). Because the
@@ -109,14 +138,15 @@ fun DrawScope.drawBalloon(
         return
     }
 
-    val body = if (balloon.type == BalloonType.YELL) starburstPath(g) else Path().apply { addOval(g.rect) }
+    val body = balloon.bodyPath(g)
     // Merge the tail into the body so they share one seamless outline.
     val silhouette = Path()
     if (g.tailLengthPx > strokeWidth) {
-        val merged = silhouette.op(body, tailPath(g, balloon.type), PathOperation.Union)
+        val tail = tailPath(g, balloon.tailWidth)
+        val merged = silhouette.op(body, tail, PathOperation.Union)
         if (!merged) {
             silhouette.addPath(body)
-            silhouette.addPath(tailPath(g, balloon.type))
+            silhouette.addPath(tail)
         }
     } else {
         silhouette.addPath(body)
@@ -124,6 +154,15 @@ fun DrawScope.drawBalloon(
 
     drawPath(silhouette, color = bodyColor)
     drawPath(silhouette, color = outlineColor, style = Stroke(width = strokeWidth, pathEffect = dash))
+}
+
+private fun Balloon.bodyPath(g: BalloonGeometry): Path = when (type) {
+    BalloonType.YELL -> starburstPath(g)
+    BalloonType.THINK -> Path().apply { addOval(g.rect) }
+    else -> {
+        val radius = cornerRoundness.coerceIn(0f, 1f) * min(g.radiusX, g.radiusY)
+        Path().apply { addRoundRect(RoundRect(g.rect, CornerRadius(radius, radius))) }
+    }
 }
 
 private fun BalloonType.outlineDash(strokeWidth: Float): PathEffect? =
@@ -149,15 +188,10 @@ private fun starburstPath(g: BalloonGeometry): Path {
     }
 }
 
-private fun tailPath(g: BalloonGeometry, type: BalloonType): Path {
+private fun tailPath(g: BalloonGeometry, tailWidth: Float): Path {
     val perp = Offset(-g.tailDir.y, g.tailDir.x)
-    val baseHalf = if (type == BalloonType.YELL) {
-        min(g.radiusX, g.radiusY) * 0.22f
-    } else {
-        min(g.radiusX, g.radiusY) * 0.5f
-    }
-    // Start the base inside the body so the union overlaps and merges cleanly.
-    val baseCenter = g.center + Offset(g.tailDir.x * g.edgeRadius * 0.7f, g.tailDir.y * g.edgeRadius * 0.7f)
+    val baseHalf = tailWidth * min(g.radiusX, g.radiusY)
+    val baseCenter = tailBaseCenter(g)
     return Path().apply {
         moveTo(baseCenter.x + perp.x * baseHalf, baseCenter.y + perp.y * baseHalf)
         lineTo(g.tip.x, g.tip.y)

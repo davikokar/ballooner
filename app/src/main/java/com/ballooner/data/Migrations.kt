@@ -25,3 +25,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_balloon_projectId` ON `balloon` (`projectId`)")
     }
 }
+
+/** Adds balloon shape controls: corner roundness and tail width. */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `balloon` ADD COLUMN `cornerRoundness` REAL NOT NULL DEFAULT 1.0")
+        db.execSQL("ALTER TABLE `balloon` ADD COLUMN `tailWidth` REAL NOT NULL DEFAULT 0.5")
+    }
+}

@@ -20,4 +20,8 @@ data class Balloon(
     val tailAngleDegrees: Float = 90f,
     // How far the tail extends past the body, as a fraction of the image.
     val tailLength: Float = 0.12f,
+    // Body corner roundness: 0f = square corners, 1f = fully rounded.
+    val cornerRoundness: Float = 1f,
+    // Half-width of the tail base, as a fraction of the body's smaller radius.
+    val tailWidth: Float = 0.5f,
 )
