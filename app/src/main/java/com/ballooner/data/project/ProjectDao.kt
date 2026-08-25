@@ -10,8 +10,14 @@ interface ProjectDao {
     @Query("SELECT * FROM project ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<ProjectEntity>>
 
+    @Query("SELECT * FROM project WHERE id = :id")
+    fun observeById(id: Long): Flow<ProjectEntity?>
+
     @Insert
     suspend fun insert(project: ProjectEntity): Long
+
+    @Query("UPDATE project SET imageUri = :uri WHERE id = :id")
+    suspend fun updateImageUri(id: Long, uri: String?)
 
     @Query("DELETE FROM project WHERE id = :id")
     suspend fun deleteById(id: Long)

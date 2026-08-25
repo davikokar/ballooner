@@ -10,7 +10,11 @@ import kotlinx.coroutines.flow.Flow
 interface ProjectRepository {
     fun observeProjects(): Flow<List<Project>>
 
+    fun observeProject(id: Long): Flow<Project?>
+
     suspend fun createProject(name: String, description: String): Long
+
+    suspend fun setProjectImage(id: Long, uri: String?)
 
     suspend fun deleteProject(id: Long)
 }

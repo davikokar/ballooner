@@ -12,6 +12,9 @@ class RoomProjectRepository @Inject constructor(
     override fun observeProjects(): Flow<List<Project>> =
         dao.observeAll().map { entities -> entities.map(ProjectEntity::toDomain) }
 
+    override fun observeProject(id: Long): Flow<Project?> =
+        dao.observeById(id).map { it?.toDomain() }
+
     override suspend fun createProject(name: String, description: String): Long =
         dao.insert(
             ProjectEntity(
@@ -21,6 +24,8 @@ class RoomProjectRepository @Inject constructor(
             ),
         )
 
+    override suspend fun setProjectImage(id: Long, uri: String?) = dao.updateImageUri(id, uri)
+
     override suspend fun deleteProject(id: Long) = dao.deleteById(id)
 }
 
@@ -29,4 +34,5 @@ private fun ProjectEntity.toDomain() = Project(
     name = name,
     description = description,
     createdAt = createdAt,
+    imageUri = imageUri,
 )

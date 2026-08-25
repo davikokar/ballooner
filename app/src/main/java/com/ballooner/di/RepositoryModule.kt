@@ -1,5 +1,7 @@
 package com.ballooner.di
 
+import com.ballooner.data.balloon.BalloonRepository
+import com.ballooner.data.balloon.RoomBalloonRepository
 import com.ballooner.data.project.ProjectRepository
 import com.ballooner.data.project.RoomProjectRepository
 import dagger.Binds
@@ -15,4 +17,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindProjectRepository(impl: RoomProjectRepository): ProjectRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBalloonRepository(impl: RoomBalloonRepository): BalloonRepository
 }

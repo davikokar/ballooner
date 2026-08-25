@@ -1,5 +1,6 @@
 package com.ballooner.ui.projectlist
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,12 +36,14 @@ import com.ballooner.domain.model.Project
 @Composable
 fun ProjectListRoute(
     onCreateProject: () -> Unit,
+    onOpenProject: (Long) -> Unit,
     viewModel: ProjectListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ProjectListScreen(
         uiState = uiState,
         onCreateProject = onCreateProject,
+        onOpenProject = onOpenProject,
         onDeleteProject = viewModel::deleteProject,
     )
 }
@@ -50,6 +53,7 @@ fun ProjectListRoute(
 fun ProjectListScreen(
     uiState: ProjectListUiState,
     onCreateProject: () -> Unit,
+    onOpenProject: (Long) -> Unit,
     onDeleteProject: (Long) -> Unit,
 ) {
     Scaffold(
@@ -71,6 +75,7 @@ fun ProjectListScreen(
                 ProjectListUiState.Empty -> Text("No projects yet. Tap + to start one.")
                 is ProjectListUiState.Content -> ProjectList(
                     projects = uiState.projects,
+                    onOpenProject = onOpenProject,
                     onDeleteProject = onDeleteProject,
                 )
             }
@@ -81,6 +86,7 @@ fun ProjectListScreen(
 @Composable
 private fun ProjectList(
     projects: List<Project>,
+    onOpenProject: (Long) -> Unit,
     onDeleteProject: (Long) -> Unit,
 ) {
     LazyColumn(
@@ -92,6 +98,7 @@ private fun ProjectList(
         items(projects, key = { it.id }) { project ->
             ProjectRow(
                 project = project,
+                onOpen = { onOpenProject(project.id) },
                 onDelete = { onDeleteProject(project.id) },
             )
         }
@@ -99,8 +106,12 @@ private fun ProjectList(
 }
 
 @Composable
-private fun ProjectRow(project: Project, onDelete: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -129,6 +140,7 @@ private fun ProjectListEmptyPreview() {
     ProjectListScreen(
         uiState = ProjectListUiState.Empty,
         onCreateProject = {},
+        onOpenProject = {},
         onDeleteProject = {},
     )
 }
@@ -144,6 +156,7 @@ private fun ProjectListContentPreview() {
             ),
         ),
         onCreateProject = {},
+        onOpenProject = {},
         onDeleteProject = {},
     )
 }
