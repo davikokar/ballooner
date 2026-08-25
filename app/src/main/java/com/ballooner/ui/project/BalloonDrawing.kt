@@ -19,6 +19,7 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -132,9 +133,12 @@ fun DrawScope.drawBalloon(
 
     if (balloon.type == BalloonType.THINK) {
         drawThinkTail(g, bodyColor, outlineColor, strokeWidth)
-        val body = Path().apply { addOval(g.rect) }
-        drawPath(body, color = bodyColor)
-        drawPath(body, color = outlineColor, style = Stroke(width = strokeWidth))
+        // More bumps for a bigger cloud.
+        val bumpCount = ((g.radiusX + g.radiusY) / (canvasSize.minDimension * 0.09f))
+            .roundToInt().coerceIn(7, 18)
+        val cloud = cloudPath(g, bumpCount)
+        drawPath(cloud, color = bodyColor)
+        drawPath(cloud, color = outlineColor, style = Stroke(width = strokeWidth))
         return
     }
 
@@ -188,6 +192,25 @@ private fun starburstPath(g: BalloonGeometry): Path {
     }
 }
 
+/** A cloud silhouette: a central ellipse merged with [bumpCount] round bumps. */
+private fun cloudPath(g: BalloonGeometry, bumpCount: Int): Path {
+    val cx = g.center.x
+    val cy = g.center.y
+    val innerRx = g.radiusX * 0.70f
+    val innerRy = g.radiusY * 0.70f
+    val bumpRadius = min(g.radiusX, g.radiusY) * 0.32f
+    var cloud = Path().apply { addOval(Rect(cx - innerRx, cy - innerRy, cx + innerRx, cy + innerRy)) }
+    for (i in 0 until bumpCount) {
+        val angle = (2.0 * Math.PI * i / bumpCount).toFloat()
+        val bx = cx + innerRx * cos(angle)
+        val by = cy + innerRy * sin(angle)
+        val bump = Path().apply { addOval(Rect(bx - bumpRadius, by - bumpRadius, bx + bumpRadius, by + bumpRadius)) }
+        val next = Path()
+        if (next.op(cloud, bump, PathOperation.Union)) cloud = next
+    }
+    return cloud
+}
+
 private fun tailPath(g: BalloonGeometry, tailWidth: Float): Path {
     val perp = Offset(-g.tailDir.y, g.tailDir.x)
     val baseHalf = tailWidth * min(g.radiusX, g.radiusY)
@@ -207,7 +230,8 @@ private fun DrawScope.drawThinkTail(
     strokeWidth: Float,
 ) {
     if (g.tailLengthPx <= 0f) return
-    val bubbles = 3
+    // More bubbles for a longer tail.
+    val bubbles = (g.tailLengthPx / (min(g.radiusX, g.radiusY) * 0.5f)).roundToInt().coerceIn(2, 7)
     for (i in 1..bubbles) {
         val t = i.toFloat() / bubbles
         val pos = g.edge + (g.tip - g.edge) * t

@@ -557,20 +557,23 @@ private fun Handles(
         onDragEnd = onCommit,
     )
 
-    // Tail-width handle (drag sideways to set the tail thickness).
-    DragHandle(
-        centerPx = balloon.tailBaseHandle(canvasSize),
-        sizeDp = 24.dp,
-        color = Color(0xFF2ECC71),
-        shape = CircleShape,
-        keyId = balloon.id,
-        onDrag = { d ->
-            val b = base()
-            val target = b.tailBaseHandle(canvasSize) + d
-            onLiveChange(b.tailWidthFromPoint(target, canvasSize))
-        },
-        onDragEnd = onCommit,
-    )
+    // Tail-width handle (drag sideways to set the tail thickness). Not for Think,
+    // whose tail is made of bubbles.
+    if (balloon.type != BalloonType.THINK) {
+        DragHandle(
+            centerPx = balloon.tailBaseHandle(canvasSize),
+            sizeDp = 24.dp,
+            color = Color(0xFF2ECC71),
+            shape = CircleShape,
+            keyId = balloon.id,
+            onDrag = { d ->
+                val b = base()
+                val target = b.tailBaseHandle(canvasSize) + d
+                onLiveChange(b.tailWidthFromPoint(target, canvasSize))
+            },
+            onDragEnd = onCommit,
+        )
+    }
 
     // Delete handle (top-right).
     TapHandle(
