@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -117,6 +119,8 @@ fun ProjectScreen(
     val launchPicker = {
         pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
+    // Edit mode shows the balloon controls; view mode shows the flat result.
+    var editMode by remember { mutableStateOf(true) }
 
     Scaffold(
         topBar = {
@@ -129,8 +133,21 @@ fun ProjectScreen(
                 },
                 actions = {
                     if (uiState.hasImage) {
-                        IconButton(onClick = { launchPicker() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Change image")
+                        if (editMode) {
+                            IconButton(onClick = { launchPicker() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Change image")
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                editMode = !editMode
+                                if (!editMode) onSelectBalloon(null)
+                            },
+                        ) {
+                            Icon(
+                                imageVector = if (editMode) Icons.Default.Done else Icons.Default.Edit,
+                                contentDescription = if (editMode) "Switch to view mode" else "Switch to edit mode",
+                            )
                         }
                     }
                 },
@@ -144,11 +161,14 @@ fun ProjectScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    Toolbar(onAddBalloon = onAddBalloon)
+                    if (editMode) {
+                        Toolbar(onAddBalloon = onAddBalloon)
+                    }
                     Editor(
                         imageUri = uiState.imageUri!!,
                         balloons = uiState.balloons,
                         selectedBalloonId = uiState.selectedBalloonId,
+                        editMode = editMode,
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
@@ -198,6 +218,7 @@ private fun Editor(
     imageUri: String,
     balloons: List<Balloon>,
     selectedBalloonId: Long?,
+    editMode: Boolean,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
@@ -223,8 +244,9 @@ private fun Editor(
                         .fillMaxWidth()
                         .aspectRatio(image.width.toFloat() / image.height.toFloat())
                         .onSizeChanged { layerSize = it }
-                        .pointerInput(balloons) {
+                        .pointerInput(balloons, editMode) {
                             detectTapGestures { offset ->
+                                if (!editMode) return@detectTapGestures
                                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                                 val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
                                 onSelectBalloon(hit?.id)
@@ -244,6 +266,7 @@ private fun Editor(
                             BalloonText(
                                 balloon = balloon,
                                 canvasSize = size,
+                                editable = editMode,
                                 onTextChange = { newText ->
                                     val current = live?.takeIf { it.id == balloon.id } ?: balloon
                                     val updated = current.copy(text = newText)
@@ -254,15 +277,17 @@ private fun Editor(
                             )
                         }
 
-                        selected?.let { sel ->
-                            Handles(
-                                balloon = sel,
-                                canvasSize = size,
-                                base = { live ?: sel },
-                                onLiveChange = { live = it },
-                                onCommit = { live?.let(onCommitBalloon) },
-                                onDelete = onDeleteSelected,
-                            )
+                        if (editMode) {
+                            selected?.let { sel ->
+                                Handles(
+                                    balloon = sel,
+                                    canvasSize = size,
+                                    base = { live ?: sel },
+                                    onLiveChange = { live = it },
+                                    onCommit = { live?.let(onCommitBalloon) },
+                                    onDelete = onDeleteSelected,
+                                )
+                            }
                         }
                     }
                 }
@@ -270,6 +295,7 @@ private fun Editor(
         }
 
         selected?.let { sel ->
+            if (!editMode) return@let
             TextControls(
                 font = sel.font,
                 fontSize = sel.fontSize,
@@ -359,6 +385,7 @@ private fun ShapeSlider(
 private fun BalloonText(
     balloon: Balloon,
     canvasSize: Size,
+    editable: Boolean,
     onTextChange: (String) -> Unit,
     onFocused: () -> Unit,
 ) {
@@ -380,9 +407,11 @@ private fun BalloonText(
         BasicTextField(
             value = text,
             onValueChange = {
+                if (!editable) return@BasicTextField
                 text = it
                 onTextChange(it)
             },
+            readOnly = !editable,
             textStyle = TextStyle(
                 color = Color.Black,
                 fontSize = balloon.fontSize.sp,

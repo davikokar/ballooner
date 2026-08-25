@@ -49,4 +49,6 @@ private fun Balloon.toEntity(projectId: Long) = BalloonEntity(
     tailLength = tailLength,
     cornerRoundness = cornerRoundness,
     tailWidth = tailWidth,
+    fontSize = fontSize,
+    font = font.name,
 )
