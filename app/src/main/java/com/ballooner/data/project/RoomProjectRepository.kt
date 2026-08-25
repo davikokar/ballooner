@@ -26,6 +26,8 @@ class RoomProjectRepository @Inject constructor(
 
     override suspend fun setProjectImage(id: Long, uri: String?) = dao.updateImageUri(id, uri)
 
+    override suspend fun setProjectName(id: Long, name: String) = dao.updateName(id, name)
+
     override suspend fun deleteProject(id: Long) = dao.deleteById(id)
 }
 

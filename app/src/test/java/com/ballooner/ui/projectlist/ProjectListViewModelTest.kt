@@ -5,6 +5,7 @@ import com.ballooner.data.project.FakeProjectRepository
 import com.ballooner.domain.model.Project
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -62,6 +63,22 @@ class ProjectListViewModelTest {
             viewModel.deleteProject(1)
 
             assertEquals(ProjectListUiState.Empty, awaitItem())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `createProject adds a default titled project and reports its id`() = runTest {
+        val repository = FakeProjectRepository()
+        val viewModel = ProjectListViewModel(repository)
+        var createdId = -1L
+
+        viewModel.createProject { createdId = it }
+        advanceUntilIdle()
+
+        assertTrue(createdId > 0)
+        repository.observeProjects().test {
+            assertEquals("My Comic 1", awaitItem().single().name)
             cancelAndConsumeRemainingEvents()
         }
     }

@@ -34,6 +34,7 @@ class ProjectViewModel @Inject constructor(
         selectedBalloonId,
     ) { project, balloons, selectedId ->
         ProjectUiState(
+            name = project?.name.orEmpty(),
             imageUri = project?.imageUri,
             balloons = balloons,
             selectedBalloonId = selectedId?.takeIf { id -> balloons.any { it.id == id } },
@@ -46,6 +47,10 @@ class ProjectViewModel @Inject constructor(
 
     fun onImagePicked(uri: String) {
         viewModelScope.launch { projectRepository.setProjectImage(projectId, uri) }
+    }
+
+    fun setProjectName(name: String) {
+        viewModelScope.launch { projectRepository.setProjectName(projectId, name) }
     }
 
     fun addBalloon(type: BalloonType) {

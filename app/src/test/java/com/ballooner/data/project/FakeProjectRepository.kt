@@ -32,6 +32,10 @@ class FakeProjectRepository(
         projects.value = projects.value.map { if (it.id == id) it.copy(imageUri = uri) else it }
     }
 
+    override suspend fun setProjectName(id: Long, name: String) {
+        projects.value = projects.value.map { if (it.id == id) it.copy(name = name) else it }
+    }
+
     override suspend fun deleteProject(id: Long) {
         projects.value = projects.value.filterNot { it.id == id }
     }

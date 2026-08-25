@@ -59,6 +59,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -85,14 +86,17 @@ import kotlin.math.roundToInt
 @Composable
 fun ProjectRoute(
     projectId: Long,
+    autoOpenPicker: Boolean,
     onNavigateBack: () -> Unit,
     viewModel: ProjectViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ProjectScreen(
-        title = "Project #$projectId",
+        projectName = uiState.name,
+        autoOpenPicker = autoOpenPicker,
         uiState = uiState,
         onNavigateBack = onNavigateBack,
+        onRenameProject = viewModel::setProjectName,
         onImagePicked = viewModel::onImagePicked,
         onAddBalloon = viewModel::addBalloon,
         onSelectBalloon = viewModel::selectBalloon,
@@ -104,9 +108,11 @@ fun ProjectRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectScreen(
-    title: String,
+    projectName: String,
+    autoOpenPicker: Boolean,
     uiState: ProjectUiState,
     onNavigateBack: () -> Unit,
+    onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
     onAddBalloon: (BalloonType) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
@@ -123,6 +129,10 @@ fun ProjectScreen(
     }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
+    // A freshly created project jumps straight to image selection.
+    LaunchedEffect(Unit) {
+        if (autoOpenPicker) launchPicker()
+    }
     // Keep a balloon selected in edit mode so the controls stay visible.
     LaunchedEffect(editMode, uiState.balloons, uiState.selectedBalloonId) {
         if (editMode && uiState.selectedBalloonId == null && uiState.balloons.isNotEmpty()) {
@@ -133,7 +143,13 @@ fun ProjectScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = {
+                    if (editMode) {
+                        EditableTitle(name = projectName, onRename = onRenameProject)
+                    } else {
+                        Text(projectName.ifBlank { "Untitled" })
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -175,6 +191,35 @@ fun ProjectScreen(
             }
         }
     }
+}
+
+@Composable
+private fun EditableTitle(name: String, onRename: (String) -> Unit) {
+    var text by remember { mutableStateOf(name) }
+    // Seed once the persisted name loads without clobbering in-progress edits.
+    LaunchedEffect(name) {
+        if (text.isBlank() && name.isNotBlank()) text = name
+    }
+    BasicTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            onRename(it)
+        },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.titleLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { inner ->
+            if (text.isEmpty()) {
+                Text(
+                    text = "Title",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            inner()
+        },
+    )
 }
 
 @Composable
@@ -653,9 +698,11 @@ private suspend fun loadBitmap(context: Context, uri: String): ImageBitmap? =
 @Composable
 private fun ProjectScreenNoImagePreview() {
     ProjectScreen(
-        title = "Project #1",
+        projectName = "My Comic 1",
+        autoOpenPicker = false,
         uiState = ProjectUiState(),
         onNavigateBack = {},
+        onRenameProject = {},
         onImagePicked = {},
         onAddBalloon = {},
         onSelectBalloon = {},

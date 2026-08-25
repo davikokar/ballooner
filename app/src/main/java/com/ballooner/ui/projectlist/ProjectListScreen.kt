@@ -35,14 +35,14 @@ import com.ballooner.domain.model.Project
 
 @Composable
 fun ProjectListRoute(
-    onCreateProject: () -> Unit,
     onOpenProject: (Long) -> Unit,
+    onCreatedProject: (Long) -> Unit,
     viewModel: ProjectListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ProjectListScreen(
         uiState = uiState,
-        onCreateProject = onCreateProject,
+        onCreateProject = { viewModel.createProject(onCreatedProject) },
         onOpenProject = onOpenProject,
         onDeleteProject = viewModel::deleteProject,
     )

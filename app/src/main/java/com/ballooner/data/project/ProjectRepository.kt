@@ -16,5 +16,7 @@ interface ProjectRepository {
 
     suspend fun setProjectImage(id: Long, uri: String?)
 
+    suspend fun setProjectName(id: Long, name: String)
+
     suspend fun deleteProject(id: Long)
 }

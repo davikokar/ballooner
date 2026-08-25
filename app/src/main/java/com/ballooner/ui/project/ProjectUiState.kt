@@ -3,6 +3,7 @@ package com.ballooner.ui.project
 import com.ballooner.domain.model.Balloon
 
 data class ProjectUiState(
+    val name: String = "",
     val imageUri: String? = null,
     val balloons: List<Balloon> = emptyList(),
     val selectedBalloonId: Long? = null,
