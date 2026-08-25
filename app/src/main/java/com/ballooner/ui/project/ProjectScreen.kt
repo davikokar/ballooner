@@ -1,10 +1,10 @@
 package com.ballooner.ui.project
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -119,13 +119,23 @@ fun ProjectScreen(
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
 ) {
+    val context = LocalContext.current
     val pickMedia = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
+        ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
-        if (uri != null) onImagePicked(uri.toString())
+        if (uri != null) {
+            // Persist read access so the image still loads after the app restarts.
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            onImagePicked(uri.toString())
+        }
     }
     val launchPicker = {
-        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        pickMedia.launch(arrayOf("image/*"))
     }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
@@ -185,6 +195,7 @@ fun ProjectScreen(
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
+                        onOpenImagePicker = { launchPicker() },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -277,9 +288,10 @@ private fun Editor(
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
+    onOpenImagePicker: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val image = rememberImageBitmap(imageUri)
+    val imageState = rememberImageState(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -291,9 +303,17 @@ private fun Editor(
 
     Column(modifier = modifier.fillMaxSize().padding(8.dp)) {
         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-            if (image == null) {
-                Text("Loading image\u2026")
-            } else {
+            when (val state = imageState) {
+                ImageResult.Loading -> Text("Loading image\u2026")
+                ImageResult.Failed -> Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Couldn't load this image.")
+                    Button(onClick = onOpenImagePicker) { Text("Choose image") }
+                }
+                is ImageResult.Loaded -> {
+                val image = state.bitmap
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -345,6 +365,7 @@ private fun Editor(
                             }
                         }
                     }
+                }
                 }
             }
         }
@@ -680,11 +701,21 @@ private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
     BalloonFont.VERDANA -> googleFontFamily("Noto Sans")
 }
 
+private sealed interface ImageResult {
+    data object Loading : ImageResult
+    data class Loaded(val bitmap: ImageBitmap) : ImageResult
+    data object Failed : ImageResult
+}
+
 @Composable
-private fun rememberImageBitmap(uri: String?): ImageBitmap? {
+private fun rememberImageState(uri: String?): ImageResult {
     val context = LocalContext.current
-    return produceState<ImageBitmap?>(initialValue = null, uri) {
-        value = uri?.let { loadBitmap(context, it) }
+    return produceState<ImageResult>(ImageResult.Loading, uri) {
+        value = if (uri == null) {
+            ImageResult.Loading
+        } else {
+            loadBitmap(context, uri)?.let(ImageResult::Loaded) ?: ImageResult.Failed
+        }
     }.value
 }
 
