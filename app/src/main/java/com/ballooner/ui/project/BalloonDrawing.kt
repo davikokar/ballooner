@@ -6,13 +6,18 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /** Geometry of a balloon expressed in canvas pixels. */
 private data class BalloonGeometry(
@@ -20,22 +25,32 @@ private data class BalloonGeometry(
     val radiusX: Float,
     val radiusY: Float,
     val tailDir: Offset,
+    val edgeRadius: Float,
     val tailLengthPx: Float,
 ) {
     val rect: Rect
         get() = Rect(center.x - radiusX, center.y - radiusY, center.x + radiusX, center.y + radiusY)
-    val edge: Offset get() = center + Offset(tailDir.x * radiusX, tailDir.y * radiusY)
+    val edge: Offset get() = center + Offset(tailDir.x * edgeRadius, tailDir.y * edgeRadius)
     val tip: Offset
-        get() = center + Offset(tailDir.x * (radiusX + tailLengthPx), tailDir.y * (radiusY + tailLengthPx))
+        get() = center + Offset(tailDir.x * (edgeRadius + tailLengthPx), tailDir.y * (edgeRadius + tailLengthPx))
+}
+
+/** Radius from the center to the ellipse edge along [angleRad]. */
+private fun ellipseEdgeRadius(radiusX: Float, radiusY: Float, angleRad: Float): Float {
+    val denom = sqrt((radiusY * cos(angleRad)) * (radiusY * cos(angleRad)) + (radiusX * sin(angleRad)) * (radiusX * sin(angleRad)))
+    return if (denom > 0f) radiusX * radiusY / denom else max(radiusX, radiusY)
 }
 
 private fun Balloon.geometry(canvasSize: Size): BalloonGeometry {
-    val angleRad = Math.toRadians(tailAngleDegrees.toDouble())
+    val angleRad = Math.toRadians(tailAngleDegrees.toDouble()).toFloat()
+    val radiusX = width * canvasSize.width / 2f
+    val radiusY = height * canvasSize.height / 2f
     return BalloonGeometry(
         center = Offset(centerX * canvasSize.width, centerY * canvasSize.height),
-        radiusX = width * canvasSize.width / 2f,
-        radiusY = height * canvasSize.height / 2f,
-        tailDir = Offset(cos(angleRad).toFloat(), sin(angleRad).toFloat()),
+        radiusX = radiusX,
+        radiusY = radiusY,
+        tailDir = Offset(cos(angleRad), sin(angleRad)),
+        edgeRadius = ellipseEdgeRadius(radiusX, radiusY, angleRad),
         tailLengthPx = tailLength * min(canvasSize.width, canvasSize.height),
     )
 }
@@ -45,6 +60,27 @@ fun Balloon.bodyCenter(canvasSize: Size): Offset = geometry(canvasSize).center
 
 /** The tip of the tail in canvas pixels. */
 fun Balloon.tailTip(canvasSize: Size): Offset = geometry(canvasSize).tip
+
+/**
+ * Returns a copy whose tail points at [target] (in canvas pixels). Because the
+ * tail tip is radial, the resulting [tailTip] equals [target], so a drag handle
+ * placed at the tip follows the finger exactly.
+ */
+fun Balloon.tailAtPoint(target: Offset, canvasSize: Size): Balloon {
+    val radiusX = width * canvasSize.width / 2f
+    val radiusY = height * canvasSize.height / 2f
+    val center = Offset(centerX * canvasSize.width, centerY * canvasSize.height)
+    val ux = target.x - center.x
+    val uy = target.y - center.y
+    val angle = atan2(uy, ux)
+    val edgeRadius = ellipseEdgeRadius(radiusX, radiusY, angle)
+    val minDim = min(canvasSize.width, canvasSize.height)
+    val length = ((hypot(ux, uy) - edgeRadius) / minDim).coerceAtLeast(0f)
+    return copy(
+        tailAngleDegrees = Math.toDegrees(angle.toDouble()).toFloat(),
+        tailLength = length,
+    )
+}
 
 /** True when [point] (in canvas pixels) lies inside the balloon body ellipse. */
 fun Balloon.containsPoint(point: Offset, canvasSize: Size): Boolean {
@@ -63,24 +99,31 @@ fun DrawScope.drawBalloon(
 ) {
     val g = balloon.geometry(canvasSize)
     val strokeWidth = maxOf(canvasSize.minDimension * 0.006f, 2f)
+    val dash = balloon.type.outlineDash(strokeWidth)
 
-    when (balloon.type) {
-        BalloonType.THINK -> drawThinkTail(g, bodyColor, outlineColor, strokeWidth)
-        else -> drawTail(g, balloon.type, bodyColor, outlineColor, strokeWidth)
+    if (balloon.type == BalloonType.THINK) {
+        drawThinkTail(g, bodyColor, outlineColor, strokeWidth)
+        val body = Path().apply { addOval(g.rect) }
+        drawPath(body, color = bodyColor)
+        drawPath(body, color = outlineColor, style = Stroke(width = strokeWidth))
+        return
     }
 
-    val bodyPath = bodyPath(balloon.type, g)
-    drawPath(bodyPath, color = bodyColor)
-    drawPath(
-        path = bodyPath,
-        color = outlineColor,
-        style = Stroke(width = strokeWidth, pathEffect = balloon.type.outlineDash(strokeWidth)),
-    )
-}
+    val body = if (balloon.type == BalloonType.YELL) starburstPath(g) else Path().apply { addOval(g.rect) }
+    // Merge the tail into the body so they share one seamless outline.
+    val silhouette = Path()
+    if (g.tailLengthPx > strokeWidth) {
+        val merged = silhouette.op(body, tailPath(g, balloon.type), PathOperation.Union)
+        if (!merged) {
+            silhouette.addPath(body)
+            silhouette.addPath(tailPath(g, balloon.type))
+        }
+    } else {
+        silhouette.addPath(body)
+    }
 
-private fun bodyPath(type: BalloonType, g: BalloonGeometry): Path = when (type) {
-    BalloonType.YELL -> starburstPath(g)
-    else -> Path().apply { addOval(g.rect) }
+    drawPath(silhouette, color = bodyColor)
+    drawPath(silhouette, color = outlineColor, style = Stroke(width = strokeWidth, pathEffect = dash))
 }
 
 private fun BalloonType.outlineDash(strokeWidth: Float): PathEffect? =
@@ -106,28 +149,21 @@ private fun starburstPath(g: BalloonGeometry): Path {
     }
 }
 
-private fun DrawScope.drawTail(
-    g: BalloonGeometry,
-    type: BalloonType,
-    bodyColor: Color,
-    outlineColor: Color,
-    strokeWidth: Float,
-) {
-    if (g.tailLengthPx <= 0f) return
+private fun tailPath(g: BalloonGeometry, type: BalloonType): Path {
     val perp = Offset(-g.tailDir.y, g.tailDir.x)
-    val baseHalf = if (type == BalloonType.YELL) g.radiusX * 0.12f else g.radiusX * 0.28f
-    val tail = Path().apply {
-        moveTo(g.edge.x + perp.x * baseHalf, g.edge.y + perp.y * baseHalf)
+    val baseHalf = if (type == BalloonType.YELL) {
+        min(g.radiusX, g.radiusY) * 0.22f
+    } else {
+        min(g.radiusX, g.radiusY) * 0.5f
+    }
+    // Start the base inside the body so the union overlaps and merges cleanly.
+    val baseCenter = g.center + Offset(g.tailDir.x * g.edgeRadius * 0.7f, g.tailDir.y * g.edgeRadius * 0.7f)
+    return Path().apply {
+        moveTo(baseCenter.x + perp.x * baseHalf, baseCenter.y + perp.y * baseHalf)
         lineTo(g.tip.x, g.tip.y)
-        lineTo(g.edge.x - perp.x * baseHalf, g.edge.y - perp.y * baseHalf)
+        lineTo(baseCenter.x - perp.x * baseHalf, baseCenter.y - perp.y * baseHalf)
         close()
     }
-    drawPath(tail, color = bodyColor)
-    drawPath(
-        path = tail,
-        color = outlineColor,
-        style = Stroke(width = strokeWidth, pathEffect = type.outlineDash(strokeWidth)),
-    )
 }
 
 private fun DrawScope.drawThinkTail(
