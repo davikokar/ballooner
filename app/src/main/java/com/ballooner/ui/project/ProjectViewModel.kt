@@ -67,34 +67,24 @@ class ProjectViewModel @Inject constructor(
         }
     }
 
-    fun setType(type: BalloonType) = updateSelected { it.copy(type = type) }
-
-    fun setText(text: String) = updateSelected { it.copy(text = text) }
-
-    fun setSize(width: Float, height: Float) = updateSelected {
-        it.copy(width = width.coerceIn(MIN_SIZE, 1f), height = height.coerceIn(MIN_SIZE, 1f))
+    fun setText(id: Long, text: String) {
+        val current = uiState.value.balloons.firstOrNull { it.id == id } ?: return
+        commitBalloon(current.copy(text = text))
     }
 
-    fun setTailAngle(degrees: Float) = updateSelected {
-        it.copy(tailAngleDegrees = degrees.mod(360f))
+    /** Persists a balloon after a direct-manipulation gesture (move / resize / tail). */
+    fun commitBalloon(balloon: Balloon) {
+        viewModelScope.launch { balloonRepository.upsertBalloon(projectId, balloon.sanitized()) }
     }
 
-    fun setTailLength(length: Float) = updateSelected {
-        it.copy(tailLength = length.coerceIn(0f, MAX_TAIL_LENGTH))
-    }
-
-    /** Moves the selected balloon by a delta expressed as a fraction of the image. */
-    fun moveSelectedBy(dxFraction: Float, dyFraction: Float) = updateSelected {
-        it.copy(
-            centerX = (it.centerX + dxFraction).coerceIn(0f, 1f),
-            centerY = (it.centerY + dyFraction).coerceIn(0f, 1f),
-        )
-    }
-
-    private fun updateSelected(transform: (Balloon) -> Balloon) {
-        val current = uiState.value.selectedBalloon ?: return
-        viewModelScope.launch { balloonRepository.upsertBalloon(projectId, transform(current)) }
-    }
+    private fun Balloon.sanitized() = copy(
+        centerX = centerX.coerceIn(0f, 1f),
+        centerY = centerY.coerceIn(0f, 1f),
+        width = width.coerceIn(MIN_SIZE, 1f),
+        height = height.coerceIn(MIN_SIZE, 1f),
+        tailAngleDegrees = tailAngleDegrees.mod(360f),
+        tailLength = tailLength.coerceIn(0f, MAX_TAIL_LENGTH),
+    )
 
     private companion object {
         const val PROJECT_ID_KEY = "projectId"

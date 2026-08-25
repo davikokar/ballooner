@@ -8,12 +8,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
 import kotlin.math.cos
@@ -46,6 +40,12 @@ private fun Balloon.geometry(canvasSize: Size): BalloonGeometry {
     )
 }
 
+/** Center of the balloon body in canvas pixels. */
+fun Balloon.bodyCenter(canvasSize: Size): Offset = geometry(canvasSize).center
+
+/** The tip of the tail in canvas pixels. */
+fun Balloon.tailTip(canvasSize: Size): Offset = geometry(canvasSize).tip
+
 /** True when [point] (in canvas pixels) lies inside the balloon body ellipse. */
 fun Balloon.containsPoint(point: Offset, canvasSize: Size): Boolean {
     val g = geometry(canvasSize)
@@ -58,12 +58,8 @@ fun Balloon.containsPoint(point: Offset, canvasSize: Size): Boolean {
 fun DrawScope.drawBalloon(
     balloon: Balloon,
     canvasSize: Size,
-    isSelected: Boolean,
-    textMeasurer: TextMeasurer,
     bodyColor: Color,
     outlineColor: Color,
-    selectionColor: Color,
-    textColor: Color,
 ) {
     val g = balloon.geometry(canvasSize)
     val strokeWidth = maxOf(canvasSize.minDimension * 0.006f, 2f)
@@ -80,20 +76,6 @@ fun DrawScope.drawBalloon(
         color = outlineColor,
         style = Stroke(width = strokeWidth, pathEffect = balloon.type.outlineDash(strokeWidth)),
     )
-
-    if (isSelected) {
-        drawRect(
-            color = selectionColor,
-            topLeft = Offset(g.rect.left, g.rect.top),
-            size = Size(g.rect.width, g.rect.height),
-            style = Stroke(
-                width = strokeWidth,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(strokeWidth * 3, strokeWidth * 3)),
-            ),
-        )
-    }
-
-    drawBalloonText(balloon, g, textMeasurer, textColor)
 }
 
 private fun bodyPath(type: BalloonType, g: BalloonGeometry): Path = when (type) {
@@ -163,28 +145,4 @@ private fun DrawScope.drawThinkTail(
         drawCircle(color = bodyColor, radius = radius, center = pos)
         drawCircle(color = outlineColor, radius = radius, center = pos, style = Stroke(width = strokeWidth))
     }
-}
-
-private fun DrawScope.drawBalloonText(
-    balloon: Balloon,
-    g: BalloonGeometry,
-    textMeasurer: TextMeasurer,
-    textColor: Color,
-) {
-    if (balloon.text.isBlank()) return
-    val maxWidth = (g.radiusX * 2f * 0.82f).toInt().coerceAtLeast(1)
-    val maxHeight = (g.radiusY * 2f * 0.82f).toInt().coerceAtLeast(1)
-    val result = textMeasurer.measure(
-        text = balloon.text,
-        style = TextStyle(color = textColor, textAlign = TextAlign.Center),
-        overflow = TextOverflow.Ellipsis,
-        constraints = Constraints(maxWidth = maxWidth, maxHeight = maxHeight),
-    )
-    drawText(
-        textLayoutResult = result,
-        topLeft = Offset(
-            g.center.x - result.size.width / 2f,
-            g.center.y - result.size.height / 2f,
-        ),
-    )
 }

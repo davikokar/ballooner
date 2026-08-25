@@ -63,46 +63,38 @@ class ProjectViewModelTest {
     }
 
     @Test
-    fun `updates the type of the selected balloon`() = runTest {
+    fun `updates the text of a balloon`() = runTest {
         val viewModel = viewModel()
 
         viewModel.uiState.test {
             viewModel.addBalloon(BalloonType.SPEAK)
             advanceUntilIdle()
-            viewModel.setType(BalloonType.YELL)
+            val id = expectMostRecentItem().balloons.single().id
+
+            viewModel.setText(id, "Kapow!")
             advanceUntilIdle()
 
-            assertEquals(BalloonType.YELL, expectMostRecentItem().selectedBalloon?.type)
+            assertEquals("Kapow!", expectMostRecentItem().balloons.single().text)
             cancelAndConsumeRemainingEvents()
         }
     }
 
     @Test
-    fun `updates the tail length of the selected balloon`() = runTest {
+    fun `commitBalloon clamps size and tail length to the allowed range`() = runTest {
         val viewModel = viewModel()
 
         viewModel.uiState.test {
             viewModel.addBalloon(BalloonType.SPEAK)
             advanceUntilIdle()
-            viewModel.setTailLength(0.3f)
+            val balloon = expectMostRecentItem().balloons.single()
+
+            viewModel.commitBalloon(balloon.copy(width = 5f, height = 5f, tailLength = 5f))
             advanceUntilIdle()
 
-            assertEquals(0.3f, expectMostRecentItem().selectedBalloon?.tailLength)
-            cancelAndConsumeRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `clamps the tail length to the allowed range`() = runTest {
-        val viewModel = viewModel()
-
-        viewModel.uiState.test {
-            viewModel.addBalloon(BalloonType.SPEAK)
-            advanceUntilIdle()
-            viewModel.setTailLength(5f)
-            advanceUntilIdle()
-
-            assertEquals(0.4f, expectMostRecentItem().selectedBalloon?.tailLength)
+            val saved = expectMostRecentItem().balloons.single()
+            assertEquals(1f, saved.width)
+            assertEquals(1f, saved.height)
+            assertEquals(0.4f, saved.tailLength)
             cancelAndConsumeRemainingEvents()
         }
     }
