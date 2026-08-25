@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Ballooner" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
