@@ -3,6 +3,7 @@ package com.ballooner.ui.project
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.ballooner.data.balloon.FakeBalloonRepository
+import com.ballooner.data.image.FakeImageStore
 import com.ballooner.data.project.FakeProjectRepository
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.Project
@@ -30,6 +31,7 @@ class ProjectViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
             projectRepository = projectRepository,
             balloonRepository = FakeBalloonRepository(),
+            imageStore = FakeImageStore(),
         )
     }
 
@@ -42,6 +44,30 @@ class ProjectViewModelTest {
             advanceUntilIdle()
 
             assertEquals("content://image/1", expectMostRecentItem().imageUri)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `replacing the image deletes the previous copy`() = runTest {
+        val imageStore = FakeImageStore()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(Project(id = 1, name = "Comic", description = "", createdAt = 1)),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            imageStore = imageStore,
+        )
+
+        viewModel.uiState.test {
+            viewModel.onImagePicked("uri1")
+            advanceUntilIdle()
+            viewModel.onImagePicked("uri2")
+            advanceUntilIdle()
+
+            assertEquals("uri2", expectMostRecentItem().imageUri)
+            assertEquals(listOf("uri1"), imageStore.deleted)
             cancelAndConsumeRemainingEvents()
         }
     }

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ballooner.data.balloon.BalloonRepository
+import com.ballooner.data.image.ImageStore
 import com.ballooner.data.project.ProjectRepository
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
@@ -21,6 +22,7 @@ class ProjectViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val projectRepository: ProjectRepository,
     private val balloonRepository: BalloonRepository,
+    private val imageStore: ImageStore,
 ) : ViewModel() {
 
     private val projectId: Long = savedStateHandle.get<Long>(PROJECT_ID_KEY) ?: 0L
@@ -45,8 +47,13 @@ class ProjectViewModel @Inject constructor(
         initialValue = ProjectUiState(),
     )
 
-    fun onImagePicked(uri: String) {
-        viewModelScope.launch { projectRepository.setProjectImage(projectId, uri) }
+    fun onImagePicked(sourceUri: String) {
+        viewModelScope.launch {
+            val previous = uiState.value.imageUri
+            val local = imageStore.importImage(sourceUri) ?: return@launch
+            projectRepository.setProjectImage(projectId, local)
+            if (previous != null && previous != local) imageStore.deleteImage(previous)
+        }
     }
 
     fun setProjectName(name: String) {

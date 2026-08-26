@@ -2,6 +2,7 @@ package com.ballooner.ui.projectlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ballooner.data.image.ImageStore
 import com.ballooner.data.project.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ProjectListViewModel @Inject constructor(
     private val repository: ProjectRepository,
+    private val imageStore: ImageStore,
 ) : ViewModel() {
 
     val uiState: StateFlow<ProjectListUiState> =
@@ -33,7 +35,11 @@ class ProjectListViewModel @Inject constructor(
             )
 
     fun deleteProject(id: Long) {
-        viewModelScope.launch { repository.deleteProject(id) }
+        viewModelScope.launch {
+            val imageUri = repository.observeProject(id).first()?.imageUri
+            repository.deleteProject(id)
+            imageUri?.let { imageStore.deleteImage(it) }
+        }
     }
 
     /** Creates a project with a default title and reports its id for navigation. */

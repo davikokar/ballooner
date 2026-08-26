@@ -1,12 +1,12 @@
 package com.ballooner.ui.project
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -142,26 +142,18 @@ fun ProjectScreen(
     onDeleteSelected: () -> Unit,
 ) {
     val context = LocalContext.current
-    val pickMedia = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri: Uri? ->
-        if (uri != null) {
-            // Persist read access so the image still loads after the app restarts.
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-            onImagePicked(uri.toString())
-        }
-    }
-    val launchPicker = {
-        pickMedia.launch(arrayOf("image/*"))
-    }
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val scope = rememberCoroutineScope()
+    // The Photo Picker shows albums/folders of images and can browse other locations.
+    val pickMedia = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri: Uri? ->
+        if (uri != null) onImagePicked(uri.toString())
+    }
+    val launchPicker = {
+        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
     // Displayed image width in px, used to scale text to the exported resolution.
     var displayedWidth by remember { mutableStateOf(0) }
     val saveLauncher = rememberLauncherForActivityResult(
