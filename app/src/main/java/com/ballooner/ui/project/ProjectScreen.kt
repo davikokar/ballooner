@@ -11,6 +11,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -69,7 +74,9 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -338,6 +345,10 @@ private fun Editor(
 ) {
     val imageState = rememberImageState(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
+    // View-only transform: pinch to zoom / pan and a 90° rotate button.
+    var zoom by remember { mutableStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    var rotation by remember { mutableStateOf(0f) }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
     // instead of overwriting each other before Room has round-tripped a commit.
@@ -363,20 +374,45 @@ private fun Editor(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(image.width.toFloat() / image.height.toFloat())
-                        .onSizeChanged {
-                            layerSize = it
-                            onLayerWidth(it.width)
-                        }
-                        .pointerInput(balloons, editMode) {
-                            detectTapGestures { offset ->
-                                if (!editMode) return@detectTapGestures
-                                val canvas = Size(size.width.toFloat(), size.height.toFloat())
-                                val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
-                                if (hit != null) onSelectBalloon(hit.id)
+                        // Two-finger pinch zooms / pans; single finger stays for balloons.
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                do {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.count { it.pressed } >= 2) {
+                                        zoom = (zoom * event.calculateZoom()).coerceIn(1f, 6f)
+                                        pan += event.calculatePan()
+                                        event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                    }
+                                } while (event.changes.any { it.pressed })
                             }
+                        }
+                        .graphicsLayer {
+                            scaleX = zoom
+                            scaleY = zoom
+                            translationX = pan.x
+                            translationY = pan.y
+                            rotationZ = rotation
                         },
                 ) {
-                    Canvas(modifier = Modifier.matchParentSize()) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .onSizeChanged {
+                                layerSize = it
+                                onLayerWidth(it.width)
+                            }
+                            .pointerInput(balloons, editMode) {
+                                detectTapGestures { offset ->
+                                    if (!editMode) return@detectTapGestures
+                                    val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                                    val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
+                                    if (hit != null) onSelectBalloon(hit.id)
+                                }
+                            },
+                    ) {
+                        Canvas(modifier = Modifier.matchParentSize()) {
                         drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
                         effective.forEach { balloon ->
                             drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
@@ -413,7 +449,30 @@ private fun Editor(
                             }
                         }
                     }
+                    }
                 }
+                }
+            }
+            if (imageState is ImageResult.Loaded) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { rotation = (rotation + 90f) % 360f }) { Text("Rotate") }
+                        if (zoom != 1f || pan != Offset.Zero || rotation != 0f) {
+                            TextButton(
+                                onClick = {
+                                    zoom = 1f
+                                    pan = Offset.Zero
+                                    rotation = 0f
+                                },
+                            ) { Text("Reset") }
+                        }
+                    }
                 }
             }
         }
