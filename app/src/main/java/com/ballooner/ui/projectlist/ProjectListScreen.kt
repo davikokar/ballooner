@@ -13,8 +13,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -25,6 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,6 +43,7 @@ import com.ballooner.domain.model.Project
 fun ProjectListRoute(
     onOpenProject: (Long) -> Unit,
     onCreatedProject: (Long) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: ProjectListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -45,6 +52,7 @@ fun ProjectListRoute(
         onCreateProject = { viewModel.createProject(onCreatedProject) },
         onOpenProject = onOpenProject,
         onDeleteProject = viewModel::deleteProject,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -55,9 +63,15 @@ fun ProjectListScreen(
     onCreateProject: () -> Unit,
     onOpenProject: (Long) -> Unit,
     onDeleteProject: (Long) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Ballooner") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Ballooner") },
+                actions = { OverflowMenu(onOpenSettings = onOpenSettings) },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateProject) {
                 Icon(Icons.Default.Add, contentDescription = "Create project")
@@ -134,6 +148,23 @@ private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Uni
     }
 }
 
+@Composable
+private fun OverflowMenu(onOpenSettings: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(
+            text = { Text("Settings") },
+            onClick = {
+                expanded = false
+                onOpenSettings()
+            },
+        )
+    }
+}
+
 @Preview
 @Composable
 private fun ProjectListEmptyPreview() {
@@ -142,6 +173,7 @@ private fun ProjectListEmptyPreview() {
         onCreateProject = {},
         onOpenProject = {},
         onDeleteProject = {},
+        onOpenSettings = {},
     )
 }
 
@@ -158,5 +190,6 @@ private fun ProjectListContentPreview() {
         onCreateProject = {},
         onOpenProject = {},
         onDeleteProject = {},
+        onOpenSettings = {},
     )
 }

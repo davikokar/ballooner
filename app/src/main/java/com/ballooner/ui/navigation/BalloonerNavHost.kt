@@ -9,9 +9,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ballooner.ui.project.ProjectRoute
 import com.ballooner.ui.projectlist.ProjectListRoute
+import com.ballooner.ui.settings.SettingsRoute
 
 object Routes {
     const val PROJECT_LIST = "projects"
+    const val SETTINGS = "settings"
     const val PROJECT_ARG = "projectId"
     const val NEW_ARG = "new"
     const val PROJECT = "project/{$PROJECT_ARG}?$NEW_ARG={$NEW_ARG}"
@@ -28,7 +30,11 @@ fun BalloonerNavHost(navController: NavHostController = rememberNavController())
                 onCreatedProject = { projectId ->
                     navController.navigate(Routes.project(projectId, isNew = true))
                 },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsRoute(onNavigateBack = { navController.popBackStack() })
         }
         composable(
             route = Routes.PROJECT,

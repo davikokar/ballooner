@@ -7,6 +7,8 @@ data class ProjectUiState(
     val imageUri: String? = null,
     val balloons: List<Balloon> = emptyList(),
     val selectedBalloonId: Long? = null,
+    val hideFontSelector: Boolean = false,
+    val autoTextSize: Boolean = false,
 ) {
     val hasImage: Boolean get() = imageUri != null
 

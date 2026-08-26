@@ -166,6 +166,7 @@ fun ProjectScreen(
                     imageUri = imageUri,
                     balloons = uiState.balloons,
                     displayedWidth = displayedWidth,
+                    autoTextSize = uiState.autoTextSize,
                     textMeasurer = textMeasurer,
                     density = density,
                 )
@@ -230,6 +231,8 @@ fun ProjectScreen(
                         balloons = uiState.balloons,
                         selectedBalloonId = uiState.selectedBalloonId,
                         editMode = editMode,
+                        hideFontSelector = uiState.hideFontSelector,
+                        autoTextSize = uiState.autoTextSize,
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
@@ -329,6 +332,8 @@ private fun Editor(
     balloons: List<Balloon>,
     selectedBalloonId: Long?,
     editMode: Boolean,
+    hideFontSelector: Boolean,
+    autoTextSize: Boolean,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
@@ -440,6 +445,7 @@ private fun Editor(
                                 balloon = balloon,
                                 canvasSize = size,
                                 editable = editMode,
+                                autoSize = autoTextSize,
                                 onTextChange = { newText ->
                                     val current = live?.takeIf { it.id == balloon.id } ?: balloon
                                     val updated = current.copy(text = newText)
@@ -495,16 +501,20 @@ private fun Editor(
 
         selected?.let { sel ->
             if (!editMode) return@let
-            TextControls(
-                font = sel.font,
-                fontSize = sel.fontSize,
-                onFontChange = {
-                    live = (live ?: sel).copy(font = it)
-                    live?.let(onCommitBalloon)
-                },
-                onSizeChange = { live = (live ?: sel).copy(fontSize = it) },
-                onSizeChangeFinished = { live?.let(onCommitBalloon) },
-            )
+            if (!hideFontSelector || !autoTextSize) {
+                TextControls(
+                    font = sel.font,
+                    fontSize = sel.fontSize,
+                    showFontSelector = !hideFontSelector,
+                    showSizeSlider = !autoTextSize,
+                    onFontChange = {
+                        live = (live ?: sel).copy(font = it)
+                        live?.let(onCommitBalloon)
+                    },
+                    onSizeChange = { live = (live ?: sel).copy(fontSize = it) },
+                    onSizeChangeFinished = { live?.let(onCommitBalloon) },
+                )
+            }
             if (sel.type == BalloonType.SPEAK || sel.type == BalloonType.WHISPER) {
                 ShapeSlider(
                     roundness = sel.cornerRoundness,
@@ -520,6 +530,8 @@ private fun Editor(
 private fun TextControls(
     font: BalloonFont,
     fontSize: Float,
+    showFontSelector: Boolean,
+    showSizeSlider: Boolean,
     onFontChange: (BalloonFont) -> Unit,
     onSizeChange: (Float) -> Unit,
     onSizeChangeFinished: () -> Unit,
@@ -529,32 +541,36 @@ private fun TextControls(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        var expanded by remember { mutableStateOf(false) }
-        Box {
-            OutlinedButton(onClick = { expanded = true }) {
-                Text(font.label())
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                BalloonFont.entries.forEach { entry ->
-                    DropdownMenuItem(
-                        text = { Text(entry.label()) },
-                        onClick = {
-                            onFontChange(entry)
-                            expanded = false
-                        },
-                    )
+        if (showFontSelector) {
+            var expanded by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(onClick = { expanded = true }) {
+                    Text(font.label())
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    BalloonFont.entries.forEach { entry ->
+                        DropdownMenuItem(
+                            text = { Text(entry.label()) },
+                            onClick = {
+                                onFontChange(entry)
+                                expanded = false
+                            },
+                        )
+                    }
                 }
             }
         }
-        Text(text = "Size", style = MaterialTheme.typography.labelLarge)
-        Slider(
-            value = fontSize,
-            onValueChange = onSizeChange,
-            onValueChangeFinished = onSizeChangeFinished,
-            valueRange = 8f..48f,
-            modifier = Modifier.weight(1f),
-        )
+        if (showSizeSlider) {
+            Text(text = "Size", style = MaterialTheme.typography.labelLarge)
+            Slider(
+                value = fontSize,
+                onValueChange = onSizeChange,
+                onValueChangeFinished = onSizeChangeFinished,
+                valueRange = 8f..48f,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -585,6 +601,7 @@ private fun BalloonText(
     balloon: Balloon,
     canvasSize: Size,
     editable: Boolean,
+    autoSize: Boolean,
     onTextChange: (String) -> Unit,
     onFocused: () -> Unit,
 ) {
@@ -596,6 +613,15 @@ private fun BalloonText(
     val innerPadding = if (balloon.type == BalloonType.YELL) 18.dp else 12.dp
 
     var text by remember(balloon.id) { mutableStateOf(balloon.text) }
+
+    val padPx = with(density) { innerPadding.toPx() }
+    val availableWidth = (balloon.width * canvasSize.width - 2 * padPx).toInt().coerceAtLeast(1)
+    val availableHeight = (balloon.height * canvasSize.height - 2 * padPx).toInt().coerceAtLeast(1)
+    val effectiveFontSize = if (autoSize) {
+        rememberAutoFontSize(text, balloon.font, availableWidth, availableHeight)
+    } else {
+        balloon.fontSize
+    }
 
     Box(
         modifier = Modifier
@@ -613,7 +639,7 @@ private fun BalloonText(
             readOnly = !editable,
             textStyle = TextStyle(
                 color = Color.Black,
-                fontSize = balloon.fontSize.sp,
+                fontSize = effectiveFontSize.sp,
                 fontFamily = balloon.font.toFontFamily(),
                 textAlign = TextAlign.Center,
             ),
@@ -624,6 +650,57 @@ private fun BalloonText(
         )
     }
 }
+
+/** Largest font (in sp) whose text fits within the available box, for auto text sizing. */
+@Composable
+private fun rememberAutoFontSize(
+    text: String,
+    font: BalloonFont,
+    availableWidth: Int,
+    availableHeight: Int,
+): Float {
+    val measurer = rememberTextMeasurer()
+    return remember(text, font, availableWidth, availableHeight) {
+        if (availableWidth <= 0 || availableHeight <= 0) {
+            AUTO_MIN_FONT_SIZE
+        } else {
+            // A blank balloon still gets a caret sized to the box via a sample glyph.
+            autoFitFontSize(text.ifBlank { "A" }, font, availableWidth, availableHeight, measurer)
+        }
+    }
+}
+
+private fun autoFitFontSize(
+    text: String,
+    font: BalloonFont,
+    maxWidth: Int,
+    maxHeight: Int,
+    measurer: TextMeasurer,
+): Float {
+    var best = AUTO_MIN_FONT_SIZE
+    var candidate = AUTO_MIN_FONT_SIZE
+    while (candidate <= AUTO_MAX_FONT_SIZE) {
+        val measured = measurer.measure(
+            text = text,
+            style = TextStyle(
+                fontSize = candidate.sp,
+                fontFamily = font.toFontFamily(),
+                textAlign = TextAlign.Center,
+            ),
+            constraints = Constraints(maxWidth = maxWidth),
+        )
+        if (measured.size.height <= maxHeight && measured.size.width <= maxWidth) {
+            best = candidate
+            candidate += 1f
+        } else {
+            break
+        }
+    }
+    return best
+}
+
+private const val AUTO_MIN_FONT_SIZE = 8f
+private const val AUTO_MAX_FONT_SIZE = 96f
 
 @Composable
 private fun Handles(
@@ -792,22 +869,6 @@ private fun BalloonType.label(): String = when (this) {
     BalloonType.YELL -> "Yell"
 }
 
-private fun BalloonFont.label(): String = when (this) {
-    BalloonFont.DEFAULT -> "Default"
-    BalloonFont.SANS_SERIF -> "Sans serif"
-    BalloonFont.SERIF -> "Serif"
-    BalloonFont.MONOSPACE -> "Fixed width"
-    BalloonFont.CURSIVE -> "Cursive"
-    BalloonFont.WIDE -> "Wide"
-    BalloonFont.NARROW -> "Narrow"
-    BalloonFont.COMIC_SANS_MS -> "Comic Sans MS"
-    BalloonFont.GARAMOND -> "Garamond"
-    BalloonFont.GEORGIA -> "Georgia"
-    BalloonFont.TAHOMA -> "Tahoma"
-    BalloonFont.TREBUCHET -> "Trebuchet"
-    BalloonFont.VERDANA -> "Verdana"
-}
-
 private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
     BalloonFont.DEFAULT -> FontFamily.Default
     BalloonFont.SANS_SERIF -> FontFamily.SansSerif
@@ -858,6 +919,7 @@ private suspend fun exportComic(
     imageUri: String,
     balloons: List<Balloon>,
     displayedWidth: Int,
+    autoTextSize: Boolean,
     textMeasurer: TextMeasurer,
     density: Density,
 ): Boolean {
@@ -872,7 +934,7 @@ private suspend fun exportComic(
     CanvasDrawScope().draw(density, LayoutDirection.Ltr, canvas, size) {
         drawImage(source)
         balloons.forEach { drawBalloon(it, size, bodyColor = Color.White, outlineColor = Color.Black) }
-        balloons.forEach { drawExportText(it, size, textMeasurer, scale) }
+        balloons.forEach { drawExportText(it, size, textMeasurer, scale, autoTextSize) }
     }
     return withContext(Dispatchers.IO) {
         runCatching {
@@ -889,17 +951,23 @@ private fun DrawScope.drawExportText(
     canvasSize: Size,
     textMeasurer: TextMeasurer,
     scale: Float,
+    autoSize: Boolean,
 ) {
     if (balloon.text.isBlank()) return
     val boxW = balloon.width * canvasSize.width
     val boxH = balloon.height * canvasSize.height
     val maxW = (boxW * 0.82f).toInt().coerceAtLeast(1)
     val maxH = (boxH * 0.82f).toInt().coerceAtLeast(1)
+    val fontSize = if (autoSize) {
+        autoFitFontSize(balloon.text, balloon.font, maxW, maxH, textMeasurer)
+    } else {
+        balloon.fontSize * scale
+    }
     val result = textMeasurer.measure(
         text = balloon.text,
         style = TextStyle(
             color = Color.Black,
-            fontSize = (balloon.fontSize * scale).sp,
+            fontSize = fontSize.sp,
             fontFamily = balloon.font.toFontFamily(),
             textAlign = TextAlign.Center,
         ),

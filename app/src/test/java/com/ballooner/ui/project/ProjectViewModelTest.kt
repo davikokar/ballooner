@@ -5,6 +5,9 @@ import app.cash.turbine.test
 import com.ballooner.data.balloon.FakeBalloonRepository
 import com.ballooner.data.image.FakeImageStore
 import com.ballooner.data.project.FakeProjectRepository
+import com.ballooner.data.settings.FakeSettingsRepository
+import com.ballooner.domain.model.AppSettings
+import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.Project
 import com.ballooner.util.MainDispatcherRule
@@ -32,6 +35,7 @@ class ProjectViewModelTest {
             projectRepository = projectRepository,
             balloonRepository = FakeBalloonRepository(),
             imageStore = FakeImageStore(),
+            settingsRepository = FakeSettingsRepository(),
         )
     }
 
@@ -58,6 +62,7 @@ class ProjectViewModelTest {
             ),
             balloonRepository = FakeBalloonRepository(),
             imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
         )
 
         viewModel.uiState.test {
@@ -84,6 +89,27 @@ class ProjectViewModelTest {
             val balloon = state.balloons.single()
             assertEquals(BalloonType.THINK, balloon.type)
             assertEquals(balloon.id, state.selectedBalloonId)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `new balloons use the default font from settings`() = runTest {
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(Project(id = 1, name = "Comic", description = "", createdAt = 1)),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            imageStore = FakeImageStore(),
+            settingsRepository = FakeSettingsRepository(AppSettings(defaultFont = BalloonFont.COMIC_SANS_MS)),
+        )
+
+        viewModel.uiState.test {
+            viewModel.addBalloon(BalloonType.SPEAK)
+            advanceUntilIdle()
+
+            assertEquals(BalloonFont.COMIC_SANS_MS, expectMostRecentItem().balloons.single().font)
             cancelAndConsumeRemainingEvents()
         }
     }

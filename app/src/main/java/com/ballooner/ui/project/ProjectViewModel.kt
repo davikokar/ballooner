@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.ballooner.data.balloon.BalloonRepository
 import com.ballooner.data.image.ImageStore
 import com.ballooner.data.project.ProjectRepository
+import com.ballooner.data.settings.SettingsRepository
+import com.ballooner.domain.model.AppSettings
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.TextSizeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,6 +26,7 @@ class ProjectViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
     private val balloonRepository: BalloonRepository,
     private val imageStore: ImageStore,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val projectId: Long = savedStateHandle.get<Long>(PROJECT_ID_KEY) ?: 0L
@@ -30,16 +34,23 @@ class ProjectViewModel @Inject constructor(
     // Selection is UI-only state, not persisted.
     private val selectedBalloonId = MutableStateFlow<Long?>(null)
 
+    // Kept hot so new balloons can read the default font even before the UI subscribes.
+    private val settings = settingsRepository.observeSettings()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
+
     val uiState: StateFlow<ProjectUiState> = combine(
         projectRepository.observeProject(projectId),
         balloonRepository.observeBalloons(projectId),
         selectedBalloonId,
-    ) { project, balloons, selectedId ->
+        settings,
+    ) { project, balloons, selectedId, appSettings ->
         ProjectUiState(
             name = project?.name.orEmpty(),
             imageUri = project?.imageUri,
             balloons = balloons,
             selectedBalloonId = selectedId?.takeIf { id -> balloons.any { it.id == id } },
+            hideFontSelector = appSettings.hideFontSelector,
+            autoTextSize = appSettings.textSizeMode == TextSizeMode.AUTO,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -62,7 +73,8 @@ class ProjectViewModel @Inject constructor(
 
     fun addBalloon(type: BalloonType) {
         viewModelScope.launch {
-            val id = balloonRepository.upsertBalloon(projectId, Balloon(id = 0, type = type))
+            val balloon = Balloon(id = 0, type = type, font = settings.value.defaultFont)
+            val id = balloonRepository.upsertBalloon(projectId, balloon)
             selectedBalloonId.value = id
         }
     }
