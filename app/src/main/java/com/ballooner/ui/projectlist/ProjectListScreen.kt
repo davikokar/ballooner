@@ -57,7 +57,7 @@ fun ProjectListScreen(
     onDeleteProject: (Long) -> Unit,
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Projects") }) },
+        topBar = { TopAppBar(title = { Text("Ballooner") }) },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateProject) {
                 Icon(Icons.Default.Add, contentDescription = "Create project")

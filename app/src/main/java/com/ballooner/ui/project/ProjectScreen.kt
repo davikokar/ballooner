@@ -33,11 +33,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -207,7 +205,7 @@ fun ProjectScreen(
                 actions = {
                     if (uiState.hasImage && editMode) {
                         IconButton(onClick = { launchPicker() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Change image")
+                            Icon(BalloonerIcons.Image, contentDescription = "Change image")
                         }
                     }
                 },
@@ -281,43 +279,46 @@ private fun Toolbar(
     onSave: () -> Unit,
     onToggleMode: () -> Unit,
 ) {
-    var type by remember { mutableStateOf(BalloonType.SPEAK) }
-    var expanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (editMode) {
-            Box {
-                OutlinedButton(onClick = { expanded = true }) {
-                    Text(type.label())
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    BalloonType.entries.forEach { entry ->
-                        DropdownMenuItem(
-                            text = { Text(entry.label()) },
-                            onClick = {
-                                type = entry
-                                expanded = false
-                            },
-                        )
-                    }
-                }
-            }
-            Button(onClick = { onAddBalloon(type) }) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Text(text = "Add", modifier = Modifier.padding(start = 4.dp))
+            BalloonType.entries.forEach { type ->
+                BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
             }
         }
         Spacer(modifier = Modifier.weight(1f))
-        TextButton(onClick = onSave) { Text("Save") }
+        IconButton(onClick = onSave) {
+            Icon(BalloonerIcons.Save, contentDescription = "Save image")
+        }
         IconButton(onClick = onToggleMode) {
             Icon(
                 imageVector = if (editMode) Icons.Default.Done else Icons.Default.Edit,
                 contentDescription = if (editMode) "Switch to view mode" else "Switch to edit mode",
             )
+        }
+    }
+}
+
+/** An icon button showing a stylized balloon that adds one of that type when tapped. */
+@Composable
+private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
+    val outline = MaterialTheme.colorScheme.onSurface
+    IconButton(onClick = onClick) {
+        Canvas(modifier = Modifier.size(28.dp)) {
+            val sample = Balloon(
+                id = 0,
+                type = type,
+                centerX = 0.5f,
+                centerY = 0.4f,
+                width = 0.74f,
+                height = 0.5f,
+                tailAngleDegrees = 110f,
+                tailLength = 0.2f,
+            )
+            drawBalloon(sample, size, bodyColor = Color.Transparent, outlineColor = outline)
         }
     }
 }
@@ -337,6 +338,8 @@ private fun Editor(
 ) {
     val imageState = rememberImageState(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
+    // Available area for the image, used to refit it after a 90° rotation.
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
     // View-only transform: pinch to zoom / pan and a 90° rotate button.
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
@@ -350,7 +353,13 @@ private fun Editor(
     val selected = effective.firstOrNull { it.id == selectedBalloonId }
 
     Column(modifier = modifier.fillMaxSize().padding(8.dp)) {
-        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .onSizeChanged { containerSize = it },
+            contentAlignment = Alignment.Center,
+        ) {
             when (val state = imageState) {
                 ImageResult.Loading -> Text("Loading image\u2026")
                 ImageResult.Failed -> Column(
@@ -362,6 +371,19 @@ private fun Editor(
                 }
                 is ImageResult.Loaded -> {
                 val image = state.bitmap
+                // A quarter turn swaps width/height, so scale the layer to refill the space.
+                val quarterTurned = ((rotation / 90f).roundToInt() % 2) != 0
+                val fitScale = if (
+                    quarterTurned && layerSize.width > 0 && layerSize.height > 0 &&
+                    containerSize.width > 0 && containerSize.height > 0
+                ) {
+                    minOf(
+                        containerSize.width.toFloat() / layerSize.height,
+                        containerSize.height.toFloat() / layerSize.width,
+                    )
+                } else {
+                    1f
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -381,8 +403,8 @@ private fun Editor(
                             }
                         }
                         .graphicsLayer {
-                            scaleX = zoom
-                            scaleY = zoom
+                            scaleX = zoom * fitScale
+                            scaleY = zoom * fitScale
                             translationX = pan.x
                             translationY = pan.y
                             rotationZ = rotation
@@ -454,7 +476,9 @@ private fun Editor(
                     shape = RoundedCornerShape(50),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { rotation = (rotation + 90f) % 360f }) { Text("Rotate") }
+                        IconButton(onClick = { rotation = (rotation + 90f) % 360f }) {
+                            Icon(BalloonerIcons.Rotate, contentDescription = "Rotate")
+                        }
                         if (zoom != 1f || pan != Offset.Zero || rotation != 0f) {
                             TextButton(
                                 onClick = {
