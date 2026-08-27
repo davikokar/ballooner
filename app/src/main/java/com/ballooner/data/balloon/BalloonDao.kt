@@ -14,6 +14,9 @@ interface BalloonDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(balloon: BalloonEntity): Long
 
+    @Query("SELECT projectId FROM balloon WHERE id = :id")
+    suspend fun projectIdOf(id: Long): Long?
+
     @Query("DELETE FROM balloon WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

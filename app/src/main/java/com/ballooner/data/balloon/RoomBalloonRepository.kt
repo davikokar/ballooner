@@ -1,5 +1,6 @@
 package com.ballooner.data.balloon
 
+import com.ballooner.data.project.ProjectDao
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
@@ -9,15 +10,23 @@ import javax.inject.Inject
 
 class RoomBalloonRepository @Inject constructor(
     private val dao: BalloonDao,
+    private val projectDao: ProjectDao,
 ) : BalloonRepository {
 
     override fun observeBalloons(projectId: Long): Flow<List<Balloon>> =
         dao.observeByProject(projectId).map { entities -> entities.map(BalloonEntity::toDomain) }
 
-    override suspend fun upsertBalloon(projectId: Long, balloon: Balloon): Long =
-        dao.upsert(balloon.toEntity(projectId))
+    override suspend fun upsertBalloon(projectId: Long, balloon: Balloon): Long {
+        val id = dao.upsert(balloon.toEntity(projectId))
+        projectDao.touch(projectId, System.currentTimeMillis())
+        return id
+    }
 
-    override suspend fun deleteBalloon(id: Long) = dao.deleteById(id)
+    override suspend fun deleteBalloon(id: Long) {
+        val projectId = dao.projectIdOf(id)
+        dao.deleteById(id)
+        if (projectId != null) projectDao.touch(projectId, System.currentTimeMillis())
+    }
 }
 
 private fun BalloonEntity.toDomain() = Balloon(
