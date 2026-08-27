@@ -1,21 +1,23 @@
 package com.ballooner.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TopAppBarColors
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val BalloonerBlue = Color(0xFF004AC5)
+val BalloonerBlue = Color(0xFF004AC5)
 
-// Blue app background with white titles and icons on top of it.
+// White page background with blue top bars (see balloonerTopAppBarColors).
 private val BalloonerColors = lightColorScheme(
-    background = BalloonerBlue,
-    onBackground = Color.White,
-    surface = BalloonerBlue,
-    onSurface = Color.White,
-    onSurfaceVariant = Color.White,
+    background = Color.White,
+    onBackground = Color.Black,
+    surface = Color.White,
+    onSurface = Color.Black,
 )
 
 @Composable
@@ -29,3 +31,13 @@ fun BalloonerTheme(
         content = content,
     )
 }
+
+/** Blue top bar with white title and icons, used across the app's screens. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun balloonerTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
+    containerColor = BalloonerBlue,
+    titleContentColor = Color.White,
+    navigationIconContentColor = Color.White,
+    actionIconContentColor = Color.White,
+)

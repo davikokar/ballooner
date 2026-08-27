@@ -71,6 +71,16 @@ class ProjectViewModel @Inject constructor(
         viewModelScope.launch { projectRepository.setProjectName(projectId, name) }
     }
 
+    /** Deletes this project (and its copied image), then invokes [onDeleted] for navigation. */
+    fun deleteProject(onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            val imageUri = uiState.value.imageUri
+            projectRepository.deleteProject(projectId)
+            imageUri?.let { imageStore.deleteImage(it) }
+            onDeleted()
+        }
+    }
+
     fun addBalloon(type: BalloonType) {
         viewModelScope.launch {
             val balloon = Balloon(id = 0, type = type, font = settings.value.defaultFont)

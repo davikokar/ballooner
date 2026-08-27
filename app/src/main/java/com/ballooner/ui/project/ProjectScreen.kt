@@ -36,6 +36,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -98,6 +100,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.ui.theme.balloonerTopAppBarColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -122,6 +125,7 @@ fun ProjectRoute(
         onSelectBalloon = viewModel::selectBalloon,
         onCommitBalloon = viewModel::commitBalloon,
         onDeleteSelected = viewModel::deleteSelectedBalloon,
+        onDeleteComic = { viewModel.deleteProject(onNavigateBack) },
     )
 }
 
@@ -138,6 +142,7 @@ fun ProjectScreen(
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
+    onDeleteComic: () -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -198,6 +203,7 @@ fun ProjectScreen(
                         Text(projectName.ifBlank { "Untitled" })
                     }
                 },
+                colors = balloonerTopAppBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -209,6 +215,7 @@ fun ProjectScreen(
                             Icon(BalloonerIcons.Image, contentDescription = "Change image")
                         }
                     }
+                    ProjectOverflowMenu(onDeleteComic = onDeleteComic)
                 },
             )
         },
@@ -273,6 +280,42 @@ private fun EditableTitle(name: String, onRename: (String) -> Unit) {
             inner()
         },
     )
+}
+
+@Composable
+private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    var showConfirm by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(
+            text = { Text("Delete comic") },
+            onClick = {
+                expanded = false
+                showConfirm = true
+            },
+        )
+    }
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text("Delete comic?") },
+            text = { Text("This permanently removes the comic and its image.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirm = false
+                        onDeleteComic()
+                    },
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -992,5 +1035,6 @@ private fun ProjectScreenNoImagePreview() {
         onSelectBalloon = {},
         onCommitBalloon = {},
         onDeleteSelected = {},
+        onDeleteComic = {},
     )
 }

@@ -3,25 +3,25 @@ package com.ballooner.ui.projectlist
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.text.format.DateUtils
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Project
+import com.ballooner.ui.theme.balloonerTopAppBarColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -66,7 +68,6 @@ fun ProjectListRoute(
         uiState = uiState,
         onCreateProject = { viewModel.createProject(onCreatedProject) },
         onOpenProject = onOpenProject,
-        onDeleteProject = viewModel::deleteProject,
         onOpenSettings = onOpenSettings,
     )
 }
@@ -77,13 +78,13 @@ fun ProjectListScreen(
     uiState: ProjectListUiState,
     onCreateProject: () -> Unit,
     onOpenProject: (Long) -> Unit,
-    onDeleteProject: (Long) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Ballooner") },
+                colors = balloonerTopAppBarColors(),
                 actions = { OverflowMenu(onOpenSettings = onOpenSettings) },
             )
         },
@@ -105,7 +106,6 @@ fun ProjectListScreen(
                 is ProjectListUiState.Content -> ProjectList(
                     projects = uiState.projects,
                     onOpenProject = onOpenProject,
-                    onDeleteProject = onDeleteProject,
                 )
             }
         }
@@ -116,61 +116,59 @@ fun ProjectListScreen(
 private fun ProjectList(
     projects: List<Project>,
     onOpenProject: (Long) -> Unit,
-    onDeleteProject: (Long) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(projects, key = { it.id }) { project ->
             ProjectRow(
                 project = project,
                 onOpen = { onOpenProject(project.id) },
-                onDelete = { onDeleteProject(project.id) },
             )
         }
     }
 }
 
 @Composable
-private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun ProjectRow(project: Project, onOpen: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpen),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White, contentColor = Color.Black),
+        border = BorderStroke(1.dp, Color.Black),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Column(modifier = Modifier.padding(8.dp)) {
             ProjectThumbnail(imageUri = project.imageUri, name = project.name)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = project.name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = lastEditedLabel(project.updatedAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete ${project.name}")
-            }
+            Text(
+                text = project.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.Black,
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+            )
+            Text(
+                text = lastEditedLabel(project.updatedAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Black,
+                modifier = Modifier.padding(top = 2.dp, start = 4.dp, bottom = 4.dp),
+            )
         }
     }
 }
 
-/** Square, center-cropped preview of the project's image, or its initial as a fallback. */
+/** Large, square, center-cropped preview of the project's image, or its initial as a fallback. */
 @Composable
 private fun ProjectThumbnail(imageUri: String?, name: String) {
     val bitmap = rememberThumbnail(imageUri)
     Box(
         modifier = Modifier
-            .size(56.dp)
+            .fillMaxWidth()
+            .aspectRatio(1f)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
@@ -185,7 +183,7 @@ private fun ProjectThumbnail(imageUri: String?, name: String) {
         } else {
             Text(
                 text = name.firstOrNull()?.uppercase() ?: "?",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -243,7 +241,6 @@ private fun ProjectListEmptyPreview() {
         uiState = ProjectListUiState.Empty,
         onCreateProject = {},
         onOpenProject = {},
-        onDeleteProject = {},
         onOpenSettings = {},
     )
 }
@@ -260,7 +257,6 @@ private fun ProjectListContentPreview() {
         ),
         onCreateProject = {},
         onOpenProject = {},
-        onDeleteProject = {},
         onOpenSettings = {},
     )
 }

@@ -12,6 +12,7 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.Project
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -91,6 +92,37 @@ class ProjectViewModelTest {
             assertEquals(balloon.id, state.selectedBalloonId)
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    @Test
+    fun `deleteProject removes the project, cleans up its image, and reports completion`() = runTest {
+        val projectRepository = FakeProjectRepository(
+            initial = listOf(
+                Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "file:///img.jpg"),
+            ),
+        )
+        val imageStore = FakeImageStore()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = projectRepository,
+            balloonRepository = FakeBalloonRepository(),
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        var deleted = false
+
+        viewModel.uiState.test {
+            // Stay subscribed until the project's image is loaded into state.
+            while (awaitItem().imageUri == null) { /* await image */ }
+
+            viewModel.deleteProject { deleted = true }
+            advanceUntilIdle()
+            cancelAndConsumeRemainingEvents()
+        }
+
+        assertNull(projectRepository.observeProject(1).first())
+        assertEquals(listOf("file:///img.jpg"), imageStore.deleted)
+        assertTrue(deleted)
     }
 
     @Test

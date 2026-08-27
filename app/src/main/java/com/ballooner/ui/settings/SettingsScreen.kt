@@ -38,6 +38,7 @@ import com.ballooner.domain.model.AppSettings
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.TextSizeMode
 import com.ballooner.ui.project.label
+import com.ballooner.ui.theme.balloonerTopAppBarColors
 
 @Composable
 fun SettingsRoute(
@@ -67,6 +68,7 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
+                colors = balloonerTopAppBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
