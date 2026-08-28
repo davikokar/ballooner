@@ -36,6 +36,10 @@ class ProjectViewModel @Inject constructor(
     // Selection is UI-only state, not persisted.
     private val selectedBalloonId = MutableStateFlow<Long?>(null)
 
+    // True while an image import/compose is running, so the UI can show a spinner instead of
+    // looking frozen (decoding/scaling full-resolution photos can take a moment).
+    private val isProcessingImage = MutableStateFlow(false)
+
     // Kept hot so new balloons can read the default font even before the UI subscribes.
     private val settings = settingsRepository.observeSettings()
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
@@ -45,7 +49,8 @@ class ProjectViewModel @Inject constructor(
         balloonRepository.observeBalloons(projectId),
         selectedBalloonId,
         settings,
-    ) { project, balloons, selectedId, appSettings ->
+        isProcessingImage,
+    ) { project, balloons, selectedId, appSettings, processingImage ->
         ProjectUiState(
             name = project?.name.orEmpty(),
             imageUri = project?.imageUri,
@@ -53,6 +58,7 @@ class ProjectViewModel @Inject constructor(
             selectedBalloonId = selectedId?.takeIf { id -> balloons.any { it.id == id } },
             hideFontSelector = appSettings.hideFontSelector,
             autoTextSize = appSettings.textSizeMode == TextSizeMode.AUTO,
+            isProcessingImage = processingImage,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -62,10 +68,15 @@ class ProjectViewModel @Inject constructor(
 
     fun onImagePicked(sourceUri: String) {
         viewModelScope.launch {
-            val previous = uiState.value.imageUri
-            val local = imageStore.importImage(sourceUri) ?: return@launch
-            projectRepository.setProjectImage(projectId, local)
-            if (previous != null && previous != local) imageStore.deleteImage(previous)
+            isProcessingImage.value = true
+            try {
+                val previous = uiState.value.imageUri
+                val local = imageStore.importImage(sourceUri) ?: return@launch
+                projectRepository.setProjectImage(projectId, local)
+                if (previous != null && previous != local) imageStore.deleteImage(previous)
+            } finally {
+                isProcessingImage.value = false
+            }
         }
     }
 
@@ -75,14 +86,19 @@ class ProjectViewModel @Inject constructor(
      */
     fun onAddImage(sourceUri: String, position: ImagePosition) {
         viewModelScope.launch {
-            val previous = uiState.value.imageUri ?: return@launch
-            val composed = imageStore.composeImages(previous, sourceUri, position) ?: return@launch
-            val rect = composed.previousImageRect
-            uiState.value.balloons.forEach { balloon ->
-                balloonRepository.upsertBalloon(projectId, balloon.remappedInto(rect))
+            isProcessingImage.value = true
+            try {
+                val previous = uiState.value.imageUri ?: return@launch
+                val composed = imageStore.composeImages(previous, sourceUri, position) ?: return@launch
+                val rect = composed.previousImageRect
+                uiState.value.balloons.forEach { balloon ->
+                    balloonRepository.upsertBalloon(projectId, balloon.remappedInto(rect))
+                }
+                projectRepository.setProjectImage(projectId, composed.uri)
+                imageStore.deleteImage(previous)
+            } finally {
+                isProcessingImage.value = false
             }
-            projectRepository.setProjectImage(projectId, composed.uri)
-            imageStore.deleteImage(previous)
         }
     }
 

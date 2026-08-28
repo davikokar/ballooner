@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -302,6 +303,9 @@ fun ProjectScreen(
                     onDismiss = { pendingNewImageUri = null },
                 )
             }
+            if (uiState.isProcessingImage) {
+                ImageProcessingOverlay()
+            }
         }
     }
 }
@@ -404,6 +408,31 @@ private fun ImagePositionPicker(snapped: ImagePosition?, onSnappedChange: (Image
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Default.Add, contentDescription = "New image", tint = InkBlack)
+        }
+    }
+}
+
+/** A blocking scrim + spinner shown while an image import/compose runs in the background. */
+@Composable
+private fun ImageProcessingOverlay() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            // Swallow taps so the frozen-looking editor underneath can't be interacted with.
+            .pointerInput(Unit) { detectTapGestures { } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .background(Color.White, RoundedCornerShape(8.dp))
+                .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Adding image\u2026", color = InkBlack, fontWeight = FontWeight.Bold)
         }
     }
 }

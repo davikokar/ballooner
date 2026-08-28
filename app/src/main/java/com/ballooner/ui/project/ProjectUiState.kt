@@ -9,6 +9,8 @@ data class ProjectUiState(
     val selectedBalloonId: Long? = null,
     val hideFontSelector: Boolean = false,
     val autoTextSize: Boolean = false,
+    // True while an image import/compose is running in the background.
+    val isProcessingImage: Boolean = false,
 ) {
     val hasImage: Boolean get() = imageUri != null
 

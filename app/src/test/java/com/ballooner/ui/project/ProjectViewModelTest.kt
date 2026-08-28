@@ -57,6 +57,19 @@ class ProjectViewModelTest {
     }
 
     @Test
+    fun `isProcessingImage is false again once picking an image finishes`() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.uiState.test {
+            viewModel.onImagePicked("content://image/1")
+            advanceUntilIdle()
+
+            assertEquals(false, expectMostRecentItem().isProcessingImage)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `replacing the image deletes the previous copy`() = runTest {
         val imageStore = FakeImageStore()
         val viewModel = ProjectViewModel(
@@ -108,7 +121,9 @@ class ProjectViewModelTest {
             viewModel.onAddImage("added-uri", ImagePosition.RIGHT)
             advanceUntilIdle()
 
-            assertEquals("merged-uri", expectMostRecentItem().imageUri)
+            val state = expectMostRecentItem()
+            assertEquals("merged-uri", state.imageUri)
+            assertEquals(false, state.isProcessingImage)
             assertEquals(Triple("existing-uri", "added-uri", ImagePosition.RIGHT), imageStore.lastComposeRequest)
             assertEquals(listOf("existing-uri"), imageStore.deleted)
             cancelAndConsumeRemainingEvents()
