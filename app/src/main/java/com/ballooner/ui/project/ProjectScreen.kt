@@ -432,6 +432,7 @@ private fun Editor(
                 } else {
                     1f
                 }
+                Column(modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -514,6 +515,32 @@ private fun Editor(
                     }
                     }
                 }
+                selected?.let { sel ->
+                    if (editMode) {
+                        if (!hideFontSelector || !autoTextSize) {
+                            TextControls(
+                                font = sel.font,
+                                fontSize = sel.fontSize,
+                                showFontSelector = !hideFontSelector,
+                                showSizeSlider = !autoTextSize,
+                                onFontChange = {
+                                    live = (live ?: sel).copy(font = it)
+                                    live?.let(onCommitBalloon)
+                                },
+                                onSizeChange = { live = (live ?: sel).copy(fontSize = it) },
+                                onSizeChangeFinished = { live?.let(onCommitBalloon) },
+                            )
+                        }
+                        if (sel.type == BalloonType.SPEAK || sel.type == BalloonType.WHISPER) {
+                            ShapeSlider(
+                                roundness = sel.cornerRoundness,
+                                onChange = { live = (live ?: sel).copy(cornerRoundness = it) },
+                                onChangeFinished = { live?.let(onCommitBalloon) },
+                            )
+                        }
+                    }
+                }
+                }
                 }
             }
             if (imageState is ImageResult.Loaded) {
@@ -539,31 +566,6 @@ private fun Editor(
                         }
                     }
                 }
-            }
-        }
-
-        selected?.let { sel ->
-            if (!editMode) return@let
-            if (!hideFontSelector || !autoTextSize) {
-                TextControls(
-                    font = sel.font,
-                    fontSize = sel.fontSize,
-                    showFontSelector = !hideFontSelector,
-                    showSizeSlider = !autoTextSize,
-                    onFontChange = {
-                        live = (live ?: sel).copy(font = it)
-                        live?.let(onCommitBalloon)
-                    },
-                    onSizeChange = { live = (live ?: sel).copy(fontSize = it) },
-                    onSizeChangeFinished = { live?.let(onCommitBalloon) },
-                )
-            }
-            if (sel.type == BalloonType.SPEAK || sel.type == BalloonType.WHISPER) {
-                ShapeSlider(
-                    roundness = sel.cornerRoundness,
-                    onChange = { live = (live ?: sel).copy(cornerRoundness = it) },
-                    onChangeFinished = { live?.let(onCommitBalloon) },
-                )
             }
         }
     }
@@ -623,20 +625,13 @@ private fun ShapeSlider(
     onChange: (Float) -> Unit,
     onChangeFinished: () -> Unit,
 ) {
-    Row(
+    Slider(
+        value = roundness,
+        onValueChange = onChange,
+        onValueChangeFinished = onChangeFinished,
+        valueRange = 0f..1f,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(text = "Shape", style = MaterialTheme.typography.labelLarge)
-        Slider(
-            value = roundness,
-            onValueChange = onChange,
-            onValueChangeFinished = onChangeFinished,
-            valueRange = 0f..1f,
-            modifier = Modifier.weight(1f),
-        )
-    }
+    )
 }
 
 @Composable
