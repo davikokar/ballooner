@@ -4,10 +4,12 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +29,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -37,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -83,6 +88,7 @@ fun ProjectListRoute(
         onCreateProject = { viewModel.createProject(onCreatedProject) },
         onOpenProject = onOpenProject,
         onOpenSettings = onOpenSettings,
+        onDeleteProject = viewModel::deleteProject,
     )
 }
 
@@ -93,6 +99,7 @@ fun ProjectListScreen(
     onCreateProject: () -> Unit,
     onOpenProject: (Long) -> Unit,
     onOpenSettings: () -> Unit,
+    onDeleteProject: (Long) -> Unit,
 ) {
     Scaffold(
         topBar = { ProjectListTopBar(onOpenSettings = onOpenSettings) },
@@ -112,6 +119,7 @@ fun ProjectListScreen(
                 is ProjectListUiState.Content -> ProjectList(
                     projects = uiState.projects,
                     onOpenProject = onOpenProject,
+                    onDeleteProject = onDeleteProject,
                 )
             }
         }
@@ -182,6 +190,7 @@ private fun EmptyState(onCreateProject: () -> Unit) {
 private fun ProjectList(
     projects: List<Project>,
     onOpenProject: (Long) -> Unit,
+    onDeleteProject: (Long) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -192,35 +201,84 @@ private fun ProjectList(
             ProjectRow(
                 project = project,
                 onOpen = { onOpenProject(project.id) },
+                onDelete = { onDeleteProject(project.id) },
             )
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ProjectRow(project: Project, onOpen: () -> Unit) {
-    NeoBrutalPanel(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen),
-    ) {
-        ProjectThumbnail(imageUri = project.imageUri, name = project.name)
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = project.name.ifBlank { "Untitled" }.uppercase(),
-                fontFamily = AnimeAceFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                maxLines = 1,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = lastEditedLabel(project.updatedAt),
-                fontFamily = googleFontFamily("Hanken Grotesk"),
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Unit) {
+    var showDeleteButton by remember { mutableStateOf(false) }
+    var showConfirm by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        NeoBrutalPanel(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = { if (showDeleteButton) showDeleteButton = false else onOpen() },
+                    onLongClick = { showDeleteButton = true },
+                ),
+        ) {
+            ProjectThumbnail(imageUri = project.imageUri, name = project.name)
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = project.name.ifBlank { "Untitled" }.uppercase(),
+                    fontFamily = AnimeAceFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    maxLines = 1,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = lastEditedLabel(project.updatedAt),
+                    fontFamily = googleFontFamily("Hanken Grotesk"),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+        if (showDeleteButton) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 8.dp, y = (-8).dp)
+                    .size(32.dp)
+                    .background(MaterialTheme.colorScheme.secondary, CircleShape)
+                    .border(2.dp, InkBlack, CircleShape)
+                    .clickable { showConfirm = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Delete comic",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text("Delete comic?") },
+            text = { Text("This permanently removes the comic and its image.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirm = false
+                        showDeleteButton = false
+                        onDelete()
+                    },
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -412,6 +470,7 @@ private fun ProjectListEmptyPreview() {
         onCreateProject = {},
         onOpenProject = {},
         onOpenSettings = {},
+        onDeleteProject = {},
     )
 }
 
@@ -428,5 +487,6 @@ private fun ProjectListContentPreview() {
         onCreateProject = {},
         onOpenProject = {},
         onOpenSettings = {},
+        onDeleteProject = {},
     )
 }
