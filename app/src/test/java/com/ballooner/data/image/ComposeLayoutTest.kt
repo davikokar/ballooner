@@ -2,6 +2,7 @@ package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePosition
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ComposeLayoutTest {
@@ -19,7 +20,35 @@ class ComposeLayoutTest {
         assertEquals(100, layout.canvasHeight)
         assertEquals(200, layout.scaledAddedWidth)
         assertEquals(100, layout.scaledAddedHeight)
-        assertEquals(400, layout.canvasWidth)
+        // The canvas is wider than the two panels combined, leaving room for the gap.
+        assertTrue(layout.canvasWidth > 200 + layout.scaledAddedWidth)
+    }
+
+    @Test
+    fun `leaves a gap between the two panels instead of placing them flush`() {
+        val layout = computeComposeLayout(
+            existingWidth = 200,
+            existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 50,
+            position = ImagePosition.RIGHT,
+        )
+
+        val gap = layout.addedLeft - (layout.existingLeft + 200)
+        assertTrue("expected a positive gap between panels, was $gap", gap > 0)
+    }
+
+    @Test
+    fun `draws a border around each panel`() {
+        val layout = computeComposeLayout(
+            existingWidth = 200,
+            existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 50,
+            position = ImagePosition.RIGHT,
+        )
+
+        assertTrue(layout.borderPx > 0)
     }
 
     @Test
@@ -32,13 +61,14 @@ class ComposeLayoutTest {
             position = ImagePosition.RIGHT,
         )
 
+        assertEquals(0, layout.existingLeft)
         assertEquals(0f, layout.existingRect.left, 0.0001f)
-        assertEquals(200f / 400f, layout.existingRect.width, 0.0001f)
+        assertEquals(200f / layout.canvasWidth, layout.existingRect.width, 0.0001f)
         assertEquals(1f, layout.existingRect.height, 0.0001f)
     }
 
     @Test
-    fun `existing image is pushed past the new image's width when placed to its left`() {
+    fun `existing image is pushed past the new image's width and the gap when placed to its left`() {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
@@ -47,7 +77,8 @@ class ComposeLayoutTest {
             position = ImagePosition.LEFT,
         )
 
-        assertEquals(layout.scaledAddedWidth.toFloat() / layout.canvasWidth, layout.existingRect.left, 0.0001f)
+        assertTrue(layout.existingLeft > layout.scaledAddedWidth)
+        assertEquals(layout.existingLeft.toFloat() / layout.canvasWidth, layout.existingRect.left, 0.0001f)
     }
 
     @Test
@@ -63,13 +94,13 @@ class ComposeLayoutTest {
         assertEquals(200, layout.canvasWidth)
         assertEquals(200, layout.scaledAddedWidth)
         assertEquals(100, layout.scaledAddedHeight)
-        assertEquals(200, layout.canvasHeight)
+        assertEquals(0, layout.existingTop)
         assertEquals(0f, layout.existingRect.top, 0.0001f)
-        assertEquals(100f / 200f, layout.existingRect.height, 0.0001f)
+        assertEquals(100f / layout.canvasHeight, layout.existingRect.height, 0.0001f)
     }
 
     @Test
-    fun `existing image is pushed past the new image's height when placed above it`() {
+    fun `existing image is pushed past the new image's height and the gap when placed above it`() {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
@@ -78,6 +109,8 @@ class ComposeLayoutTest {
             position = ImagePosition.TOP,
         )
 
-        assertEquals(layout.scaledAddedHeight.toFloat() / layout.canvasHeight, layout.existingRect.top, 0.0001f)
+        assertTrue(layout.existingTop > layout.scaledAddedHeight)
+        assertEquals(layout.existingTop.toFloat() / layout.canvasHeight, layout.existingRect.top, 0.0001f)
     }
 }
+

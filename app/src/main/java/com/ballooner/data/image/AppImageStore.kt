@@ -3,6 +3,8 @@ package com.ballooner.data.image
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.Paint
 import android.net.Uri
 import com.ballooner.domain.model.ImagePosition
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -63,18 +65,32 @@ class AppImageStore @Inject constructor(
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(composite)
-            val existingLeft = (layout.existingRect.left * layout.canvasWidth).toInt()
-            val existingTop = (layout.existingRect.top * layout.canvasHeight).toInt()
-            val addedLeft = if (position == ImagePosition.LEFT) 0 else if (position == ImagePosition.RIGHT) existingBitmap.width else 0
-            val addedTop = if (position == ImagePosition.TOP) 0 else if (position == ImagePosition.BOTTOM) existingBitmap.height else 0
-            canvas.drawBitmap(existingBitmap, existingLeft.toFloat(), existingTop.toFloat(), null)
-            canvas.drawBitmap(scaledAdded, addedLeft.toFloat(), addedTop.toFloat(), null)
+            // Paper-white background shows through the gap between the two panels.
+            canvas.drawColor(Color.WHITE)
+            canvas.drawBitmap(existingBitmap, layout.existingLeft.toFloat(), layout.existingTop.toFloat(), null)
+            canvas.drawBitmap(scaledAdded, layout.addedLeft.toFloat(), layout.addedTop.toFloat(), null)
+            val borderPaint = Paint().apply {
+                color = Color.BLACK
+                style = Paint.Style.STROKE
+                strokeWidth = layout.borderPx.toFloat()
+            }
+            // Inset by half the stroke width so the border isn't clipped at the canvas edges.
+            val inset = layout.borderPx / 2f
+            canvas.drawRect(borderRect(layout.existingLeft, layout.existingTop, existingBitmap.width, existingBitmap.height, inset), borderPaint)
+            canvas.drawRect(borderRect(layout.addedLeft, layout.addedTop, layout.scaledAddedWidth, layout.scaledAddedHeight, inset), borderPaint)
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
             dest.outputStream().use { output -> composite.compress(Bitmap.CompressFormat.PNG, 100, output) }
             ComposedImage(uri = Uri.fromFile(dest).toString(), previousImageRect = layout.existingRect)
         }.getOrNull()
     }
+
+    private fun borderRect(left: Int, top: Int, width: Int, height: Int, inset: Float) = android.graphics.RectF(
+        left + inset,
+        top + inset,
+        left + width - inset,
+        top + height - inset,
+    )
 
     private fun decodeBitmap(uri: String): Bitmap? =
         context.contentResolver.openInputStream(Uri.parse(uri))?.use { stream -> BitmapFactory.decodeStream(stream) }

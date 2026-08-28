@@ -691,18 +691,10 @@ private fun Editor(
                         Box(
                             modifier = Modifier.size(fitWidth, fitHeight),
                         ) {
-                            // Solid offset shadow behind the photo frame, drawn statically so it
-                            // doesn't zoom/pan/rotate with the image layer above it.
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .offset(x = 6.dp, y = 6.dp)
-                                    .background(InkBlack),
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .border(4.dp, InkBlack)
+                                    .border(2.dp, InkBlack)
                                     // Two-finger pinch zooms / pans; single finger stays for balloons.
                                     .pointerInput(Unit) {
                                         awaitEachGesture {
