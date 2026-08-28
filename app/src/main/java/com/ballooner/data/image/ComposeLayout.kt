@@ -15,16 +15,21 @@ internal data class ComposeLayout(
     val addedLeft: Int,
     val addedTop: Int,
     // Thickness of the border drawn around each panel, matching the balloons' thin outline.
-    val borderPx: Int,
+    val existingBorderPx: Int,
+    val addedBorderPx: Int,
     val existingRect: RectFraction,
 )
 
-// A small gap keeps the two panels from touching; both it and the border scale with the
-// matched dimension so they look consistent regardless of the source photos' resolution.
+// A small gap keeps the two panels from touching, scaled with the matched dimension so it
+// looks consistent regardless of the source photos' resolution.
 private const val GAP_FRACTION = 0.02f
 private const val MIN_GAP_PX = 8
 private const val BORDER_FRACTION = 0.006f
 private const val MIN_BORDER_PX = 3
+
+/** Border thickness for an image of this size, matching the balloons' thin outline ratio. */
+internal fun borderThicknessPx(width: Int, height: Int): Int =
+    (minOf(width, height) * BORDER_FRACTION).roundToInt().coerceAtLeast(MIN_BORDER_PX)
 
 /**
  * Computes the composite canvas size and where the existing and added images land within it,
@@ -41,7 +46,6 @@ internal fun computeComposeLayout(
 ): ComposeLayout = when (position) {
     ImagePosition.LEFT, ImagePosition.RIGHT -> {
         val gap = (existingHeight * GAP_FRACTION).roundToInt().coerceAtLeast(MIN_GAP_PX)
-        val border = (existingHeight * BORDER_FRACTION).roundToInt().coerceAtLeast(MIN_BORDER_PX)
         val scaledAddedWidth = (addedWidth.toFloat() * existingHeight / addedHeight).roundToInt().coerceAtLeast(1)
         val canvasWidth = existingWidth + gap + scaledAddedWidth
         val existingLeft = if (position == ImagePosition.LEFT) scaledAddedWidth + gap else 0
@@ -55,7 +59,8 @@ internal fun computeComposeLayout(
             scaledAddedHeight = existingHeight,
             addedLeft = addedLeft,
             addedTop = 0,
-            borderPx = border,
+            existingBorderPx = borderThicknessPx(existingWidth, existingHeight),
+            addedBorderPx = borderThicknessPx(scaledAddedWidth, existingHeight),
             existingRect = RectFraction(
                 left = existingLeft.toFloat() / canvasWidth,
                 top = 0f,
@@ -66,7 +71,6 @@ internal fun computeComposeLayout(
     }
     ImagePosition.TOP, ImagePosition.BOTTOM -> {
         val gap = (existingWidth * GAP_FRACTION).roundToInt().coerceAtLeast(MIN_GAP_PX)
-        val border = (existingWidth * BORDER_FRACTION).roundToInt().coerceAtLeast(MIN_BORDER_PX)
         val scaledAddedHeight = (addedHeight.toFloat() * existingWidth / addedWidth).roundToInt().coerceAtLeast(1)
         val canvasHeight = existingHeight + gap + scaledAddedHeight
         val existingTop = if (position == ImagePosition.TOP) scaledAddedHeight + gap else 0
@@ -80,7 +84,8 @@ internal fun computeComposeLayout(
             scaledAddedHeight = scaledAddedHeight,
             addedLeft = 0,
             addedTop = addedTop,
-            borderPx = border,
+            existingBorderPx = borderThicknessPx(existingWidth, existingHeight),
+            addedBorderPx = borderThicknessPx(existingWidth, scaledAddedHeight),
             existingRect = RectFraction(
                 left = 0f,
                 top = existingTop.toFloat() / canvasHeight,

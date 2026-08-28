@@ -21,11 +21,15 @@ class AppImageStore @Inject constructor(
 
     override suspend fun importImage(sourceUri: String): String? = withContext(Dispatchers.IO) {
         runCatching {
+            val bitmap = decodeBitmap(sourceUri) ?: return@runCatching null
+            val bordered = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bordered)
+            canvas.drawBitmap(bitmap, 0f, 0f, null)
+            val borderPx = borderThicknessPx(bitmap.width, bitmap.height)
+            canvas.drawRect(borderRect(0, 0, bitmap.width, bitmap.height, borderPx / 2f), borderPaint(borderPx))
             imagesDir.mkdirs()
-            val dest = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
-            context.contentResolver.openInputStream(Uri.parse(sourceUri))?.use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
-            } ?: return@runCatching null
+            val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
+            dest.outputStream().use { output -> bordered.compress(Bitmap.CompressFormat.PNG, 100, output) }
             Uri.fromFile(dest).toString()
         }.getOrNull()
     }
@@ -69,20 +73,27 @@ class AppImageStore @Inject constructor(
             canvas.drawColor(Color.WHITE)
             canvas.drawBitmap(existingBitmap, layout.existingLeft.toFloat(), layout.existingTop.toFloat(), null)
             canvas.drawBitmap(scaledAdded, layout.addedLeft.toFloat(), layout.addedTop.toFloat(), null)
-            val borderPaint = Paint().apply {
-                color = Color.BLACK
-                style = Paint.Style.STROKE
-                strokeWidth = layout.borderPx.toFloat()
-            }
-            // Inset by half the stroke width so the border isn't clipped at the canvas edges.
-            val inset = layout.borderPx / 2f
-            canvas.drawRect(borderRect(layout.existingLeft, layout.existingTop, existingBitmap.width, existingBitmap.height, inset), borderPaint)
-            canvas.drawRect(borderRect(layout.addedLeft, layout.addedTop, layout.scaledAddedWidth, layout.scaledAddedHeight, inset), borderPaint)
+            val existingInset = layout.existingBorderPx / 2f
+            canvas.drawRect(
+                borderRect(layout.existingLeft, layout.existingTop, existingBitmap.width, existingBitmap.height, existingInset),
+                borderPaint(layout.existingBorderPx),
+            )
+            val addedInset = layout.addedBorderPx / 2f
+            canvas.drawRect(
+                borderRect(layout.addedLeft, layout.addedTop, layout.scaledAddedWidth, layout.scaledAddedHeight, addedInset),
+                borderPaint(layout.addedBorderPx),
+            )
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
             dest.outputStream().use { output -> composite.compress(Bitmap.CompressFormat.PNG, 100, output) }
             ComposedImage(uri = Uri.fromFile(dest).toString(), previousImageRect = layout.existingRect)
         }.getOrNull()
+    }
+
+    private fun borderPaint(strokeWidthPx: Int) = Paint().apply {
+        color = Color.BLACK
+        style = Paint.Style.STROKE
+        strokeWidth = strokeWidthPx.toFloat()
     }
 
     private fun borderRect(left: Int, top: Int, width: Int, height: Int, inset: Float) = android.graphics.RectF(

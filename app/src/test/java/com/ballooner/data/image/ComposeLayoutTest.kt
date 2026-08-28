@@ -48,7 +48,13 @@ class ComposeLayoutTest {
             position = ImagePosition.RIGHT,
         )
 
-        assertTrue(layout.borderPx > 0)
+        assertTrue(layout.existingBorderPx > 0)
+        assertTrue(layout.addedBorderPx > 0)
+    }
+
+    @Test
+    fun `border thickness has a floor for tiny images`() {
+        assertEquals(3, borderThicknessPx(width = 10, height = 10))
     }
 
     @Test

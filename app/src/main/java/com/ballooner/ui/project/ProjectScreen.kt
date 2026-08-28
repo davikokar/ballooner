@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -99,6 +100,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
@@ -306,34 +308,104 @@ fun ProjectScreen(
 
 @Composable
 private fun ImagePositionDialog(onSelect: (ImagePosition) -> Unit, onDismiss: () -> Unit) {
+    var snapped by remember { mutableStateOf<ImagePosition?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add image") },
         text = {
             Column {
-                Text("Where should the new image go, relative to the current one?")
+                Text("Drag the new panel next to the existing one, then tap Add.")
                 Spacer(modifier = Modifier.height(12.dp))
-                ImagePosition.entries.forEach { position ->
-                    ComicButton(
-                        text = position.label(),
-                        onClick = { onSelect(position) },
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    )
-                }
+                ImagePositionPicker(
+                    snapped = snapped,
+                    onSnappedChange = { snapped = it },
+                )
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            TextButton(
+                onClick = { snapped?.let(onSelect) },
+                enabled = snapped != null,
+            ) { Text("Add") }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
 }
 
-private fun ImagePosition.label(): String = when (this) {
-    ImagePosition.LEFT -> "To the left"
-    ImagePosition.RIGHT -> "To the right"
-    ImagePosition.TOP -> "Above"
-    ImagePosition.BOTTOM -> "Below"
+/**
+ * A visual position picker: the existing image is a fixed block; the new image is a small
+ * draggable block that snaps ("magnetic") to whichever side of the existing block it nears.
+ */
+@Composable
+private fun ImagePositionPicker(snapped: ImagePosition?, onSnappedChange: (ImagePosition?) -> Unit) {
+    val density = LocalDensity.current
+    val existingSize = DpSize(110.dp, 74.dp)
+    val newBlockSize = DpSize(64.dp, 48.dp)
+    val gap = 14.dp
+
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val snapTargets = remember(density) {
+        val halfExistingW = with(density) { (existingSize.width / 2).toPx() }
+        val halfExistingH = with(density) { (existingSize.height / 2).toPx() }
+        val halfNewW = with(density) { (newBlockSize.width / 2).toPx() }
+        val halfNewH = with(density) { (newBlockSize.height / 2).toPx() }
+        val gapPx = with(density) { gap.toPx() }
+        mapOf(
+            ImagePosition.LEFT to Offset(-(halfExistingW + gapPx + halfNewW), 0f),
+            ImagePosition.RIGHT to Offset(halfExistingW + gapPx + halfNewW, 0f),
+            ImagePosition.TOP to Offset(0f, -(halfExistingH + gapPx + halfNewH)),
+            ImagePosition.BOTTOM to Offset(0f, halfExistingH + gapPx + halfNewH),
+        )
+    }
+    val snapThresholdPx = with(density) { 32.dp.toPx() }
+    val nearestSnap = snapTargets.entries.minBy { (it.value - dragOffset).getDistance() }
+        .takeIf { (it.value - dragOffset).getDistance() < snapThresholdPx }
+        ?.key
+    LaunchedEffect(nearestSnap) { onSnappedChange(nearestSnap) }
+    val displayOffset = snapped?.let { snapTargets.getValue(it) } ?: dragOffset
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+            .border(2.dp, InkBlack, RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(existingSize)
+                .background(Color.White, RoundedCornerShape(4.dp))
+                .border(2.dp, InkBlack, RoundedCornerShape(4.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(BalloonerIcons.Image, contentDescription = null, tint = InkBlack)
+        }
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(displayOffset.x.roundToInt(), displayOffset.y.roundToInt()) }
+                .size(newBlockSize)
+                .background(
+                    if (snapped != null) MaterialTheme.colorScheme.tertiary else Color.White,
+                    RoundedCornerShape(4.dp),
+                )
+                .border(2.dp, InkBlack, RoundedCornerShape(4.dp))
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDrag = { change, amount ->
+                            change.consume()
+                            dragOffset += amount
+                        },
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "New image", tint = InkBlack)
+        }
+    }
 }
 
 @Composable
@@ -694,7 +766,9 @@ private fun Editor(
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .border(2.dp, InkBlack)
+                                    // No outer border here: each stored image already has its own
+                                    // border baked in (see AppImageStore), so a group-level border
+                                    // isn't drawn around composited panels.
                                     // Two-finger pinch zooms / pans; single finger stays for balloons.
                                     .pointerInput(Unit) {
                                         awaitEachGesture {
