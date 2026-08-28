@@ -10,14 +10,29 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-val BalloonerBlue = Color(0xFF004AC5)
+val BalloonerBlue = Color(0xFF2563EB)
+
+// "Action Narrative" comic palette: hard-edged inking on vibrant primaries.
+val InkBlack = Color(0xFF000000)
+val PaperWhite = Color(0xFFF9F9F9)
+val VibrantBlue = BalloonerBlue
+val EnergeticRed = Color(0xFFDC2626)
+val ComicYellow = Color(0xFFFACC15)
 
 // White page background with blue top bars (see balloonerTopAppBarColors).
 private val BalloonerColors = lightColorScheme(
-    background = Color.White,
-    onBackground = Color.Black,
+    primary = VibrantBlue,
+    onPrimary = Color.White,
+    secondary = EnergeticRed,
+    onSecondary = Color.White,
+    tertiary = ComicYellow,
+    onTertiary = InkBlack,
+    background = PaperWhite,
+    onBackground = InkBlack,
     surface = Color.White,
-    onSurface = Color.Black,
+    onSurface = InkBlack,
+    surfaceVariant = Color(0xFFE2E2E2),
+    onSurfaceVariant = Color(0xFF434655),
 )
 
 @Composable

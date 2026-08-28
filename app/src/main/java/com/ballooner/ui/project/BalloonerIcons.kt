@@ -38,6 +38,13 @@ object BalloonerIcons {
         )
     }
 
+    val Balloon: ImageVector by lazy {
+        icon(
+            name = "Balloon",
+            pathData = "M3,10 a9,7 0 1,0 18,0 a9,7 0 1,0 -18,0 Z M9,15 L7,21 L14,16 Z",
+        )
+    }
+
     private fun icon(name: String, pathData: String): ImageVector =
         ImageVector.Builder(
             name = name,
