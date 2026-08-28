@@ -49,3 +49,26 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("UPDATE `project` SET `updatedAt` = `createdAt`")
     }
 }
+
+/** Adds the `panel` table, tracking each image panel's rect within the project's merged image. */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `panel` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`projectId` INTEGER NOT NULL, " +
+                "`left` REAL NOT NULL, " +
+                "`top` REAL NOT NULL, " +
+                "`width` REAL NOT NULL, " +
+                "`height` REAL NOT NULL, " +
+                "FOREIGN KEY(`projectId`) REFERENCES `project`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_panel_projectId` ON `panel` (`projectId`)")
+        // Seed one full-canvas panel for every project that already has an image.
+        db.execSQL(
+            "INSERT INTO `panel` (`projectId`, `left`, `top`, `width`, `height`) " +
+                "SELECT `id`, 0.0, 0.0, 1.0, 1.0 FROM `project` WHERE `imageUri` IS NOT NULL",
+        )
+    }
+}

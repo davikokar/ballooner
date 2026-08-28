@@ -113,6 +113,7 @@ import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.RectFraction
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
@@ -154,7 +155,7 @@ fun ProjectScreen(
     onNavigateBack: () -> Unit,
     onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
-    onAddImage: (String, ImagePosition) -> Unit,
+    onAddImage: (String, ImagePosition, Int) -> Unit,
     onAddBalloon: (BalloonType) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
@@ -296,8 +297,9 @@ fun ProjectScreen(
             }
             if (pendingNewImageUri != null) {
                 ImagePositionDialog(
-                    onSelect = { position ->
-                        onAddImage(pendingNewImageUri!!, position)
+                    panels = uiState.panels,
+                    onSelect = { position, sizeSpan ->
+                        onAddImage(pendingNewImageUri!!, position, sizeSpan)
                         pendingNewImageUri = null
                     },
                     onDismiss = { pendingNewImageUri = null },
@@ -311,24 +313,37 @@ fun ProjectScreen(
 }
 
 @Composable
-private fun ImagePositionDialog(onSelect: (ImagePosition) -> Unit, onDismiss: () -> Unit) {
-    var snapped by remember { mutableStateOf<ImagePosition?>(null) }
+private fun ImagePositionDialog(
+    panels: List<RectFraction>,
+    onSelect: (ImagePosition, Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Defaults to the right of the existing panels, the most common next-panel placement.
+    var snapped by remember { mutableStateOf<ImagePosition?>(ImagePosition.RIGHT) }
+    var sizeSpan by remember { mutableStateOf(1) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add image") },
         text = {
             Column {
-                Text("Drag the new panel next to the existing one, then tap Add.")
+                Text("Drag the new panel next to the existing ones, then tap Add.")
                 Spacer(modifier = Modifier.height(12.dp))
                 ImagePositionPicker(
+                    panels = panels,
                     snapped = snapped,
                     onSnappedChange = { snapped = it },
+                    sizeSpan = sizeSpan,
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SizeSpanOption(text = "Normal size", selected = sizeSpan == 1, onClick = { sizeSpan = 1 })
+                    SizeSpanOption(text = "Large panel", selected = sizeSpan == 2, onClick = { sizeSpan = 2 })
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { snapped?.let(onSelect) },
+                onClick = { snapped?.let { onSelect(it, sizeSpan) } },
                 enabled = snapped != null,
             ) { Text("Add") }
         },
@@ -338,76 +353,150 @@ private fun ImagePositionDialog(onSelect: (ImagePosition) -> Unit, onDismiss: ()
     )
 }
 
+@Composable
+private fun SizeSpanOption(text: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary else Color.White,
+                RoundedCornerShape(6.dp),
+            )
+            .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text, color = if (selected) Color.White else InkBlack, fontSize = 13.sp)
+    }
+}
+
 /**
- * A visual position picker: the existing image is a fixed block; the new image is a small
- * draggable block that snaps ("magnetic") to whichever side of the existing block it nears.
+ * A visual position picker: one fixed box per existing image panel, laid out proportionally to
+ * their actual position/size; the new image is a small draggable block that snaps ("magnetic")
+ * to whichever side of the existing panels it nears.
  */
 @Composable
-private fun ImagePositionPicker(snapped: ImagePosition?, onSnappedChange: (ImagePosition?) -> Unit) {
+private fun ImagePositionPicker(
+    panels: List<RectFraction>,
+    snapped: ImagePosition?,
+    onSnappedChange: (ImagePosition?) -> Unit,
+    sizeSpan: Int,
+) {
     val density = LocalDensity.current
-    val existingSize = DpSize(110.dp, 74.dp)
-    val newBlockSize = DpSize(64.dp, 48.dp)
+    val pickerSize = DpSize(260.dp, 180.dp)
     val gap = 14.dp
+    val baseBlockSize = DpSize(64.dp, 48.dp)
+
+    // The existing panels' combined footprint, used to anchor the new block's snap zones.
+    val bounds = remember(panels) {
+        if (panels.isEmpty()) {
+            RectFraction(0f, 0f, 1f, 1f)
+        } else {
+            val left = panels.minOf { it.left }
+            val top = panels.minOf { it.top }
+            val right = panels.maxOf { it.left + it.width }
+            val bottom = panels.maxOf { it.top + it.height }
+            RectFraction(left, top, right - left, bottom - top)
+        }
+    }
 
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
-    val snapTargets = remember(density) {
-        val halfExistingW = with(density) { (existingSize.width / 2).toPx() }
-        val halfExistingH = with(density) { (existingSize.height / 2).toPx() }
-        val halfNewW = with(density) { (newBlockSize.width / 2).toPx() }
-        val halfNewH = with(density) { (newBlockSize.height / 2).toPx() }
+    val pickerWidthPx = with(density) { pickerSize.width.toPx() }
+    val pickerHeightPx = with(density) { pickerSize.height.toPx() }
+    val boundsCenter = Offset(
+        (bounds.left + bounds.width / 2f) * pickerWidthPx - pickerWidthPx / 2f,
+        (bounds.top + bounds.height / 2f) * pickerHeightPx - pickerHeightPx / 2f,
+    )
+    val boundsHalfWidthPx = bounds.width * pickerWidthPx / 2f
+    val boundsHalfHeightPx = bounds.height * pickerHeightPx / 2f
+
+    val snapTargets = remember(boundsCenter, boundsHalfWidthPx, boundsHalfHeightPx, density) {
+        val halfNewW = with(density) { (baseBlockSize.width / 2).toPx() }
+        val halfNewH = with(density) { (baseBlockSize.height / 2).toPx() }
         val gapPx = with(density) { gap.toPx() }
         mapOf(
-            ImagePosition.LEFT to Offset(-(halfExistingW + gapPx + halfNewW), 0f),
-            ImagePosition.RIGHT to Offset(halfExistingW + gapPx + halfNewW, 0f),
-            ImagePosition.TOP to Offset(0f, -(halfExistingH + gapPx + halfNewH)),
-            ImagePosition.BOTTOM to Offset(0f, halfExistingH + gapPx + halfNewH),
+            ImagePosition.LEFT to boundsCenter + Offset(-(boundsHalfWidthPx + gapPx + halfNewW), 0f),
+            ImagePosition.RIGHT to boundsCenter + Offset(boundsHalfWidthPx + gapPx + halfNewW, 0f),
+            ImagePosition.TOP to boundsCenter + Offset(0f, -(boundsHalfHeightPx + gapPx + halfNewH)),
+            ImagePosition.BOTTOM to boundsCenter + Offset(0f, boundsHalfHeightPx + gapPx + halfNewH),
         )
+    }
+    // Start the drag offset at the default snap target so the block appears there initially.
+    LaunchedEffect(Unit) {
+        snapped?.let { dragOffset = snapTargets.getValue(it) }
     }
     val snapThresholdPx = with(density) { 32.dp.toPx() }
     val nearestSnap = snapTargets.entries.minBy { (it.value - dragOffset).getDistance() }
         .takeIf { (it.value - dragOffset).getDistance() < snapThresholdPx }
         ?.key
     LaunchedEffect(nearestSnap) { onSnappedChange(nearestSnap) }
-    val displayOffset = snapped?.let { snapTargets.getValue(it) } ?: dragOffset
+    val displayOffset = snapped?.let { snapTargets[it] } ?: dragOffset
+    // The block grows along whichever axis a "large" panel would actually be scaled on.
+    val isVertical = snapped == ImagePosition.TOP || snapped == ImagePosition.BOTTOM
+    val newBlockSize = if (isVertical) {
+        DpSize(baseBlockSize.width * sizeSpan, baseBlockSize.height)
+    } else {
+        DpSize(baseBlockSize.width, baseBlockSize.height * sizeSpan)
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
+            .height(pickerSize.height)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
             .border(2.dp, InkBlack, RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(existingSize)
-                .background(Color.White, RoundedCornerShape(4.dp))
-                .border(2.dp, InkBlack, RoundedCornerShape(4.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(BalloonerIcons.Image, contentDescription = null, tint = InkBlack)
-        }
-        Box(
-            modifier = Modifier
-                .offset { IntOffset(displayOffset.x.roundToInt(), displayOffset.y.roundToInt()) }
-                .size(newBlockSize)
-                .background(
-                    if (snapped != null) MaterialTheme.colorScheme.tertiary else Color.White,
-                    RoundedCornerShape(4.dp),
-                )
-                .border(2.dp, InkBlack, RoundedCornerShape(4.dp))
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDrag = { change, amount ->
-                            change.consume()
-                            dragOffset += amount
-                        },
+        Box(modifier = Modifier.size(pickerSize)) {
+            panels.forEach { panel ->
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                (panel.left * pickerWidthPx).roundToInt(),
+                                (panel.top * pickerHeightPx).roundToInt(),
+                            )
+                        }
+                        .size(
+                            with(density) { (panel.width * pickerWidthPx).toDp() },
+                            with(density) { (panel.height * pickerHeightPx).toDp() },
+                        )
+                        .background(Color.White, RoundedCornerShape(4.dp))
+                        .border(2.dp, InkBlack, RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(BalloonerIcons.Image, contentDescription = null, tint = InkBlack)
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            (pickerWidthPx / 2f + displayOffset.x - with(density) { newBlockSize.width.toPx() } / 2f)
+                                .roundToInt(),
+                            (pickerHeightPx / 2f + displayOffset.y - with(density) { newBlockSize.height.toPx() } / 2f)
+                                .roundToInt(),
+                        )
+                    }
+                    .size(newBlockSize)
+                    .background(
+                        if (snapped != null) MaterialTheme.colorScheme.tertiary else Color.White,
+                        RoundedCornerShape(4.dp),
                     )
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "New image", tint = InkBlack)
+                    .border(2.dp, InkBlack, RoundedCornerShape(4.dp))
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDrag = { change, amount ->
+                                change.consume()
+                                dragOffset += amount
+                            },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "New image", tint = InkBlack)
+            }
         }
     }
 }
@@ -1491,7 +1580,7 @@ private fun ProjectScreenNoImagePreview() {
         onNavigateBack = {},
         onRenameProject = {},
         onImagePicked = {},
-        onAddImage = { _, _ -> },
+        onAddImage = { _, _, _ -> },
         onAddBalloon = {},
         onSelectBalloon = {},
         onCommitBalloon = {},

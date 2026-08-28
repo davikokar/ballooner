@@ -118,5 +118,51 @@ class ComposeLayoutTest {
         assertTrue(layout.existingTop > layout.scaledAddedHeight)
         assertEquals(layout.existingTop.toFloat() / layout.canvasHeight, layout.existingRect.top, 0.0001f)
     }
+
+    @Test
+    fun `added rect covers where the added image was actually drawn`() {
+        val layout = computeComposeLayout(
+            existingWidth = 200,
+            existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 50,
+            position = ImagePosition.RIGHT,
+        )
+
+        assertEquals(layout.addedLeft.toFloat() / layout.canvasWidth, layout.addedRect.left, 0.0001f)
+        assertEquals(layout.scaledAddedWidth.toFloat() / layout.canvasWidth, layout.addedRect.width, 0.0001f)
+    }
+
+    @Test
+    fun `a size span of 2 doubles the matched dimension and letterboxes the existing content`() {
+        val layout = computeComposeLayout(
+            existingWidth = 200,
+            existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 50,
+            position = ImagePosition.RIGHT,
+            sizeSpan = 2,
+        )
+
+        assertEquals(200, layout.canvasHeight)
+        assertEquals(400, layout.scaledAddedWidth)
+        // The existing panel no longer fills the canvas height, so it's centered within it.
+        assertEquals(50, layout.existingTop)
+    }
+
+    @Test
+    fun `a size span of 1 keeps the existing behavior with no letterboxing`() {
+        val layout = computeComposeLayout(
+            existingWidth = 200,
+            existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 50,
+            position = ImagePosition.RIGHT,
+            sizeSpan = 1,
+        )
+
+        assertEquals(0, layout.existingTop)
+        assertEquals(1f, layout.existingRect.height, 0.0001f)
+    }
 }
 

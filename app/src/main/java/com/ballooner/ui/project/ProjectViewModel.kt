@@ -5,13 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ballooner.data.balloon.BalloonRepository
 import com.ballooner.data.image.ImageStore
-import com.ballooner.data.image.RectFraction
+import com.ballooner.data.panel.PanelRepository
 import com.ballooner.data.project.ProjectRepository
 import com.ballooner.data.settings.SettingsRepository
 import com.ballooner.domain.model.AppSettings
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.TextSizeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ class ProjectViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val projectRepository: ProjectRepository,
     private val balloonRepository: BalloonRepository,
+    private val panelRepository: PanelRepository,
     private val imageStore: ImageStore,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
@@ -44,7 +46,8 @@ class ProjectViewModel @Inject constructor(
     private val settings = settingsRepository.observeSettings()
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
-    val uiState: StateFlow<ProjectUiState> = combine(
+    // combine() only has typed overloads up to 5 flows, so panels are folded in separately.
+    private val baseUiState = combine(
         projectRepository.observeProject(projectId),
         balloonRepository.observeBalloons(projectId),
         selectedBalloonId,
@@ -60,7 +63,12 @@ class ProjectViewModel @Inject constructor(
             autoTextSize = appSettings.textSizeMode == TextSizeMode.AUTO,
             isProcessingImage = processingImage,
         )
-    }.stateIn(
+    }
+
+    val uiState: StateFlow<ProjectUiState> = combine(
+        baseUiState,
+        panelRepository.observePanels(projectId),
+    ) { state, panels -> state.copy(panels = panels) }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = ProjectUiState(),
@@ -73,6 +81,8 @@ class ProjectViewModel @Inject constructor(
                 val previous = uiState.value.imageUri
                 val local = imageStore.importImage(sourceUri) ?: return@launch
                 projectRepository.setProjectImage(projectId, local)
+                // A plain replace starts a fresh single-panel layout.
+                panelRepository.replacePanels(projectId, listOf(RectFraction(0f, 0f, 1f, 1f)))
                 if (previous != null && previous != local) imageStore.deleteImage(previous)
             } finally {
                 isProcessingImage.value = false
@@ -81,19 +91,22 @@ class ProjectViewModel @Inject constructor(
     }
 
     /**
-     * Adds [sourceUri] as a new panel next to the comic's current image, growing the canvas and
-     * remapping existing balloons so they keep their place on the (now smaller, relative) old image.
+     * Adds [sourceUri] as a new panel next to the comic's current image, growing the canvas,
+     * remapping existing panels and balloons so they keep their place on the (now smaller,
+     * relative) old image, and persisting the new panel layout.
      */
-    fun onAddImage(sourceUri: String, position: ImagePosition) {
+    fun onAddImage(sourceUri: String, position: ImagePosition, sizeSpan: Int = 1) {
         viewModelScope.launch {
             isProcessingImage.value = true
             try {
                 val previous = uiState.value.imageUri ?: return@launch
-                val composed = imageStore.composeImages(previous, sourceUri, position) ?: return@launch
+                val composed = imageStore.composeImages(previous, sourceUri, position, sizeSpan) ?: return@launch
                 val rect = composed.previousImageRect
                 uiState.value.balloons.forEach { balloon ->
                     balloonRepository.upsertBalloon(projectId, balloon.remappedInto(rect))
                 }
+                val remappedPanels = uiState.value.panels.map { it.remappedInto(rect) }
+                panelRepository.replacePanels(projectId, remappedPanels + composed.newImageRect)
                 projectRepository.setProjectImage(projectId, composed.uri)
                 imageStore.deleteImage(previous)
             } finally {
@@ -110,6 +123,13 @@ class ProjectViewModel @Inject constructor(
         // tailLength is a fraction of the canvas's smaller dimension; approximate its new
         // fraction with the smaller of the two axis scale factors.
         tailLength = tailLength * minOf(rect.width, rect.height),
+    )
+
+    private fun RectFraction.remappedInto(rect: RectFraction) = RectFraction(
+        left = rect.left + left * rect.width,
+        top = rect.top + top * rect.height,
+        width = width * rect.width,
+        height = height * rect.height,
     )
 
     fun setProjectName(name: String) {

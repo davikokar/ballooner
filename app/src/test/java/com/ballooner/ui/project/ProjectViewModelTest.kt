@@ -5,7 +5,7 @@ import app.cash.turbine.test
 import com.ballooner.data.balloon.FakeBalloonRepository
 import com.ballooner.data.image.ComposedImage
 import com.ballooner.data.image.FakeImageStore
-import com.ballooner.data.image.RectFraction
+import com.ballooner.data.panel.FakePanelRepository
 import com.ballooner.data.project.FakeProjectRepository
 import com.ballooner.data.settings.FakeSettingsRepository
 import com.ballooner.domain.model.AppSettings
@@ -13,6 +13,7 @@ import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.Project
+import com.ballooner.domain.model.RectFraction
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -38,6 +39,7 @@ class ProjectViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
             projectRepository = projectRepository,
             balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
             imageStore = FakeImageStore(),
             settingsRepository = FakeSettingsRepository(),
         )
@@ -78,6 +80,7 @@ class ProjectViewModelTest {
                 initial = listOf(Project(id = 1, name = "Comic", description = "", createdAt = 1)),
             ),
             balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
             imageStore = imageStore,
             settingsRepository = FakeSettingsRepository(),
         )
@@ -100,6 +103,7 @@ class ProjectViewModelTest {
             composeResult = ComposedImage(
                 uri = "merged-uri",
                 previousImageRect = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f),
+                newImageRect = RectFraction(left = 0f, top = 0f, width = 0.5f, height = 1f),
             )
         }
         val projectRepository = FakeProjectRepository(
@@ -111,6 +115,7 @@ class ProjectViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
             projectRepository = projectRepository,
             balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
             imageStore = imageStore,
             settingsRepository = FakeSettingsRepository(),
         )
@@ -124,7 +129,7 @@ class ProjectViewModelTest {
             val state = expectMostRecentItem()
             assertEquals("merged-uri", state.imageUri)
             assertEquals(false, state.isProcessingImage)
-            assertEquals(Triple("existing-uri", "added-uri", ImagePosition.RIGHT), imageStore.lastComposeRequest)
+            assertEquals(listOf("existing-uri", "added-uri", ImagePosition.RIGHT, 1), imageStore.lastComposeRequest)
             assertEquals(listOf("existing-uri"), imageStore.deleted)
             cancelAndConsumeRemainingEvents()
         }
@@ -136,6 +141,7 @@ class ProjectViewModelTest {
             composeResult = ComposedImage(
                 uri = "merged-uri",
                 previousImageRect = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f),
+                newImageRect = RectFraction(left = 0f, top = 0f, width = 0.5f, height = 1f),
             )
         }
         val projectRepository = FakeProjectRepository(
@@ -147,6 +153,7 @@ class ProjectViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
             projectRepository = projectRepository,
             balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
             imageStore = imageStore,
             settingsRepository = FakeSettingsRepository(),
         )
@@ -211,6 +218,7 @@ class ProjectViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
             projectRepository = projectRepository,
             balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
             imageStore = imageStore,
             settingsRepository = FakeSettingsRepository(),
         )
@@ -238,6 +246,7 @@ class ProjectViewModelTest {
                 initial = listOf(Project(id = 1, name = "Comic", description = "", createdAt = 1)),
             ),
             balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
             imageStore = FakeImageStore(),
             settingsRepository = FakeSettingsRepository(AppSettings(defaultFont = BalloonFont.COMIC_SANS_MS)),
         )

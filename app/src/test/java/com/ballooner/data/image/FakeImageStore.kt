@@ -8,7 +8,7 @@ class FakeImageStore : ImageStore {
 
     /** Set by tests to control what [composeImages] returns. */
     var composeResult: ComposedImage? = null
-    var lastComposeRequest: Triple<String, String, ImagePosition>? = null
+    var lastComposeRequest: List<Any>? = null
 
     override suspend fun importImage(sourceUri: String): String = sourceUri
 
@@ -20,8 +20,9 @@ class FakeImageStore : ImageStore {
         existingUri: String,
         addedUri: String,
         position: ImagePosition,
+        sizeSpan: Int,
     ): ComposedImage? {
-        lastComposeRequest = Triple(existingUri, addedUri, position)
+        lastComposeRequest = listOf(existingUri, addedUri, position, sizeSpan)
         return composeResult
     }
 }

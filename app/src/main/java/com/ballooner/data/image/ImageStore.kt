@@ -1,6 +1,7 @@
 package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.RectFraction
 
 /** Stores comic images in app-private storage and cleans them up. */
 interface ImageStore {
@@ -11,18 +12,23 @@ interface ImageStore {
     suspend fun deleteImage(uri: String)
 
     /**
-     * Merges [addedUri] alongside [existingUri] into one new image, placed per [position] and
-     * scaled to match the existing image's height (left/right) or width (top/bottom).
-     * Returns the merged image's uri and the fractional rect the existing image now occupies
-     * within it (so callers can remap anything positioned relative to the old image), or null
-     * on failure.
+     * Merges [addedUri] alongside [existingUri] into one new image, placed per [position]. The
+     * added image is scaled so its matched dimension (height for left/right, width for
+     * top/bottom) is [sizeSpan] times the existing image's, so it can occupy the same footprint
+     * as one or two standard panels; the existing content is centered ("letterboxed") if the
+     * canvas grows to fit a larger added panel.
+     * Returns the merged image's uri, the fractional rect the existing image now occupies within
+     * it, and the fractional rect the added image now occupies (so callers can remap anything
+     * positioned relative to the old image, or track the new panel), or null on failure.
      */
-    suspend fun composeImages(existingUri: String, addedUri: String, position: ImagePosition): ComposedImage?
+    suspend fun composeImages(
+        existingUri: String,
+        addedUri: String,
+        position: ImagePosition,
+        sizeSpan: Int = 1,
+    ): ComposedImage?
 }
 
 /** The result of [ImageStore.composeImages]. */
-data class ComposedImage(val uri: String, val previousImageRect: RectFraction)
-
-/** A rectangle expressed as fractions (0f..1f) of a larger canvas. */
-data class RectFraction(val left: Float, val top: Float, val width: Float, val height: Float)
+data class ComposedImage(val uri: String, val previousImageRect: RectFraction, val newImageRect: RectFraction)
 

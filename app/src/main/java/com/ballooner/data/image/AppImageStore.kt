@@ -50,6 +50,7 @@ class AppImageStore @Inject constructor(
         existingUri: String,
         addedUri: String,
         position: ImagePosition,
+        sizeSpan: Int,
     ): ComposedImage? = withContext(Dispatchers.IO) {
         runCatching {
             val existingBitmap = decodeBitmap(existingUri) ?: return@runCatching null
@@ -60,6 +61,7 @@ class AppImageStore @Inject constructor(
                 addedWidth = addedBitmap.width,
                 addedHeight = addedBitmap.height,
                 position = position,
+                sizeSpan = sizeSpan,
             )
             val scaledAdded = Bitmap.createScaledBitmap(
                 addedBitmap,
@@ -69,7 +71,8 @@ class AppImageStore @Inject constructor(
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(composite)
-            // Paper-white background shows through the gap between the two panels.
+            // Paper-white background shows through the gap between the two panels (and any
+            // letterboxing when the added panel's span makes it larger than the existing one).
             canvas.drawColor(Color.WHITE)
             canvas.drawBitmap(existingBitmap, layout.existingLeft.toFloat(), layout.existingTop.toFloat(), null)
             canvas.drawBitmap(scaledAdded, layout.addedLeft.toFloat(), layout.addedTop.toFloat(), null)
@@ -86,7 +89,11 @@ class AppImageStore @Inject constructor(
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
             dest.outputStream().use { output -> composite.compress(Bitmap.CompressFormat.PNG, 100, output) }
-            ComposedImage(uri = Uri.fromFile(dest).toString(), previousImageRect = layout.existingRect)
+            ComposedImage(
+                uri = Uri.fromFile(dest).toString(),
+                previousImageRect = layout.existingRect,
+                newImageRect = layout.addedRect,
+            )
         }.getOrNull()
     }
 
