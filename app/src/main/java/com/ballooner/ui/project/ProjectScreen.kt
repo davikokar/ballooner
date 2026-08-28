@@ -626,9 +626,13 @@ private fun Editor(
                             1f
                         }
                         // Fit the frame within the available space (letterboxed) with an exact
-                        // size, so the slider below always lands right at its bottom edge.
+                        // size, reserving room below for the shape slider so tall images never
+                        // push it off-screen.
+                        val showShapeSlider = editMode && selected != null &&
+                            (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
+                        val shapeSliderSpace = if (showShapeSlider) 8.dp + 24.dp else 0.dp
                         val imageAspect = image.width.toFloat() / image.height.toFloat()
-                        val fitWidth = minOf(availableWidth, availableHeight * imageAspect)
+                        val fitWidth = minOf(availableWidth, (availableHeight - shapeSliderSpace) * imageAspect)
                         val fitHeight = fitWidth / imageAspect
                         Box(
                             modifier = Modifier.size(fitWidth, fitHeight),
@@ -724,9 +728,7 @@ private fun Editor(
                             }
                             }
                         }
-                        if (editMode && selected != null &&
-                            (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
-                        ) {
+                        if (showShapeSlider) {
                             Spacer(modifier = Modifier.height(8.dp))
                             ShapeSlider(
                                 roundness = selected.cornerRoundness,
@@ -915,22 +917,13 @@ private fun ShapeSlider(
     onChange: (Float) -> Unit,
     onChangeFinished: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(8.dp))
-            .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Slider(
-            value = roundness,
-            onValueChange = onChange,
-            onValueChangeFinished = onChangeFinished,
-            valueRange = 0f..1f,
-            modifier = Modifier.height(32.dp),
-        )
-    }
+    Slider(
+        value = roundness,
+        onValueChange = onChange,
+        onValueChangeFinished = onChangeFinished,
+        valueRange = 0f..1f,
+        modifier = Modifier.fillMaxWidth().height(24.dp),
+    )
 }
 
 @Composable
