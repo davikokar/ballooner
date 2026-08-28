@@ -253,11 +253,6 @@ fun ProjectScreen(
                         }
                     },
                     actions = {
-                        if (uiState.hasImage && editMode) {
-                            IconButton(onClick = { launchPicker() }) {
-                                Icon(BalloonerIcons.Image, contentDescription = "Change image")
-                            }
-                        }
                         ProjectOverflowMenu(onDeleteComic = onDeleteComic)
                     },
                 )
@@ -276,6 +271,7 @@ fun ProjectScreen(
                     Toolbar(
                         editMode = editMode,
                         onRotate = { rotation = (rotation + 90f) % 360f },
+                        onChangeImage = { launchPicker() },
                         onSave = onSave,
                         onToggleMode = { editMode = it },
                     )
@@ -375,6 +371,7 @@ private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
 private fun Toolbar(
     editMode: Boolean,
     onRotate: () -> Unit,
+    onChangeImage: () -> Unit,
     onSave: () -> Unit,
     onToggleMode: (Boolean) -> Unit,
 ) {
@@ -394,12 +391,16 @@ private fun Toolbar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ComicButton(text = "Rotate", onClick = onRotate, icon = BalloonerIcons.Rotate)
+        ComicButton(text = "Rotate", onClick = onRotate, icon = BalloonerIcons.Rotate, showLabel = false)
         ModeToggle(editMode = editMode, onToggleMode = onToggleMode)
+        if (editMode) {
+            ComicButton(text = "Change image", onClick = onChangeImage, icon = BalloonerIcons.Image, showLabel = false)
+        }
         ComicButton(
             text = "Save",
             onClick = onSave,
             icon = BalloonerIcons.Save,
+            showLabel = false,
             containerColor = MaterialTheme.colorScheme.secondary,
             contentColor = Color.White,
         )
@@ -446,6 +447,7 @@ private fun ComicButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    showLabel: Boolean = true,
     containerColor: Color = Color.White,
     contentColor: Color = InkBlack,
 ) {
@@ -453,7 +455,7 @@ private fun ComicButton(
         modifier = modifier
             .background(containerColor, RoundedCornerShape(8.dp))
             .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = text, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -461,13 +463,15 @@ private fun ComicButton(
             if (icon != null) {
                 Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(20.dp))
             }
-            Text(
-                text = text.uppercase(),
-                color = contentColor,
-                fontFamily = googleFontFamily("Space Grotesk"),
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-            )
+            if (showLabel) {
+                Text(
+                    text = text.uppercase(),
+                    color = contentColor,
+                    fontFamily = googleFontFamily("Space Grotesk"),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                )
+            }
         }
     }
 }
@@ -495,57 +499,47 @@ private fun ComicChip(
 @Composable
 private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
     val shape = if (type == BalloonType.CAPTION) RoundedCornerShape(8.dp) else CircleShape
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .background(Color.White, shape)
-                .then(
-                    if (type == BalloonType.WHISPER) {
-                        Modifier.dashedBorder(3.dp, InkBlack, shape)
-                    } else {
-                        Modifier.border(4.dp, InkBlack, shape)
-                    },
-                )
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(modifier = Modifier.size(28.dp)) {
-                // Captions have no tail, so their icon is a plain square instead of a balloon shape.
-                val sample = if (type == BalloonType.CAPTION) {
-                    Balloon(
-                        id = 0,
-                        type = type,
-                        centerX = 0.5f,
-                        centerY = 0.5f,
-                        width = 0.7f,
-                        height = 0.7f,
-                        tailLength = 0f,
-                        cornerRoundness = 0f,
-                    )
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .background(Color.White, shape)
+            .then(
+                if (type == BalloonType.WHISPER) {
+                    Modifier.dashedBorder(3.dp, InkBlack, shape)
                 } else {
-                    Balloon(
-                        id = 0,
-                        type = type,
-                        centerX = 0.5f,
-                        centerY = 0.4f,
-                        width = 0.74f,
-                        height = 0.5f,
-                        tailAngleDegrees = 110f,
-                        tailLength = 0.2f,
-                    )
-                }
-                drawBalloon(sample, size, bodyColor = Color.Transparent, outlineColor = InkBlack)
+                    Modifier.border(4.dp, InkBlack, shape)
+                },
+            )
+            .clickable(onClickLabel = type.label(), onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.size(28.dp)) {
+            // Captions have no tail, so their icon is a plain square instead of a balloon shape.
+            val sample = if (type == BalloonType.CAPTION) {
+                Balloon(
+                    id = 0,
+                    type = type,
+                    centerX = 0.5f,
+                    centerY = 0.5f,
+                    width = 0.7f,
+                    height = 0.7f,
+                    tailLength = 0f,
+                    cornerRoundness = 0f,
+                )
+            } else {
+                Balloon(
+                    id = 0,
+                    type = type,
+                    centerX = 0.5f,
+                    centerY = 0.4f,
+                    width = 0.74f,
+                    height = 0.5f,
+                    tailAngleDegrees = 110f,
+                    tailLength = 0.2f,
+                )
             }
+            drawBalloon(sample, size, bodyColor = Color.Transparent, outlineColor = InkBlack)
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = type.label().uppercase(),
-            color = Color.White,
-            fontFamily = googleFontFamily("Space Grotesk"),
-            fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-        )
     }
 }
 
@@ -607,134 +601,143 @@ private fun Editor(
                 .fillMaxWidth()
                 .weight(1f)
                 .background(MaterialTheme.colorScheme.background)
-                .dotGridBackground(color = MaterialTheme.colorScheme.outlineVariant)
-                .onSizeChanged { containerSize = it }
-                .padding(16.dp),
-            contentAlignment = Alignment.Center,
+                .dotGridBackground(color = MaterialTheme.colorScheme.outlineVariant),
         ) {
-            when (val state = imageState) {
-                ImageResult.Loading -> Text("Loading image\u2026")
-                ImageResult.Failed -> Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("Couldn't load this image.")
-                    ComicButton(text = "Choose image", onClick = onOpenImagePicker)
-                }
-                is ImageResult.Loaded -> {
-                val image = state.bitmap
-                // A quarter turn swaps width/height, so scale the layer to refill the space.
-                val quarterTurned = ((rotation / 90f).roundToInt() % 2) != 0
-                val fitScale = if (
-                    quarterTurned && layerSize.width > 0 && layerSize.height > 0 &&
-                    containerSize.width > 0 && containerSize.height > 0
-                ) {
-                    minOf(
-                        containerSize.width.toFloat() / layerSize.height,
-                        containerSize.height.toFloat() / layerSize.width,
-                    )
-                } else {
-                    1f
-                }
-                Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(image.width.toFloat() / image.height.toFloat()),
+                        .weight(1f)
+                        .onSizeChanged { containerSize = it }
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    // Solid offset shadow behind the photo frame, drawn statically so it
-                    // doesn't zoom/pan/rotate with the image layer above it.
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .offset(x = 6.dp, y = 6.dp)
-                            .background(InkBlack, RoundedCornerShape(12.dp)),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clip(RoundedCornerShape(12.dp))
-                            .border(4.dp, InkBlack, RoundedCornerShape(12.dp))
-                            // Two-finger pinch zooms / pans; single finger stays for balloons.
-                            .pointerInput(Unit) {
-                                awaitEachGesture {
-                                    awaitFirstDown(requireUnconsumed = false)
-                                    do {
-                                        val event = awaitPointerEvent()
-                                        if (event.changes.count { it.pressed } >= 2) {
-                                            zoom = (zoom * event.calculateZoom()).coerceIn(1f, 6f)
-                                            pan += event.calculatePan()
-                                            event.changes.forEach { if (it.positionChanged()) it.consume() }
-                                        }
-                                    } while (event.changes.any { it.pressed })
-                                }
-                            }
-                            .graphicsLayer {
-                                scaleX = zoom * fitScale
-                                scaleY = zoom * fitScale
-                                translationX = pan.x
-                                translationY = pan.y
-                                rotationZ = rotation
-                            },
-                    ) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .onSizeChanged {
-                                layerSize = it
-                                onLayerWidth(it.width)
-                            }
-                            .pointerInput(balloons, editMode) {
-                                detectTapGestures { offset ->
-                                    if (!editMode) return@detectTapGestures
-                                    val canvas = Size(size.width.toFloat(), size.height.toFloat())
-                                    val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
-                                    if (hit != null) onSelectBalloon(hit.id)
-                                }
-                            },
-                    ) {
-                        Canvas(modifier = Modifier.matchParentSize()) {
-                        drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
-                        effective.forEach { balloon ->
-                            drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
+                    when (val state = imageState) {
+                        ImageResult.Loading -> Text("Loading image\u2026")
+                        ImageResult.Failed -> Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text("Couldn't load this image.")
+                            ComicButton(text = "Choose image", onClick = onOpenImagePicker)
                         }
-                    }
-
-                    val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
-                    if (size.width > 0f && size.height > 0f) {
-                        effective.forEach { balloon ->
-                            BalloonText(
-                                balloon = balloon,
-                                canvasSize = size,
-                                editable = editMode,
-                                autoSize = autoTextSize,
-                                onTextChange = { newText ->
-                                    val current = live?.takeIf { it.id == balloon.id } ?: balloon
-                                    val updated = current.copy(text = newText)
-                                    if (selectedBalloonId == balloon.id) live = updated
-                                    onCommitBalloon(updated)
-                                },
-                                onFocused = { onSelectBalloon(balloon.id) },
+                        is ImageResult.Loaded -> {
+                        val image = state.bitmap
+                        // A quarter turn swaps width/height, so scale the layer to refill the space.
+                        val quarterTurned = ((rotation / 90f).roundToInt() % 2) != 0
+                        val fitScale = if (
+                            quarterTurned && layerSize.width > 0 && layerSize.height > 0 &&
+                            containerSize.width > 0 && containerSize.height > 0
+                        ) {
+                            minOf(
+                                containerSize.width.toFloat() / layerSize.height,
+                                containerSize.height.toFloat() / layerSize.width,
                             )
+                        } else {
+                            1f
                         }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(image.width.toFloat() / image.height.toFloat()),
+                        ) {
+                            // Solid offset shadow behind the photo frame, drawn statically so it
+                            // doesn't zoom/pan/rotate with the image layer above it.
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .offset(x = 6.dp, y = 6.dp)
+                                    .background(InkBlack, RoundedCornerShape(12.dp)),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(4.dp, InkBlack, RoundedCornerShape(12.dp))
+                                    // Two-finger pinch zooms / pans; single finger stays for balloons.
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            awaitFirstDown(requireUnconsumed = false)
+                                            do {
+                                                val event = awaitPointerEvent()
+                                                if (event.changes.count { it.pressed } >= 2) {
+                                                    zoom = (zoom * event.calculateZoom()).coerceIn(1f, 6f)
+                                                    pan += event.calculatePan()
+                                                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                                }
+                                            } while (event.changes.any { it.pressed })
+                                        }
+                                    }
+                                    .graphicsLayer {
+                                        scaleX = zoom * fitScale
+                                        scaleY = zoom * fitScale
+                                        translationX = pan.x
+                                        translationY = pan.y
+                                        rotationZ = rotation
+                                    },
+                            ) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .onSizeChanged {
+                                        layerSize = it
+                                        onLayerWidth(it.width)
+                                    }
+                                    .pointerInput(balloons, editMode) {
+                                        detectTapGestures { offset ->
+                                            if (!editMode) return@detectTapGestures
+                                            val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                                            val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
+                                            if (hit != null) onSelectBalloon(hit.id)
+                                        }
+                                    },
+                            ) {
+                                Canvas(modifier = Modifier.matchParentSize()) {
+                                drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                                effective.forEach { balloon ->
+                                    drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
+                                }
+                            }
 
-                        if (editMode) {
-                            selected?.let { sel ->
-                                Handles(
-                                    balloon = sel,
-                                    canvasSize = size,
-                                    base = { live ?: sel },
-                                    onLiveChange = { live = it },
-                                    onCommit = { live?.let(onCommitBalloon) },
-                                    onDelete = onDeleteSelected,
-                                )
+                            val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
+                            if (size.width > 0f && size.height > 0f) {
+                                effective.forEach { balloon ->
+                                    BalloonText(
+                                        balloon = balloon,
+                                        canvasSize = size,
+                                        editable = editMode,
+                                        autoSize = autoTextSize,
+                                        onTextChange = { newText ->
+                                            val current = live?.takeIf { it.id == balloon.id } ?: balloon
+                                            val updated = current.copy(text = newText)
+                                            if (selectedBalloonId == balloon.id) live = updated
+                                            onCommitBalloon(updated)
+                                        },
+                                        onFocused = { onSelectBalloon(balloon.id) },
+                                    )
+                                }
+
+                                if (editMode) {
+                                    selected?.let { sel ->
+                                        Handles(
+                                            balloon = sel,
+                                            canvasSize = size,
+                                            base = { live ?: sel },
+                                            onLiveChange = { live = it },
+                                            onCommit = { live?.let(onCommitBalloon) },
+                                            onDelete = onDeleteSelected,
+                                        )
+                                    }
+                                }
+                            }
+                            }
                             }
                         }
-                    }
-                    }
+                        }
                     }
                 }
-                if (editMode) {
+                if (editMode && imageState is ImageResult.Loaded) {
+                    Spacer(modifier = Modifier.height(16.dp))
                     ComicKit(
                         selected = selected,
                         hideFontSelector = hideFontSelector,
@@ -756,8 +759,6 @@ private fun Editor(
                         },
                         onRoundnessChangeFinished = { live?.let(onCommitBalloon) },
                     )
-                }
-                }
                 }
             }
             if (imageState is ImageResult.Loaded && (zoom != 1f || pan != Offset.Zero || rotation != 0f)) {
@@ -795,14 +796,6 @@ private fun ComicKit(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary)
-            .drawBehind {
-                drawLine(
-                    color = InkBlack,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 4.dp.toPx(),
-                )
-            }
             .padding(vertical = 12.dp),
     ) {
         // Decorative grab handle, matching the design's bottom-sheet affordance.
