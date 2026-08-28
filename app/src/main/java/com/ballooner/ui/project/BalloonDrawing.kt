@@ -112,10 +112,11 @@ fun Balloon.tailAtPoint(target: Offset, canvasSize: Size): Balloon {
     )
 }
 
-/** True when [point] (in canvas pixels) lies inside the balloon body ellipse. */
+/** True when [point] (in canvas pixels) lies inside the balloon body. */
 fun Balloon.containsPoint(point: Offset, canvasSize: Size): Boolean {
     val g = geometry(canvasSize)
     if (g.radiusX <= 0f || g.radiusY <= 0f) return false
+    if (type == BalloonType.CAPTION) return g.rect.contains(point)
     val dx = (point.x - g.center.x) / g.radiusX
     val dy = (point.y - g.center.y) / g.radiusY
     return dx * dx + dy * dy <= 1f
@@ -163,6 +164,7 @@ fun DrawScope.drawBalloon(
 private fun Balloon.bodyPath(g: BalloonGeometry): Path = when (type) {
     BalloonType.YELL -> starburstPath(g)
     BalloonType.THINK -> Path().apply { addOval(g.rect) }
+    BalloonType.CAPTION -> Path().apply { addRect(g.rect) }
     else -> {
         val radius = cornerRoundness.coerceIn(0f, 1f) * min(g.radiusX, g.radiusY)
         Path().apply { addRoundRect(RoundRect(g.rect, CornerRadius(radius, radius))) }

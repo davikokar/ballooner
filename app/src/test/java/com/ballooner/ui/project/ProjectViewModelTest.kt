@@ -95,6 +95,21 @@ class ProjectViewModelTest {
     }
 
     @Test
+    fun `adds a caption with no tail and square corners`() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.uiState.test {
+            viewModel.addBalloon(BalloonType.CAPTION)
+            advanceUntilIdle()
+
+            val balloon = expectMostRecentItem().balloons.single()
+            assertEquals(0f, balloon.tailLength, 0.0001f)
+            assertEquals(0f, balloon.cornerRoundness, 0.0001f)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `deleteProject removes the project, cleans up its image, and reports completion`() = runTest {
         val projectRepository = FakeProjectRepository(
             initial = listOf(

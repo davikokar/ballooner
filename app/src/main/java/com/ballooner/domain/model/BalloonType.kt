@@ -6,4 +6,6 @@ enum class BalloonType {
     THINK,
     WHISPER,
     YELL,
+    // A tailless rectangle for captions / narration text.
+    CAPTION,
 }

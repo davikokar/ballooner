@@ -83,7 +83,11 @@ class ProjectViewModel @Inject constructor(
 
     fun addBalloon(type: BalloonType) {
         viewModelScope.launch {
-            val balloon = Balloon(id = 0, type = type, font = settings.value.defaultFont)
+            val balloon = if (type == BalloonType.CAPTION) {
+                Balloon(id = 0, type = type, font = settings.value.defaultFont, tailLength = 0f, cornerRoundness = 0f)
+            } else {
+                Balloon(id = 0, type = type, font = settings.value.defaultFont)
+            }
             val id = balloonRepository.upsertBalloon(projectId, balloon)
             selectedBalloonId.value = id
         }

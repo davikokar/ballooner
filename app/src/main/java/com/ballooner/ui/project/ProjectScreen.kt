@@ -354,16 +354,30 @@ private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
     val outline = MaterialTheme.colorScheme.onSurface
     IconButton(onClick = onClick) {
         Canvas(modifier = Modifier.size(28.dp)) {
-            val sample = Balloon(
-                id = 0,
-                type = type,
-                centerX = 0.5f,
-                centerY = 0.4f,
-                width = 0.74f,
-                height = 0.5f,
-                tailAngleDegrees = 110f,
-                tailLength = 0.2f,
-            )
+            // Captions have no tail, so their icon is a plain square instead of a balloon shape.
+            val sample = if (type == BalloonType.CAPTION) {
+                Balloon(
+                    id = 0,
+                    type = type,
+                    centerX = 0.5f,
+                    centerY = 0.5f,
+                    width = 0.7f,
+                    height = 0.7f,
+                    tailLength = 0f,
+                    cornerRoundness = 0f,
+                )
+            } else {
+                Balloon(
+                    id = 0,
+                    type = type,
+                    centerX = 0.5f,
+                    centerY = 0.4f,
+                    width = 0.74f,
+                    height = 0.5f,
+                    tailAngleDegrees = 110f,
+                    tailLength = 0.2f,
+                )
+            }
             drawBalloon(sample, size, bodyColor = Color.Transparent, outlineColor = outline)
         }
     }
@@ -801,24 +815,26 @@ private fun Handles(
         )
     }
 
-    // Tail handle (drag the tip to set both direction and length).
-    DragHandle(
-        centerPx = balloon.tailTip(canvasSize),
-        sizeDp = 28.dp,
-        color = Color(0xFF00C9B1),
-        shape = CircleShape,
-        keyId = balloon.id,
-        onDrag = { d ->
-            val b = base()
-            val target = b.tailTip(canvasSize) + d
-            onLiveChange(b.tailAtPoint(target, canvasSize))
-        },
-        onDragEnd = onCommit,
-    )
+    // Tail handle (drag the tip to set both direction and length). Captions have no tail.
+    if (balloon.type != BalloonType.CAPTION) {
+        DragHandle(
+            centerPx = balloon.tailTip(canvasSize),
+            sizeDp = 28.dp,
+            color = Color(0xFF00C9B1),
+            shape = CircleShape,
+            keyId = balloon.id,
+            onDrag = { d ->
+                val b = base()
+                val target = b.tailTip(canvasSize) + d
+                onLiveChange(b.tailAtPoint(target, canvasSize))
+            },
+            onDragEnd = onCommit,
+        )
+    }
 
     // Tail-width handle (drag sideways to set the tail thickness). Not for Think,
-    // whose tail is made of bubbles.
-    if (balloon.type != BalloonType.THINK) {
+    // whose tail is made of bubbles, or Caption, which has no tail.
+    if (balloon.type != BalloonType.THINK && balloon.type != BalloonType.CAPTION) {
         DragHandle(
             centerPx = balloon.tailBaseHandle(canvasSize),
             sizeDp = 24.dp,
@@ -905,6 +921,7 @@ private fun BalloonType.label(): String = when (this) {
     BalloonType.THINK -> "Think"
     BalloonType.WHISPER -> "Whisper"
     BalloonType.YELL -> "Yell"
+    BalloonType.CAPTION -> "Caption"
 }
 
 private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
