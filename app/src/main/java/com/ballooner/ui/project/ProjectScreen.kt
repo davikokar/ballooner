@@ -11,12 +11,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,30 +27,28 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -62,19 +62,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
@@ -84,6 +90,7 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -100,6 +107,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -182,6 +190,9 @@ fun ProjectScreen(
     val onSave = { saveLauncher.launch("${projectName.ifBlank { "comic" }}.png") }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
+    // View-only transform: a 90° rotate button, hoisted here so it can live in the toolbar
+    // while the reset affordance stays next to the pinch-zoom/pan it also resets.
+    var rotation by remember { mutableStateOf(0f) }
     // A freshly created project jumps straight to image selection.
     LaunchedEffect(Unit) {
         if (autoOpenPicker) launchPicker()
@@ -195,43 +206,78 @@ fun ProjectScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    if (editMode) {
-                        EditableTitle(name = projectName, onRename = onRenameProject)
-                    } else {
-                        Text(projectName.ifBlank { "Untitled" })
-                    }
-                },
-                colors = balloonerTopAppBarColors(),
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (uiState.hasImage && editMode) {
-                        IconButton(onClick = { launchPicker() }) {
-                            Icon(BalloonerIcons.Image, contentDescription = "Change image")
+            Column {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
+                                    .border(2.dp, InkBlack, RoundedCornerShape(6.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = BalloonerIcons.Balloon,
+                                    contentDescription = null,
+                                    tint = InkBlack,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                            if (editMode) {
+                                EditableTitle(name = projectName, onRename = onRenameProject)
+                            } else {
+                                Text(
+                                    text = projectName.ifBlank { "Untitled" },
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
                         }
-                    }
-                    ProjectOverflowMenu(onDeleteComic = onDeleteComic)
-                },
-            )
+                    },
+                    colors = balloonerTopAppBarColors(),
+                    navigationIcon = {
+                        ComicChip(
+                            onClick = onNavigateBack,
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(start = 8.dp),
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White,
+                            )
+                        }
+                    },
+                    actions = {
+                        if (uiState.hasImage && editMode) {
+                            IconButton(onClick = { launchPicker() }) {
+                                Icon(BalloonerIcons.Image, contentDescription = "Change image")
+                            }
+                        }
+                        ProjectOverflowMenu(onDeleteComic = onDeleteComic)
+                    },
+                )
+                // Thick ink border under the bar, the signature "hard-edged inking" look.
+                Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(InkBlack))
+            }
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (!uiState.hasImage) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Button(onClick = { launchPicker() }) { Text("Open image") }
+                    ComicButton(text = "Open image", onClick = { launchPicker() })
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Toolbar(
                         editMode = editMode,
-                        onAddBalloon = onAddBalloon,
+                        onRotate = { rotation = (rotation + 90f) % 360f },
                         onSave = onSave,
-                        onToggleMode = { editMode = !editMode },
+                        onToggleMode = { editMode = it },
                     )
                     Editor(
                         imageUri = uiState.imageUri!!,
@@ -240,9 +286,12 @@ fun ProjectScreen(
                         editMode = editMode,
                         hideFontSelector = uiState.hideFontSelector,
                         autoTextSize = uiState.autoTextSize,
+                        rotation = rotation,
+                        onRotationChange = { rotation = it },
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
+                        onAddBalloon = onAddBalloon,
                         onOpenImagePicker = { launchPicker() },
                         onLayerWidth = { displayedWidth = it },
                         modifier = Modifier.weight(1f),
@@ -267,14 +316,18 @@ private fun EditableTitle(name: String, onRename: (String) -> Unit) {
             onRename(it)
         },
         singleLine = true,
-        textStyle = MaterialTheme.typography.titleLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        textStyle = MaterialTheme.typography.titleLarge.copy(
+            color = Color.White,
+            fontFamily = googleFontFamily("Space Grotesk"),
+            fontWeight = FontWeight.Bold,
+        ),
+        cursorBrush = SolidColor(Color.White),
         decorationBox = { inner ->
             if (text.isEmpty()) {
                 Text(
                     text = "Title",
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Color.White.copy(alpha = 0.7f),
                 )
             }
             inner()
@@ -321,66 +374,198 @@ private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
 @Composable
 private fun Toolbar(
     editMode: Boolean,
-    onAddBalloon: (BalloonType) -> Unit,
+    onRotate: () -> Unit,
     onSave: () -> Unit,
-    onToggleMode: () -> Unit,
+    onToggleMode: (Boolean) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .drawBehind {
+                drawLine(
+                    color = InkBlack,
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 4.dp.toPx(),
+                )
+            }
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (editMode) {
-            BalloonType.entries.forEach { type ->
-                BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
+        ComicButton(text = "Rotate", onClick = onRotate, icon = BalloonerIcons.Rotate)
+        ModeToggle(editMode = editMode, onToggleMode = onToggleMode)
+        ComicButton(
+            text = "Save",
+            onClick = onSave,
+            icon = BalloonerIcons.Save,
+            containerColor = MaterialTheme.colorScheme.secondary,
+            contentColor = Color.White,
+        )
+    }
+}
+
+/** The "Edit / View" segmented control, matching the comic panel button style. */
+@Composable
+private fun ModeToggle(editMode: Boolean, onToggleMode: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .background(Color.White, CircleShape)
+            .border(4.dp, InkBlack, CircleShape)
+            .clip(CircleShape),
+    ) {
+        ModeToggleSegment(text = "Edit", selected = editMode, onClick = { onToggleMode(true) })
+        ModeToggleSegment(text = "View", selected = !editMode, onClick = { onToggleMode(false) })
+    }
+}
+
+@Composable
+private fun ModeToggleSegment(text: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .background(if (selected) MaterialTheme.colorScheme.primary else Color.White)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text.uppercase(),
+            color = if (selected) Color.White else InkBlack,
+            fontFamily = googleFontFamily("Space Grotesk"),
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+        )
+    }
+}
+
+/** A bordered button with a solid offset shadow, the app's signature comic button style. */
+@Composable
+private fun ComicButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    containerColor: Color = Color.White,
+    contentColor: Color = InkBlack,
+) {
+    Box(
+        modifier = modifier
+            .background(containerColor, RoundedCornerShape(8.dp))
+            .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (icon != null) {
+                Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(20.dp))
             }
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        IconButton(onClick = onSave) {
-            Icon(BalloonerIcons.Save, contentDescription = "Save image")
-        }
-        IconButton(onClick = onToggleMode) {
-            Icon(
-                imageVector = if (editMode) Icons.Default.Done else Icons.Default.Edit,
-                contentDescription = if (editMode) "Switch to view mode" else "Switch to edit mode",
+            Text(
+                text = text.uppercase(),
+                color = contentColor,
+                fontFamily = googleFontFamily("Space Grotesk"),
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
             )
         }
     }
 }
 
+/** A small bordered chip button used for the top bar's back action. */
+@Composable
+private fun ComicChip(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color.White,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .background(containerColor, RoundedCornerShape(8.dp))
+            .border(2.dp, InkBlack, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+        content = { content() },
+    )
+}
+
 /** An icon button showing a stylized balloon that adds one of that type when tapped. */
 @Composable
 private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
-    val outline = MaterialTheme.colorScheme.onSurface
-    IconButton(onClick = onClick) {
-        Canvas(modifier = Modifier.size(28.dp)) {
-            // Captions have no tail, so their icon is a plain square instead of a balloon shape.
-            val sample = if (type == BalloonType.CAPTION) {
-                Balloon(
-                    id = 0,
-                    type = type,
-                    centerX = 0.5f,
-                    centerY = 0.5f,
-                    width = 0.7f,
-                    height = 0.7f,
-                    tailLength = 0f,
-                    cornerRoundness = 0f,
+    val shape = if (type == BalloonType.CAPTION) RoundedCornerShape(8.dp) else CircleShape
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .background(Color.White, shape)
+                .then(
+                    if (type == BalloonType.WHISPER) {
+                        Modifier.dashedBorder(3.dp, InkBlack, shape)
+                    } else {
+                        Modifier.border(4.dp, InkBlack, shape)
+                    },
                 )
-            } else {
-                Balloon(
-                    id = 0,
-                    type = type,
-                    centerX = 0.5f,
-                    centerY = 0.4f,
-                    width = 0.74f,
-                    height = 0.5f,
-                    tailAngleDegrees = 110f,
-                    tailLength = 0.2f,
-                )
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.size(28.dp)) {
+                // Captions have no tail, so their icon is a plain square instead of a balloon shape.
+                val sample = if (type == BalloonType.CAPTION) {
+                    Balloon(
+                        id = 0,
+                        type = type,
+                        centerX = 0.5f,
+                        centerY = 0.5f,
+                        width = 0.7f,
+                        height = 0.7f,
+                        tailLength = 0f,
+                        cornerRoundness = 0f,
+                    )
+                } else {
+                    Balloon(
+                        id = 0,
+                        type = type,
+                        centerX = 0.5f,
+                        centerY = 0.4f,
+                        width = 0.74f,
+                        height = 0.5f,
+                        tailAngleDegrees = 110f,
+                        tailLength = 0.2f,
+                    )
+                }
+                drawBalloon(sample, size, bodyColor = Color.Transparent, outlineColor = InkBlack)
             }
-            drawBalloon(sample, size, bodyColor = Color.Transparent, outlineColor = outline)
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = type.label().uppercase(),
+            color = Color.White,
+            fontFamily = googleFontFamily("Space Grotesk"),
+            fontWeight = FontWeight.Bold,
+            fontSize = 11.sp,
+        )
     }
+}
+
+/** A dashed ink border, used for the whisper balloon chip to hint at its dashed outline. */
+private fun Modifier.dashedBorder(width: Dp, color: Color, shape: Shape): Modifier = drawBehind {
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val path = when (outline) {
+        is androidx.compose.ui.graphics.Outline.Rectangle -> Path().apply { addRect(outline.rect) }
+        is androidx.compose.ui.graphics.Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }
+        is androidx.compose.ui.graphics.Outline.Generic -> outline.path
+    }
+    val strokeWidthPx = width.toPx()
+    drawPath(
+        path = path,
+        color = color,
+        style = Stroke(
+            width = strokeWidthPx,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(strokeWidthPx * 3, strokeWidthPx * 2)),
+        ),
+    )
 }
 
 @Composable
@@ -391,9 +576,12 @@ private fun Editor(
     editMode: Boolean,
     hideFontSelector: Boolean,
     autoTextSize: Boolean,
+    rotation: Float,
+    onRotationChange: (Float) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
+    onAddBalloon: (BalloonType) -> Unit,
     onOpenImagePicker: () -> Unit,
     onLayerWidth: (Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -402,10 +590,9 @@ private fun Editor(
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     // Available area for the image, used to refit it after a 90° rotation.
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    // View-only transform: pinch to zoom / pan and a 90° rotate button.
+    // View-only transform: pinch to zoom / pan; rotation is hoisted to the caller.
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
-    var rotation by remember { mutableStateOf(0f) }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
     // instead of overwriting each other before Room has round-tripped a commit.
@@ -414,12 +601,15 @@ private fun Editor(
     val effective = balloons.map { b -> live?.takeIf { it.id == b.id } ?: b }
     val selected = effective.firstOrNull { it.id == selectedBalloonId }
 
-    Column(modifier = modifier.fillMaxSize().padding(8.dp)) {
+    Column(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .onSizeChanged { containerSize = it },
+                .background(MaterialTheme.colorScheme.background)
+                .dotGridBackground(color = MaterialTheme.colorScheme.outlineVariant)
+                .onSizeChanged { containerSize = it }
+                .padding(16.dp),
             contentAlignment = Alignment.Center,
         ) {
             when (val state = imageState) {
@@ -429,7 +619,7 @@ private fun Editor(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text("Couldn't load this image.")
-                    Button(onClick = onOpenImagePicker) { Text("Choose image") }
+                    ComicButton(text = "Choose image", onClick = onOpenImagePicker)
                 }
                 is ImageResult.Loaded -> {
                 val image = state.bitmap
@@ -450,29 +640,43 @@ private fun Editor(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(image.width.toFloat() / image.height.toFloat())
-                        // Two-finger pinch zooms / pans; single finger stays for balloons.
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false)
-                                do {
-                                    val event = awaitPointerEvent()
-                                    if (event.changes.count { it.pressed } >= 2) {
-                                        zoom = (zoom * event.calculateZoom()).coerceIn(1f, 6f)
-                                        pan += event.calculatePan()
-                                        event.changes.forEach { if (it.positionChanged()) it.consume() }
-                                    }
-                                } while (event.changes.any { it.pressed })
-                            }
-                        }
-                        .graphicsLayer {
-                            scaleX = zoom * fitScale
-                            scaleY = zoom * fitScale
-                            translationX = pan.x
-                            translationY = pan.y
-                            rotationZ = rotation
-                        },
+                        .aspectRatio(image.width.toFloat() / image.height.toFloat()),
                 ) {
+                    // Solid offset shadow behind the photo frame, drawn statically so it
+                    // doesn't zoom/pan/rotate with the image layer above it.
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .offset(x = 6.dp, y = 6.dp)
+                            .background(InkBlack, RoundedCornerShape(12.dp)),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(4.dp, InkBlack, RoundedCornerShape(12.dp))
+                            // Two-finger pinch zooms / pans; single finger stays for balloons.
+                            .pointerInput(Unit) {
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.count { it.pressed } >= 2) {
+                                            zoom = (zoom * event.calculateZoom()).coerceIn(1f, 6f)
+                                            pan += event.calculatePan()
+                                            event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                        }
+                                    } while (event.changes.any { it.pressed })
+                                }
+                            }
+                            .graphicsLayer {
+                                scaleX = zoom * fitScale
+                                scaleY = zoom * fitScale
+                                translationX = pan.x
+                                translationY = pan.y
+                                rotationZ = rotation
+                            },
+                    ) {
                     Box(
                         modifier = Modifier
                             .matchParentSize()
@@ -528,60 +732,137 @@ private fun Editor(
                         }
                     }
                     }
-                }
-                selected?.let { sel ->
-                    if (editMode) {
-                        if (!hideFontSelector || !autoTextSize) {
-                            TextControls(
-                                font = sel.font,
-                                fontSize = sel.fontSize,
-                                showFontSelector = !hideFontSelector,
-                                showSizeSlider = !autoTextSize,
-                                onFontChange = {
-                                    live = (live ?: sel).copy(font = it)
-                                    live?.let(onCommitBalloon)
-                                },
-                                onSizeChange = { live = (live ?: sel).copy(fontSize = it) },
-                                onSizeChangeFinished = { live?.let(onCommitBalloon) },
-                            )
-                        }
-                        if (sel.type == BalloonType.SPEAK || sel.type == BalloonType.WHISPER) {
-                            ShapeSlider(
-                                roundness = sel.cornerRoundness,
-                                onChange = { live = (live ?: sel).copy(cornerRoundness = it) },
-                                onChangeFinished = { live?.let(onCommitBalloon) },
-                            )
-                        }
                     }
+                }
+                if (editMode) {
+                    ComicKit(
+                        selected = selected,
+                        hideFontSelector = hideFontSelector,
+                        autoTextSize = autoTextSize,
+                        onAddBalloon = onAddBalloon,
+                        onFontChange = {
+                            val sel = selected ?: return@ComicKit
+                            live = (live ?: sel).copy(font = it)
+                            live?.let(onCommitBalloon)
+                        },
+                        onSizeChange = {
+                            val sel = selected ?: return@ComicKit
+                            live = (live ?: sel).copy(fontSize = it)
+                        },
+                        onSizeChangeFinished = { live?.let(onCommitBalloon) },
+                        onRoundnessChange = {
+                            val sel = selected ?: return@ComicKit
+                            live = (live ?: sel).copy(cornerRoundness = it)
+                        },
+                        onRoundnessChangeFinished = { live?.let(onCommitBalloon) },
+                    )
                 }
                 }
                 }
             }
-            if (imageState is ImageResult.Loaded) {
-                Surface(
+            if (imageState is ImageResult.Loaded && (zoom != 1f || pan != Offset.Zero || rotation != 0f)) {
+                ComicButton(
+                    text = "Reset",
+                    onClick = {
+                        zoom = 1f
+                        pan = Offset.Zero
+                        onRotationChange(0f)
+                    },
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                    shape = RoundedCornerShape(50),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { rotation = (rotation + 90f) % 360f }) {
-                            Icon(BalloonerIcons.Rotate, contentDescription = "Rotate")
-                        }
-                        if (zoom != 1f || pan != Offset.Zero || rotation != 0f) {
-                            TextButton(
-                                onClick = {
-                                    zoom = 1f
-                                    pan = Offset.Zero
-                                    rotation = 0f
-                                },
-                            ) { Text("Reset") }
-                        }
-                    }
-                }
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                )
             }
         }
+    }
+}
+
+/** The bottom "comic kit" panel: balloon types plus the currently selected balloon's controls. */
+@Composable
+private fun ComicKit(
+    selected: Balloon?,
+    hideFontSelector: Boolean,
+    autoTextSize: Boolean,
+    onAddBalloon: (BalloonType) -> Unit,
+    onFontChange: (BalloonFont) -> Unit,
+    onSizeChange: (Float) -> Unit,
+    onSizeChangeFinished: () -> Unit,
+    onRoundnessChange: (Float) -> Unit,
+    onRoundnessChangeFinished: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primary)
+            .drawBehind {
+                drawLine(
+                    color = InkBlack,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 4.dp.toPx(),
+                )
+            }
+            .padding(vertical = 12.dp),
+    ) {
+        // Decorative grab handle, matching the design's bottom-sheet affordance.
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .size(width = 48.dp, height = 6.dp)
+                .background(InkBlack, RoundedCornerShape(50)),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BalloonType.entries.forEach { type ->
+                BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
+            }
+        }
+        if (selected != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            if (!hideFontSelector || !autoTextSize) {
+                TextControls(
+                    font = selected.font,
+                    fontSize = selected.fontSize,
+                    showFontSelector = !hideFontSelector,
+                    showSizeSlider = !autoTextSize,
+                    onFontChange = onFontChange,
+                    onSizeChange = onSizeChange,
+                    onSizeChangeFinished = onSizeChangeFinished,
+                )
+            }
+            if (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER) {
+                ShapeSlider(
+                    roundness = selected.cornerRoundness,
+                    onChange = onRoundnessChange,
+                    onChangeFinished = onRoundnessChangeFinished,
+                )
+            }
+        }
+    }
+}
+
+/** A faint dot grid mimicking newsprint texture, drawn behind the editor's canvas area. */
+private fun Modifier.dotGridBackground(
+    color: Color,
+    spacing: Dp = 16.dp,
+    dotRadius: Dp = 1.5.dp,
+): Modifier = drawBehind {
+    val step = spacing.toPx()
+    val radius = dotRadius.toPx()
+    var y = 0f
+    while (y < size.height) {
+        var x = 0f
+        while (x < size.width) {
+            drawCircle(color = color, radius = radius, center = Offset(x, y))
+            x += step
+        }
+        y += step
     }
 }
 
@@ -596,39 +877,60 @@ private fun TextControls(
     onSizeChangeFinished: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (showFontSelector) {
-            var expanded by remember { mutableStateOf(false) }
-            Box {
-                OutlinedButton(onClick = { expanded = true }) {
-                    Text(font.label())
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    BalloonFont.entries.forEach { entry ->
-                        DropdownMenuItem(
-                            text = { Text(entry.label()) },
-                            onClick = {
-                                onFontChange(entry)
-                                expanded = false
-                            },
-                        )
+            Column(modifier = Modifier.weight(1f)) {
+                ComicFieldLabel("Font style")
+                var expanded by remember { mutableStateOf(false) }
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
+                            .clickable { expanded = true }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(font.label(), color = InkBlack)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = InkBlack)
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        BalloonFont.entries.forEach { entry ->
+                            DropdownMenuItem(
+                                text = { Text(entry.label()) },
+                                onClick = {
+                                    onFontChange(entry)
+                                    expanded = false
+                                },
+                            )
+                        }
                     }
                 }
             }
         }
         if (showSizeSlider) {
-            Text(text = "Size", style = MaterialTheme.typography.labelLarge)
-            Slider(
-                value = fontSize,
-                onValueChange = onSizeChange,
-                onValueChangeFinished = onSizeChangeFinished,
-                valueRange = 8f..48f,
-                modifier = Modifier.weight(1f),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                ComicFieldLabel("Text size")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Slider(
+                        value = fontSize,
+                        onValueChange = onSizeChange,
+                        onValueChangeFinished = onSizeChangeFinished,
+                        valueRange = 8f..48f,
+                    )
+                }
+            }
         }
     }
 }
@@ -639,14 +941,38 @@ private fun ShapeSlider(
     onChange: (Float) -> Unit,
     onChangeFinished: () -> Unit,
 ) {
-    Slider(
-        value = roundness,
-        onValueChange = onChange,
-        onValueChangeFinished = onChangeFinished,
-        valueRange = 0f..1f,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        ComicFieldLabel("Shape")
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White, RoundedCornerShape(8.dp))
+                .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Slider(
+                value = roundness,
+                onValueChange = onChange,
+                onValueChangeFinished = onChangeFinished,
+                valueRange = 0f..1f,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ComicFieldLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        color = Color.White,
+        fontFamily = googleFontFamily("Space Grotesk"),
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp,
+        modifier = Modifier.padding(bottom = 4.dp),
     )
 }
+
 
 @Composable
 private fun BalloonText(
