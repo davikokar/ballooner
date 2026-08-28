@@ -107,12 +107,14 @@ class AppImageStore @Inject constructor(
      * Decodes [uri] downsampled so neither dimension exceeds [MAX_DECODED_DIMENSION_PX] — full
      * camera-resolution photos (often 12+ MP) would otherwise risk an OutOfMemoryError once
      * decoded, copied, and re-encoded.
+     *
+     * Reads the source into a byte array first: some content providers (e.g. the photo picker)
+     * hand out a one-shot stream that can't be reopened for a second (bounds-then-decode) pass.
      */
     private fun decodeBitmap(uri: String, mutable: Boolean = false): Bitmap? {
+        val bytes = context.contentResolver.openInputStream(Uri.parse(uri))?.use { it.readBytes() } ?: return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(Uri.parse(uri))?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, bounds)
-        } ?: return null
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         var sampleSize = 1
         while (maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= MAX_DECODED_DIMENSION_PX) {
             sampleSize *= 2
@@ -121,9 +123,7 @@ class AppImageStore @Inject constructor(
             inSampleSize = sampleSize
             inMutable = mutable
         }
-        return context.contentResolver.openInputStream(Uri.parse(uri))?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
-        }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
     }
 
     private companion object {
