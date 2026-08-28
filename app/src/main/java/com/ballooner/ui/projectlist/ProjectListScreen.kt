@@ -64,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Project
 import com.ballooner.ui.project.BalloonerIcons
 import com.ballooner.ui.project.googleFontFamily
+import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
 import kotlinx.coroutines.Dispatchers
@@ -144,7 +145,7 @@ private fun ProjectListTopBar(onOpenSettings: () -> Unit) {
                     Text(
                         text = "Ballooner",
                         color = Color.White,
-                        fontFamily = googleFontFamily("Luckiest Guy"),
+                        fontFamily = AnimeAceFontFamily,
                         fontSize = 24.sp,
                         maxLines = 1,
                     )
@@ -226,7 +227,7 @@ private fun ProjectRow(project: Project, onOpen: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = project.name.ifBlank { "Untitled" }.uppercase(),
-                fontFamily = googleFontFamily("Space Grotesk"),
+                fontFamily = AnimeAceFontFamily,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
                 maxLines = 1,

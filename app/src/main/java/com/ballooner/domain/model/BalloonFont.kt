@@ -15,4 +15,5 @@ enum class BalloonFont {
     TAHOMA,
     TREBUCHET,
     VERDANA,
+    ANIME_ACE,
 }

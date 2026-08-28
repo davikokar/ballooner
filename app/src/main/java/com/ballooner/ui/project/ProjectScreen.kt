@@ -107,6 +107,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
 import kotlinx.coroutines.Dispatchers
@@ -1257,6 +1258,7 @@ private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
     BalloonFont.TAHOMA -> googleFontFamily("PT Sans")
     BalloonFont.TREBUCHET -> googleFontFamily("Fira Sans")
     BalloonFont.VERDANA -> googleFontFamily("Noto Sans")
+    BalloonFont.ANIME_ACE -> AnimeAceFontFamily
 }
 
 private sealed interface ImageResult {
