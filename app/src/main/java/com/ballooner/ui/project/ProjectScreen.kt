@@ -371,9 +371,10 @@ private fun SizeSpanOption(text: String, selected: Boolean, onClick: () -> Unit)
 }
 
 /**
- * A visual position picker: one fixed box per existing image panel, laid out proportionally to
- * their actual position/size; the new image is a small draggable block that snaps ("magnetic")
- * to whichever side of the existing panels it nears.
+ * A visual position picker: one uniformly-sized white box per existing image panel, plus a
+ * yellow draggable box for the new image that snaps ("magnetic") to whichever side of the
+ * existing panels it nears. Box size always shrinks to fit the picker with room to spare on
+ * every side, so the new-image box never runs out of space to be dragged into.
  */
 @Composable
 private fun ImagePositionPicker(
@@ -383,61 +384,85 @@ private fun ImagePositionPicker(
     sizeSpan: Int,
 ) {
     val density = LocalDensity.current
-    val pickerSize = DpSize(260.dp, 180.dp)
-    val gap = 14.dp
-    val baseBlockSize = DpSize(64.dp, 48.dp)
+    val pickerSize = DpSize(280.dp, 220.dp)
+    val gap = 10.dp
+    val count = panels.size.coerceAtLeast(1)
 
-    // The existing panels' combined footprint, used to anchor the new block's snap zones.
-    val bounds = remember(panels) {
-        if (panels.isEmpty()) {
-            RectFraction(0f, 0f, 1f, 1f)
+    // Existing panels are laid out as a single strip; detect whether it runs mostly
+    // horizontally or vertically so the uniform boxes are ordered the same way.
+    val horizontal = remember(panels) {
+        if (panels.size < 2) {
+            true
         } else {
-            val left = panels.minOf { it.left }
-            val top = panels.minOf { it.top }
-            val right = panels.maxOf { it.left + it.width }
-            val bottom = panels.maxOf { it.top + it.height }
-            RectFraction(left, top, right - left, bottom - top)
+            val xSpread = panels.maxOf { it.left } - panels.minOf { it.left }
+            val ySpread = panels.maxOf { it.top } - panels.minOf { it.top }
+            xSpread >= ySpread
         }
     }
-
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    val orderedPanels = remember(panels, horizontal) {
+        panels.sortedBy { if (horizontal) it.left else it.top }
+    }
 
     val pickerWidthPx = with(density) { pickerSize.width.toPx() }
     val pickerHeightPx = with(density) { pickerSize.height.toPx() }
-    val boundsCenter = Offset(
-        (bounds.left + bounds.width / 2f) * pickerWidthPx - pickerWidthPx / 2f,
-        (bounds.top + bounds.height / 2f) * pickerHeightPx - pickerHeightPx / 2f,
-    )
-    val boundsHalfWidthPx = bounds.width * pickerWidthPx / 2f
-    val boundsHalfHeightPx = bounds.height * pickerHeightPx / 2f
+    val gapPx = with(density) { gap.toPx() }
 
-    val snapTargets = remember(boundsCenter, boundsHalfWidthPx, boundsHalfHeightPx, density) {
-        val halfNewW = with(density) { (baseBlockSize.width / 2).toPx() }
-        val halfNewH = with(density) { (baseBlockSize.height / 2).toPx() }
-        val gapPx = with(density) { gap.toPx() }
-        mapOf(
-            ImagePosition.LEFT to boundsCenter + Offset(-(boundsHalfWidthPx + gapPx + halfNewW), 0f),
-            ImagePosition.RIGHT to boundsCenter + Offset(boundsHalfWidthPx + gapPx + halfNewW, 0f),
-            ImagePosition.TOP to boundsCenter + Offset(0f, -(boundsHalfHeightPx + gapPx + halfNewH)),
-            ImagePosition.BOTTOM to boundsCenter + Offset(0f, boundsHalfHeightPx + gapPx + halfNewH),
-        )
+    // Solve for the largest uniform cell size that still leaves a full cell's worth of margin
+    // on every side of the strip, so the new-image box always has somewhere to be dragged.
+    val cellPx = remember(count, horizontal, pickerWidthPx, pickerHeightPx, gapPx) {
+        val mainAxisPx = if (horizontal) pickerWidthPx else pickerHeightPx
+        val crossAxisPx = if (horizontal) pickerHeightPx else pickerWidthPx
+        val cellFromMainAxis = (mainAxisPx - gapPx * (count + 1)) / (count + 2)
+        val cellFromCrossAxis = (crossAxisPx - gapPx * 2) / 3
+        minOf(cellFromMainAxis, cellFromCrossAxis).coerceAtMost(with(density) { 56.dp.toPx() })
+    }
+    val cellSize = with(density) { cellPx.toDp() }
+
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val stripLengthPx = count * cellPx + (count - 1) * gapPx
+    val stripStart = if (horizontal) -stripLengthPx / 2f else -cellPx / 2f
+    val stripCrossStart = if (horizontal) -cellPx / 2f else -stripLengthPx / 2f
+
+    val snapTargets = remember(cellPx, stripLengthPx, gapPx, horizontal) {
+        val halfStrip = stripLengthPx / 2f
+        val halfCell = cellPx / 2f
+        // Along the strip's own axis the new box extends past its far end; across the strip
+        // it just sits beside the (single) row/column, one cell over.
+        val along = halfStrip + gapPx + halfCell
+        val across = halfCell + gapPx + halfCell
+        if (horizontal) {
+            mapOf(
+                ImagePosition.LEFT to Offset(-along, 0f),
+                ImagePosition.RIGHT to Offset(along, 0f),
+                ImagePosition.TOP to Offset(0f, -across),
+                ImagePosition.BOTTOM to Offset(0f, across),
+            )
+        } else {
+            mapOf(
+                ImagePosition.TOP to Offset(0f, -along),
+                ImagePosition.BOTTOM to Offset(0f, along),
+                ImagePosition.LEFT to Offset(-across, 0f),
+                ImagePosition.RIGHT to Offset(across, 0f),
+            )
+        }
     }
     // Start the drag offset at the default snap target so the block appears there initially.
     LaunchedEffect(Unit) {
         snapped?.let { dragOffset = snapTargets.getValue(it) }
     }
-    val snapThresholdPx = with(density) { 32.dp.toPx() }
+    val snapThresholdPx = with(density) { 28.dp.toPx() }
     val nearestSnap = snapTargets.entries.minBy { (it.value - dragOffset).getDistance() }
         .takeIf { (it.value - dragOffset).getDistance() < snapThresholdPx }
         ?.key
     LaunchedEffect(nearestSnap) { onSnappedChange(nearestSnap) }
     val displayOffset = snapped?.let { snapTargets[it] } ?: dragOffset
     // The block grows along whichever axis a "large" panel would actually be scaled on.
-    val isVertical = snapped == ImagePosition.TOP || snapped == ImagePosition.BOTTOM
-    val newBlockSize = if (isVertical) {
-        DpSize(baseBlockSize.width * sizeSpan, baseBlockSize.height)
+    val isVerticalSnap = snapped == ImagePosition.TOP || snapped == ImagePosition.BOTTOM
+    val newBlockSize = if (isVerticalSnap) {
+        DpSize(cellSize * sizeSpan, cellSize)
     } else {
-        DpSize(baseBlockSize.width, baseBlockSize.height * sizeSpan)
+        DpSize(cellSize, cellSize * sizeSpan)
     }
 
     Box(
@@ -449,19 +474,19 @@ private fun ImagePositionPicker(
         contentAlignment = Alignment.Center,
     ) {
         Box(modifier = Modifier.size(pickerSize)) {
-            panels.forEach { panel ->
+            orderedPanels.forEachIndexed { index, _ ->
+                val mainOffset = index * (cellPx + gapPx)
+                val left = if (horizontal) stripStart + mainOffset else stripCrossStart
+                val top = if (horizontal) stripCrossStart else stripStart + mainOffset
                 Box(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (panel.left * pickerWidthPx).roundToInt(),
-                                (panel.top * pickerHeightPx).roundToInt(),
+                                (pickerWidthPx / 2f + left).roundToInt(),
+                                (pickerHeightPx / 2f + top).roundToInt(),
                             )
                         }
-                        .size(
-                            with(density) { (panel.width * pickerWidthPx).toDp() },
-                            with(density) { (panel.height * pickerHeightPx).toDp() },
-                        )
+                        .size(cellSize)
                         .background(Color.White, RoundedCornerShape(4.dp))
                         .border(2.dp, InkBlack, RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center,
@@ -480,10 +505,7 @@ private fun ImagePositionPicker(
                         )
                     }
                     .size(newBlockSize)
-                    .background(
-                        if (snapped != null) MaterialTheme.colorScheme.tertiary else Color.White,
-                        RoundedCornerShape(4.dp),
-                    )
+                    .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(4.dp))
                     .border(2.dp, InkBlack, RoundedCornerShape(4.dp))
                     .pointerInput(Unit) {
                         detectDragGestures(
