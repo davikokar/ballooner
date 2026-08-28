@@ -9,4 +9,6 @@ data class ProjectEntity(
     val name: String,
     val description: String,
     val createdAt: Long,
+    val updatedAt: Long,
+    val imageUri: String? = null,
 )

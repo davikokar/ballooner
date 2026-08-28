@@ -1,0 +1,1052 @@
+package com.ballooner.ui.project
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ballooner.domain.model.Balloon
+import com.ballooner.domain.model.BalloonFont
+import com.ballooner.domain.model.BalloonType
+import com.ballooner.ui.theme.balloonerTopAppBarColors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
+
+@Composable
+fun ProjectRoute(
+    projectId: Long,
+    autoOpenPicker: Boolean,
+    onNavigateBack: () -> Unit,
+    viewModel: ProjectViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    ProjectScreen(
+        projectName = uiState.name,
+        autoOpenPicker = autoOpenPicker,
+        uiState = uiState,
+        onNavigateBack = onNavigateBack,
+        onRenameProject = viewModel::setProjectName,
+        onImagePicked = viewModel::onImagePicked,
+        onAddBalloon = viewModel::addBalloon,
+        onSelectBalloon = viewModel::selectBalloon,
+        onCommitBalloon = viewModel::commitBalloon,
+        onDeleteSelected = viewModel::deleteSelectedBalloon,
+        onDeleteComic = { viewModel.deleteProject(onNavigateBack) },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProjectScreen(
+    projectName: String,
+    autoOpenPicker: Boolean,
+    uiState: ProjectUiState,
+    onNavigateBack: () -> Unit,
+    onRenameProject: (String) -> Unit,
+    onImagePicked: (String) -> Unit,
+    onAddBalloon: (BalloonType) -> Unit,
+    onSelectBalloon: (Long?) -> Unit,
+    onCommitBalloon: (Balloon) -> Unit,
+    onDeleteSelected: () -> Unit,
+    onDeleteComic: () -> Unit,
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val scope = rememberCoroutineScope()
+    // The Photo Picker shows albums/folders of images and can browse other locations.
+    val pickMedia = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri: Uri? ->
+        if (uri != null) onImagePicked(uri.toString())
+    }
+    val launchPicker = {
+        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+    // Displayed image width in px, used to scale text to the exported resolution.
+    var displayedWidth by remember { mutableStateOf(0) }
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("image/png"),
+    ) { uri: Uri? ->
+        val imageUri = uiState.imageUri
+        if (uri != null && imageUri != null) {
+            scope.launch {
+                val ok = exportComic(
+                    context = context,
+                    outUri = uri,
+                    imageUri = imageUri,
+                    balloons = uiState.balloons,
+                    displayedWidth = displayedWidth,
+                    autoTextSize = uiState.autoTextSize,
+                    textMeasurer = textMeasurer,
+                    density = density,
+                )
+                Toast.makeText(context, if (ok) "Saved image" else "Save failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    val onSave = { saveLauncher.launch("${projectName.ifBlank { "comic" }}.png") }
+    // Edit mode shows the balloon controls; view mode shows the flat result.
+    var editMode by remember { mutableStateOf(true) }
+    // A freshly created project jumps straight to image selection.
+    LaunchedEffect(Unit) {
+        if (autoOpenPicker) launchPicker()
+    }
+    // Keep a balloon selected in edit mode so the controls stay visible.
+    LaunchedEffect(editMode, uiState.balloons, uiState.selectedBalloonId) {
+        if (editMode && uiState.selectedBalloonId == null && uiState.balloons.isNotEmpty()) {
+            onSelectBalloon(uiState.balloons.last().id)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    if (editMode) {
+                        EditableTitle(name = projectName, onRename = onRenameProject)
+                    } else {
+                        Text(projectName.ifBlank { "Untitled" })
+                    }
+                },
+                colors = balloonerTopAppBarColors(),
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (uiState.hasImage && editMode) {
+                        IconButton(onClick = { launchPicker() }) {
+                            Icon(BalloonerIcons.Image, contentDescription = "Change image")
+                        }
+                    }
+                    ProjectOverflowMenu(onDeleteComic = onDeleteComic)
+                },
+            )
+        },
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (!uiState.hasImage) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Button(onClick = { launchPicker() }) { Text("Open image") }
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Toolbar(
+                        editMode = editMode,
+                        onAddBalloon = onAddBalloon,
+                        onSave = onSave,
+                        onToggleMode = { editMode = !editMode },
+                    )
+                    Editor(
+                        imageUri = uiState.imageUri!!,
+                        balloons = uiState.balloons,
+                        selectedBalloonId = uiState.selectedBalloonId,
+                        editMode = editMode,
+                        hideFontSelector = uiState.hideFontSelector,
+                        autoTextSize = uiState.autoTextSize,
+                        onSelectBalloon = onSelectBalloon,
+                        onCommitBalloon = onCommitBalloon,
+                        onDeleteSelected = onDeleteSelected,
+                        onOpenImagePicker = { launchPicker() },
+                        onLayerWidth = { displayedWidth = it },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditableTitle(name: String, onRename: (String) -> Unit) {
+    var text by remember { mutableStateOf(name) }
+    // Seed once the persisted name loads without clobbering in-progress edits.
+    LaunchedEffect(name) {
+        if (text.isBlank() && name.isNotBlank()) text = name
+    }
+    BasicTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            onRename(it)
+        },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.titleLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { inner ->
+            if (text.isEmpty()) {
+                Text(
+                    text = "Title",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            inner()
+        },
+    )
+}
+
+@Composable
+private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    var showConfirm by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(
+            text = { Text("Delete comic") },
+            onClick = {
+                expanded = false
+                showConfirm = true
+            },
+        )
+    }
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text("Delete comic?") },
+            text = { Text("This permanently removes the comic and its image.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirm = false
+                        onDeleteComic()
+                    },
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun Toolbar(
+    editMode: Boolean,
+    onAddBalloon: (BalloonType) -> Unit,
+    onSave: () -> Unit,
+    onToggleMode: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (editMode) {
+            BalloonType.entries.forEach { type ->
+                BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
+            }
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        IconButton(onClick = onSave) {
+            Icon(BalloonerIcons.Save, contentDescription = "Save image")
+        }
+        IconButton(onClick = onToggleMode) {
+            Icon(
+                imageVector = if (editMode) Icons.Default.Done else Icons.Default.Edit,
+                contentDescription = if (editMode) "Switch to view mode" else "Switch to edit mode",
+            )
+        }
+    }
+}
+
+/** An icon button showing a stylized balloon that adds one of that type when tapped. */
+@Composable
+private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
+    val outline = MaterialTheme.colorScheme.onSurface
+    IconButton(onClick = onClick) {
+        Canvas(modifier = Modifier.size(28.dp)) {
+            // Captions have no tail, so their icon is a plain square instead of a balloon shape.
+            val sample = if (type == BalloonType.CAPTION) {
+                Balloon(
+                    id = 0,
+                    type = type,
+                    centerX = 0.5f,
+                    centerY = 0.5f,
+                    width = 0.7f,
+                    height = 0.7f,
+                    tailLength = 0f,
+                    cornerRoundness = 0f,
+                )
+            } else {
+                Balloon(
+                    id = 0,
+                    type = type,
+                    centerX = 0.5f,
+                    centerY = 0.4f,
+                    width = 0.74f,
+                    height = 0.5f,
+                    tailAngleDegrees = 110f,
+                    tailLength = 0.2f,
+                )
+            }
+            drawBalloon(sample, size, bodyColor = Color.Transparent, outlineColor = outline)
+        }
+    }
+}
+
+@Composable
+private fun Editor(
+    imageUri: String,
+    balloons: List<Balloon>,
+    selectedBalloonId: Long?,
+    editMode: Boolean,
+    hideFontSelector: Boolean,
+    autoTextSize: Boolean,
+    onSelectBalloon: (Long?) -> Unit,
+    onCommitBalloon: (Balloon) -> Unit,
+    onDeleteSelected: () -> Unit,
+    onOpenImagePicker: () -> Unit,
+    onLayerWidth: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val imageState = rememberImageState(imageUri)
+    var layerSize by remember { mutableStateOf(IntSize.Zero) }
+    // Available area for the image, used to refit it after a 90° rotation.
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    // View-only transform: pinch to zoom / pan and a 90° rotate button.
+    var zoom by remember { mutableStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    var rotation by remember { mutableStateOf(0f) }
+    // Working copy of the selected balloon. Seeded when the selection changes and
+    // kept across gestures so size / position / tail / text edits accumulate
+    // instead of overwriting each other before Room has round-tripped a commit.
+    val selectedPersisted = balloons.firstOrNull { it.id == selectedBalloonId }
+    var live by remember(selectedBalloonId) { mutableStateOf(selectedPersisted) }
+    val effective = balloons.map { b -> live?.takeIf { it.id == b.id } ?: b }
+    val selected = effective.firstOrNull { it.id == selectedBalloonId }
+
+    Column(modifier = modifier.fillMaxSize().padding(8.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .onSizeChanged { containerSize = it },
+            contentAlignment = Alignment.Center,
+        ) {
+            when (val state = imageState) {
+                ImageResult.Loading -> Text("Loading image\u2026")
+                ImageResult.Failed -> Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Couldn't load this image.")
+                    Button(onClick = onOpenImagePicker) { Text("Choose image") }
+                }
+                is ImageResult.Loaded -> {
+                val image = state.bitmap
+                // A quarter turn swaps width/height, so scale the layer to refill the space.
+                val quarterTurned = ((rotation / 90f).roundToInt() % 2) != 0
+                val fitScale = if (
+                    quarterTurned && layerSize.width > 0 && layerSize.height > 0 &&
+                    containerSize.width > 0 && containerSize.height > 0
+                ) {
+                    minOf(
+                        containerSize.width.toFloat() / layerSize.height,
+                        containerSize.height.toFloat() / layerSize.width,
+                    )
+                } else {
+                    1f
+                }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(image.width.toFloat() / image.height.toFloat())
+                        // Two-finger pinch zooms / pans; single finger stays for balloons.
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                do {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.count { it.pressed } >= 2) {
+                                        zoom = (zoom * event.calculateZoom()).coerceIn(1f, 6f)
+                                        pan += event.calculatePan()
+                                        event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        }
+                        .graphicsLayer {
+                            scaleX = zoom * fitScale
+                            scaleY = zoom * fitScale
+                            translationX = pan.x
+                            translationY = pan.y
+                            rotationZ = rotation
+                        },
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .onSizeChanged {
+                                layerSize = it
+                                onLayerWidth(it.width)
+                            }
+                            .pointerInput(balloons, editMode) {
+                                detectTapGestures { offset ->
+                                    if (!editMode) return@detectTapGestures
+                                    val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                                    val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
+                                    if (hit != null) onSelectBalloon(hit.id)
+                                }
+                            },
+                    ) {
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                        drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                        effective.forEach { balloon ->
+                            drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
+                        }
+                    }
+
+                    val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
+                    if (size.width > 0f && size.height > 0f) {
+                        effective.forEach { balloon ->
+                            BalloonText(
+                                balloon = balloon,
+                                canvasSize = size,
+                                editable = editMode,
+                                autoSize = autoTextSize,
+                                onTextChange = { newText ->
+                                    val current = live?.takeIf { it.id == balloon.id } ?: balloon
+                                    val updated = current.copy(text = newText)
+                                    if (selectedBalloonId == balloon.id) live = updated
+                                    onCommitBalloon(updated)
+                                },
+                                onFocused = { onSelectBalloon(balloon.id) },
+                            )
+                        }
+
+                        if (editMode) {
+                            selected?.let { sel ->
+                                Handles(
+                                    balloon = sel,
+                                    canvasSize = size,
+                                    base = { live ?: sel },
+                                    onLiveChange = { live = it },
+                                    onCommit = { live?.let(onCommitBalloon) },
+                                    onDelete = onDeleteSelected,
+                                )
+                            }
+                        }
+                    }
+                    }
+                }
+                selected?.let { sel ->
+                    if (editMode) {
+                        if (!hideFontSelector || !autoTextSize) {
+                            TextControls(
+                                font = sel.font,
+                                fontSize = sel.fontSize,
+                                showFontSelector = !hideFontSelector,
+                                showSizeSlider = !autoTextSize,
+                                onFontChange = {
+                                    live = (live ?: sel).copy(font = it)
+                                    live?.let(onCommitBalloon)
+                                },
+                                onSizeChange = { live = (live ?: sel).copy(fontSize = it) },
+                                onSizeChangeFinished = { live?.let(onCommitBalloon) },
+                            )
+                        }
+                        if (sel.type == BalloonType.SPEAK || sel.type == BalloonType.WHISPER) {
+                            ShapeSlider(
+                                roundness = sel.cornerRoundness,
+                                onChange = { live = (live ?: sel).copy(cornerRoundness = it) },
+                                onChangeFinished = { live?.let(onCommitBalloon) },
+                            )
+                        }
+                    }
+                }
+                }
+                }
+            }
+            if (imageState is ImageResult.Loaded) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { rotation = (rotation + 90f) % 360f }) {
+                            Icon(BalloonerIcons.Rotate, contentDescription = "Rotate")
+                        }
+                        if (zoom != 1f || pan != Offset.Zero || rotation != 0f) {
+                            TextButton(
+                                onClick = {
+                                    zoom = 1f
+                                    pan = Offset.Zero
+                                    rotation = 0f
+                                },
+                            ) { Text("Reset") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextControls(
+    font: BalloonFont,
+    fontSize: Float,
+    showFontSelector: Boolean,
+    showSizeSlider: Boolean,
+    onFontChange: (BalloonFont) -> Unit,
+    onSizeChange: (Float) -> Unit,
+    onSizeChangeFinished: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (showFontSelector) {
+            var expanded by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(onClick = { expanded = true }) {
+                    Text(font.label())
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    BalloonFont.entries.forEach { entry ->
+                        DropdownMenuItem(
+                            text = { Text(entry.label()) },
+                            onClick = {
+                                onFontChange(entry)
+                                expanded = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        if (showSizeSlider) {
+            Text(text = "Size", style = MaterialTheme.typography.labelLarge)
+            Slider(
+                value = fontSize,
+                onValueChange = onSizeChange,
+                onValueChangeFinished = onSizeChangeFinished,
+                valueRange = 8f..48f,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShapeSlider(
+    roundness: Float,
+    onChange: (Float) -> Unit,
+    onChangeFinished: () -> Unit,
+) {
+    Slider(
+        value = roundness,
+        onValueChange = onChange,
+        onValueChangeFinished = onChangeFinished,
+        valueRange = 0f..1f,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
+private fun BalloonText(
+    balloon: Balloon,
+    canvasSize: Size,
+    editable: Boolean,
+    autoSize: Boolean,
+    onTextChange: (String) -> Unit,
+    onFocused: () -> Unit,
+) {
+    val density = LocalDensity.current
+    val left = balloon.centerX * canvasSize.width - balloon.width * canvasSize.width / 2f
+    val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f
+    val widthDp = with(density) { (balloon.width * canvasSize.width).toDp() }
+    val heightDp = with(density) { (balloon.height * canvasSize.height).toDp() }
+    val innerPadding = if (balloon.type == BalloonType.YELL) 18.dp else 12.dp
+
+    var text by remember(balloon.id) { mutableStateOf(balloon.text) }
+
+    val padPx = with(density) { innerPadding.toPx() }
+    val availableWidth = (balloon.width * canvasSize.width - 2 * padPx).toInt().coerceAtLeast(1)
+    val availableHeight = (balloon.height * canvasSize.height - 2 * padPx).toInt().coerceAtLeast(1)
+    val effectiveFontSize = if (autoSize) {
+        rememberAutoFontSize(text, balloon.font, availableWidth, availableHeight)
+    } else {
+        balloon.fontSize
+    }
+
+    Box(
+        modifier = Modifier
+            .offset { IntOffset(left.roundToInt(), top.roundToInt()) }
+            .size(widthDp, heightDp),
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicTextField(
+            value = text,
+            onValueChange = {
+                if (!editable) return@BasicTextField
+                text = it
+                onTextChange(it)
+            },
+            readOnly = !editable,
+            textStyle = TextStyle(
+                color = Color.Black,
+                fontSize = effectiveFontSize.sp,
+                fontFamily = balloon.font.toFontFamily(),
+                textAlign = TextAlign.Center,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(innerPadding)
+                .onFocusChanged { if (it.isFocused) onFocused() },
+        )
+    }
+}
+
+/** Largest font (in sp) whose text fits within the available box, for auto text sizing. */
+@Composable
+private fun rememberAutoFontSize(
+    text: String,
+    font: BalloonFont,
+    availableWidth: Int,
+    availableHeight: Int,
+): Float {
+    val measurer = rememberTextMeasurer()
+    return remember(text, font, availableWidth, availableHeight) {
+        if (availableWidth <= 0 || availableHeight <= 0) {
+            AUTO_MIN_FONT_SIZE
+        } else {
+            // A blank balloon still gets a caret sized to the box via a sample glyph.
+            autoFitFontSize(text.ifBlank { "A" }, font, availableWidth, availableHeight, measurer)
+        }
+    }
+}
+
+private fun autoFitFontSize(
+    text: String,
+    font: BalloonFont,
+    maxWidth: Int,
+    maxHeight: Int,
+    measurer: TextMeasurer,
+): Float {
+    var best = AUTO_MIN_FONT_SIZE
+    var candidate = AUTO_MIN_FONT_SIZE
+    while (candidate <= AUTO_MAX_FONT_SIZE) {
+        val measured = measurer.measure(
+            text = text,
+            style = TextStyle(
+                fontSize = candidate.sp,
+                fontFamily = font.toFontFamily(),
+                textAlign = TextAlign.Center,
+            ),
+            constraints = Constraints(maxWidth = maxWidth),
+        )
+        if (measured.size.height <= maxHeight && measured.size.width <= maxWidth) {
+            best = candidate
+            candidate += 1f
+        } else {
+            break
+        }
+    }
+    return best
+}
+
+private const val AUTO_MIN_FONT_SIZE = 8f
+private const val AUTO_MAX_FONT_SIZE = 96f
+
+@Composable
+private fun Handles(
+    balloon: Balloon,
+    canvasSize: Size,
+    base: () -> Balloon,
+    onLiveChange: (Balloon) -> Unit,
+    onCommit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val w = canvasSize.width
+    val h = canvasSize.height
+    val center = balloon.bodyCenter(canvasSize)
+    val halfX = balloon.width * w / 2f
+    val halfY = balloon.height * h / 2f
+    val selectionColor = MaterialTheme.colorScheme.primary
+
+    // Move handle (top-center).
+    DragHandle(
+        centerPx = Offset(center.x, center.y - halfY),
+        sizeDp = 26.dp,
+        color = selectionColor,
+        shape = RoundedCornerShape(6.dp),
+        keyId = balloon.id,
+        onDrag = { d ->
+            val b = base()
+            onLiveChange(b.copy(centerX = b.centerX + d.x / w, centerY = b.centerY + d.y / h))
+        },
+        onDragEnd = onCommit,
+    )
+
+    // Resize handles (four corners).
+    val corners = listOf(
+        Corner(Offset(center.x - halfX, center.y - halfY), -1f, -1f),
+        Corner(Offset(center.x + halfX, center.y - halfY), 1f, -1f),
+        Corner(Offset(center.x - halfX, center.y + halfY), -1f, 1f),
+        Corner(Offset(center.x + halfX, center.y + halfY), 1f, 1f),
+    )
+    corners.forEach { corner ->
+        DragHandle(
+            centerPx = corner.pos,
+            sizeDp = 22.dp,
+            color = Color(0xFFE8325A),
+            shape = CircleShape,
+            keyId = balloon.id,
+            onDrag = { d ->
+                val b = base()
+                val dxf = d.x / w
+                val dyf = d.y / h
+                onLiveChange(
+                    b.copy(
+                        width = (b.width + corner.signX * dxf).coerceAtLeast(0.1f),
+                        height = (b.height + corner.signY * dyf).coerceAtLeast(0.1f),
+                        centerX = b.centerX + dxf / 2f,
+                        centerY = b.centerY + dyf / 2f,
+                    ),
+                )
+            },
+            onDragEnd = onCommit,
+        )
+    }
+
+    // Tail handle (drag the tip to set both direction and length). Captions have no tail.
+    if (balloon.type != BalloonType.CAPTION) {
+        DragHandle(
+            centerPx = balloon.tailTip(canvasSize),
+            sizeDp = 28.dp,
+            color = Color(0xFF00C9B1),
+            shape = CircleShape,
+            keyId = balloon.id,
+            onDrag = { d ->
+                val b = base()
+                val target = b.tailTip(canvasSize) + d
+                onLiveChange(b.tailAtPoint(target, canvasSize))
+            },
+            onDragEnd = onCommit,
+        )
+    }
+
+    // Tail-width handle (drag sideways to set the tail thickness). Not for Think,
+    // whose tail is made of bubbles, or Caption, which has no tail.
+    if (balloon.type != BalloonType.THINK && balloon.type != BalloonType.CAPTION) {
+        DragHandle(
+            centerPx = balloon.tailBaseHandle(canvasSize),
+            sizeDp = 24.dp,
+            color = Color(0xFF2ECC71),
+            shape = CircleShape,
+            keyId = balloon.id,
+            onDrag = { d ->
+                val b = base()
+                val target = b.tailBaseHandle(canvasSize) + d
+                onLiveChange(b.tailWidthFromPoint(target, canvasSize))
+            },
+            onDragEnd = onCommit,
+        )
+    }
+
+    // Delete handle (top-right).
+    TapHandle(
+        centerPx = Offset(center.x + halfX, center.y - halfY),
+        sizeDp = 26.dp,
+        color = Color(0xFFE8325A),
+        onTap = onDelete,
+    ) {
+        Text(text = "\u00D7", color = Color.White)
+    }
+}
+
+private data class Corner(val pos: Offset, val signX: Float, val signY: Float)
+
+@Composable
+private fun DragHandle(
+    centerPx: Offset,
+    sizeDp: Dp,
+    color: Color,
+    shape: Shape,
+    keyId: Long,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    content: @Composable () -> Unit = {},
+) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { (sizeDp / 2).toPx() }
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(sizeDp)
+            .border(2.dp, Color.White, shape)
+            .background(color, shape)
+            .pointerInput(keyId) {
+                detectDragGestures(
+                    onDragEnd = onDragEnd,
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount)
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
+@Composable
+private fun TapHandle(
+    centerPx: Offset,
+    sizeDp: Dp,
+    color: Color,
+    onTap: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { (sizeDp / 2).toPx() }
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(sizeDp)
+            .border(2.dp, Color.White, CircleShape)
+            .background(color, CircleShape)
+            .pointerInput(Unit) { detectTapGestures { onTap() } },
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
+private fun BalloonType.label(): String = when (this) {
+    BalloonType.SPEAK -> "Speak"
+    BalloonType.THINK -> "Think"
+    BalloonType.WHISPER -> "Whisper"
+    BalloonType.YELL -> "Yell"
+    BalloonType.CAPTION -> "Caption"
+}
+
+private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
+    BalloonFont.DEFAULT -> FontFamily.Default
+    BalloonFont.SANS_SERIF -> FontFamily.SansSerif
+    BalloonFont.SERIF -> FontFamily.Serif
+    BalloonFont.MONOSPACE -> FontFamily.Monospace
+    BalloonFont.CURSIVE -> FontFamily.Cursive
+    BalloonFont.WIDE -> googleFontFamily("Michroma")
+    BalloonFont.NARROW -> googleFontFamily("Archivo Narrow")
+    BalloonFont.COMIC_SANS_MS -> googleFontFamily("Comic Neue")
+    BalloonFont.GARAMOND -> googleFontFamily("EB Garamond")
+    BalloonFont.GEORGIA -> googleFontFamily("Gelasio")
+    BalloonFont.TAHOMA -> googleFontFamily("PT Sans")
+    BalloonFont.TREBUCHET -> googleFontFamily("Fira Sans")
+    BalloonFont.VERDANA -> googleFontFamily("Noto Sans")
+}
+
+private sealed interface ImageResult {
+    data object Loading : ImageResult
+    data class Loaded(val bitmap: ImageBitmap) : ImageResult
+    data object Failed : ImageResult
+}
+
+@Composable
+private fun rememberImageState(uri: String?): ImageResult {
+    val context = LocalContext.current
+    return produceState<ImageResult>(ImageResult.Loading, uri) {
+        value = if (uri == null) {
+            ImageResult.Loading
+        } else {
+            loadBitmap(context, uri)?.let(ImageResult::Loaded) ?: ImageResult.Failed
+        }
+    }.value
+}
+
+private suspend fun loadBitmap(context: Context, uri: String): ImageBitmap? =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            context.contentResolver.openInputStream(Uri.parse(uri)).use { stream ->
+                BitmapFactory.decodeStream(stream)?.asImageBitmap()
+            }
+        }.getOrNull()
+    }
+
+/** Renders the image + balloons (with text) to a PNG at native resolution and writes it to [outUri]. */
+private suspend fun exportComic(
+    context: Context,
+    outUri: Uri,
+    imageUri: String,
+    balloons: List<Balloon>,
+    displayedWidth: Int,
+    autoTextSize: Boolean,
+    textMeasurer: TextMeasurer,
+    density: Density,
+): Boolean {
+    val source = loadBitmap(context, imageUri) ?: return false
+    val width = source.width
+    val height = source.height
+    // The screen shows fixed-sp text over a scaled-down image, so scale text up to native size.
+    val scale = if (displayedWidth > 0) width.toFloat() / displayedWidth else 1f
+    val output = ImageBitmap(width, height)
+    val canvas = Canvas(output)
+    val size = Size(width.toFloat(), height.toFloat())
+    CanvasDrawScope().draw(density, LayoutDirection.Ltr, canvas, size) {
+        drawImage(source)
+        balloons.forEach { drawBalloon(it, size, bodyColor = Color.White, outlineColor = Color.Black) }
+        balloons.forEach { drawExportText(it, size, textMeasurer, scale, autoTextSize) }
+    }
+    return withContext(Dispatchers.IO) {
+        runCatching {
+            context.contentResolver.openOutputStream(outUri)?.use { stream ->
+                output.asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, stream)
+            } ?: return@runCatching false
+            true
+        }.getOrDefault(false)
+    }
+}
+
+private fun DrawScope.drawExportText(
+    balloon: Balloon,
+    canvasSize: Size,
+    textMeasurer: TextMeasurer,
+    scale: Float,
+    autoSize: Boolean,
+) {
+    if (balloon.text.isBlank()) return
+    val boxW = balloon.width * canvasSize.width
+    val boxH = balloon.height * canvasSize.height
+    val maxW = (boxW * 0.82f).toInt().coerceAtLeast(1)
+    val maxH = (boxH * 0.82f).toInt().coerceAtLeast(1)
+    val fontSize = if (autoSize) {
+        autoFitFontSize(balloon.text, balloon.font, maxW, maxH, textMeasurer)
+    } else {
+        balloon.fontSize * scale
+    }
+    val result = textMeasurer.measure(
+        text = balloon.text,
+        style = TextStyle(
+            color = Color.Black,
+            fontSize = fontSize.sp,
+            fontFamily = balloon.font.toFontFamily(),
+            textAlign = TextAlign.Center,
+        ),
+        constraints = Constraints(maxWidth = maxW, maxHeight = maxH),
+    )
+    val cx = balloon.centerX * canvasSize.width
+    val cy = balloon.centerY * canvasSize.height
+    drawText(result, topLeft = Offset(cx - result.size.width / 2f, cy - result.size.height / 2f))
+}
+
+@Preview
+@Composable
+private fun ProjectScreenNoImagePreview() {
+    ProjectScreen(
+        projectName = "My Comic 1",
+        autoOpenPicker = false,
+        uiState = ProjectUiState(),
+        onNavigateBack = {},
+        onRenameProject = {},
+        onImagePicked = {},
+        onAddBalloon = {},
+        onSelectBalloon = {},
+        onCommitBalloon = {},
+        onDeleteSelected = {},
+        onDeleteComic = {},
+    )
+}

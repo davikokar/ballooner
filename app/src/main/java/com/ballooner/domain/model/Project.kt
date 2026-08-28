@@ -10,4 +10,6 @@ data class Project(
     val name: String,
     val description: String,
     val createdAt: Long,
+    val updatedAt: Long = createdAt,
+    val imageUri: String? = null,
 )
