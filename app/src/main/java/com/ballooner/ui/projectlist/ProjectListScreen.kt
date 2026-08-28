@@ -124,32 +124,13 @@ private fun ProjectListTopBar(onOpenSettings: () -> Unit) {
     Column {
         TopAppBar(
             title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
-                            .border(2.dp, InkBlack, RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = BalloonerIcons.Balloon,
-                            contentDescription = null,
-                            tint = InkBlack,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                    Text(
-                        text = "Ballooner",
-                        color = Color.White,
-                        fontFamily = AnimeAceFontFamily,
-                        fontSize = 24.sp,
-                        maxLines = 1,
-                    )
-                }
+                Text(
+                    text = "Ballooner",
+                    color = Color.White,
+                    fontFamily = AnimeAceFontFamily,
+                    fontSize = 24.sp,
+                    maxLines = 1,
+                )
             },
             colors = balloonerTopAppBarColors(),
             actions = { OverflowMenu(onOpenSettings = onOpenSettings) },

@@ -210,33 +210,14 @@ fun ProjectScreen(
             Column {
                 TopAppBar(
                     title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
-                                    .border(2.dp, InkBlack, RoundedCornerShape(6.dp)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = BalloonerIcons.Balloon,
-                                    contentDescription = null,
-                                    tint = InkBlack,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-                            if (editMode) {
-                                EditableTitle(name = projectName, onRename = onRenameProject)
-                            } else {
-                                Text(
-                                    text = projectName.ifBlank { "Untitled" },
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
+                        if (editMode) {
+                            EditableTitle(name = projectName, onRename = onRenameProject)
+                        } else {
+                            Text(
+                                text = projectName.ifBlank { "Untitled" },
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                            )
                         }
                     },
                     colors = balloonerTopAppBarColors(),
@@ -315,7 +296,7 @@ private fun EditableTitle(name: String, onRename: (String) -> Unit) {
         singleLine = true,
         textStyle = MaterialTheme.typography.titleLarge.copy(
             color = Color.White,
-            fontFamily = googleFontFamily("Space Grotesk"),
+            fontFamily = AnimeAceFontFamily,
             fontWeight = FontWeight.Bold,
         ),
         cursorBrush = SolidColor(Color.White),
@@ -637,6 +618,7 @@ private fun Editor(
                         } else {
                             1f
                         }
+                        Column(modifier = Modifier.fillMaxWidth()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -735,6 +717,20 @@ private fun Editor(
                             }
                         }
                         }
+                        if (editMode && selected != null &&
+                            (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
+                        ) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShapeSlider(
+                                roundness = selected.cornerRoundness,
+                                onChange = {
+                                    val sel = selected
+                                    live = (live ?: sel).copy(cornerRoundness = it)
+                                },
+                                onChangeFinished = { live?.let(onCommitBalloon) },
+                            )
+                        }
+                        }
                     }
                 }
                 if (editMode && imageState is ImageResult.Loaded) {
@@ -754,11 +750,6 @@ private fun Editor(
                             live = (live ?: sel).copy(fontSize = it)
                         },
                         onSizeChangeFinished = { live?.let(onCommitBalloon) },
-                        onRoundnessChange = {
-                            val sel = selected ?: return@ComicKit
-                            live = (live ?: sel).copy(cornerRoundness = it)
-                        },
-                        onRoundnessChangeFinished = { live?.let(onCommitBalloon) },
                     )
                 }
             }
@@ -790,8 +781,6 @@ private fun ComicKit(
     onFontChange: (BalloonFont) -> Unit,
     onSizeChange: (Float) -> Unit,
     onSizeChangeFinished: () -> Unit,
-    onRoundnessChange: (Float) -> Unit,
-    onRoundnessChangeFinished: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -799,44 +788,27 @@ private fun ComicKit(
             .background(MaterialTheme.colorScheme.primary)
             .padding(vertical = 12.dp),
     ) {
-        // Decorative grab handle, matching the design's bottom-sheet affordance.
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .size(width = 48.dp, height = 6.dp)
-                .background(InkBlack, RoundedCornerShape(50)),
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            BalloonType.entries.forEach { type ->
-                BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                BalloonType.entries.forEach { type ->
+                    BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
+                }
             }
         }
-        if (selected != null) {
+        if (selected != null && (!hideFontSelector || !autoTextSize)) {
             Spacer(modifier = Modifier.height(12.dp))
-            if (!hideFontSelector || !autoTextSize) {
-                TextControls(
-                    font = selected.font,
-                    fontSize = selected.fontSize,
-                    showFontSelector = !hideFontSelector,
-                    showSizeSlider = !autoTextSize,
-                    onFontChange = onFontChange,
-                    onSizeChange = onSizeChange,
-                    onSizeChangeFinished = onSizeChangeFinished,
-                )
-            }
-            if (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER) {
-                ShapeSlider(
-                    roundness = selected.cornerRoundness,
-                    onChange = onRoundnessChange,
-                    onChangeFinished = onRoundnessChangeFinished,
-                )
-            }
+            TextControls(
+                font = selected.font,
+                fontSize = selected.fontSize,
+                showFontSelector = !hideFontSelector,
+                showSizeSlider = !autoTextSize,
+                onFontChange = onFontChange,
+                onSizeChange = onSizeChange,
+                onSizeChangeFinished = onSizeChangeFinished,
+            )
         }
     }
 }
@@ -935,23 +907,21 @@ private fun ShapeSlider(
     onChange: (Float) -> Unit,
     onChangeFinished: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-        ComicFieldLabel("Shape")
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(8.dp))
-                .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
-                .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Slider(
-                value = roundness,
-                onValueChange = onChange,
-                onValueChangeFinished = onChangeFinished,
-                valueRange = 0f..1f,
-            )
-        }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(8.dp))
+            .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Slider(
+            value = roundness,
+            onValueChange = onChange,
+            onValueChangeFinished = onChangeFinished,
+            valueRange = 0f..1f,
+            modifier = Modifier.height(32.dp),
+        )
     }
 }
 
@@ -982,7 +952,7 @@ private fun BalloonText(
     val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f
     val widthDp = with(density) { (balloon.width * canvasSize.width).toDp() }
     val heightDp = with(density) { (balloon.height * canvasSize.height).toDp() }
-    val innerPadding = if (balloon.type == BalloonType.YELL) 18.dp else 12.dp
+    val innerPadding = if (balloon.type == BalloonType.YELL) 24.dp else 18.dp
 
     var text by remember(balloon.id) { mutableStateOf(balloon.text) }
 
@@ -1332,8 +1302,8 @@ private fun DrawScope.drawExportText(
     if (balloon.text.isBlank()) return
     val boxW = balloon.width * canvasSize.width
     val boxH = balloon.height * canvasSize.height
-    val maxW = (boxW * 0.82f).toInt().coerceAtLeast(1)
-    val maxH = (boxH * 0.82f).toInt().coerceAtLeast(1)
+    val maxW = (boxW * 0.74f).toInt().coerceAtLeast(1)
+    val maxH = (boxH * 0.74f).toInt().coerceAtLeast(1)
     val fontSize = if (autoSize) {
         autoFitFontSize(balloon.text, balloon.font, maxW, maxH, textMeasurer)
     } else {
