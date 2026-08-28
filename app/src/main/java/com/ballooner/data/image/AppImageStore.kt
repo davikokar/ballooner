@@ -21,15 +21,15 @@ class AppImageStore @Inject constructor(
 
     override suspend fun importImage(sourceUri: String): String? = withContext(Dispatchers.IO) {
         runCatching {
-            val bitmap = decodeBitmap(sourceUri) ?: return@runCatching null
-            val bordered = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
-            val canvas = android.graphics.Canvas(bordered)
-            canvas.drawBitmap(bitmap, 0f, 0f, null)
+            // Decoded mutable so the border can be drawn directly onto it, instead of
+            // allocating a second full-size bitmap just to hold a copy plus a border.
+            val bitmap = decodeBitmap(sourceUri, mutable = true) ?: return@runCatching null
+            val canvas = android.graphics.Canvas(bitmap)
             val borderPx = borderThicknessPx(bitmap.width, bitmap.height)
             canvas.drawRect(borderRect(0, 0, bitmap.width, bitmap.height, borderPx / 2f), borderPaint(borderPx))
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
-            dest.outputStream().use { output -> bordered.compress(Bitmap.CompressFormat.PNG, 100, output) }
+            dest.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
             Uri.fromFile(dest).toString()
         }.getOrNull()
     }
@@ -103,7 +103,31 @@ class AppImageStore @Inject constructor(
         top + height - inset,
     )
 
-    private fun decodeBitmap(uri: String): Bitmap? =
-        context.contentResolver.openInputStream(Uri.parse(uri))?.use { stream -> BitmapFactory.decodeStream(stream) }
+    /**
+     * Decodes [uri] downsampled so neither dimension exceeds [MAX_DECODED_DIMENSION_PX] — full
+     * camera-resolution photos (often 12+ MP) would otherwise risk an OutOfMemoryError once
+     * decoded, copied, and re-encoded.
+     */
+    private fun decodeBitmap(uri: String, mutable: Boolean = false): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(Uri.parse(uri))?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, bounds)
+        } ?: return null
+        var sampleSize = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= MAX_DECODED_DIMENSION_PX) {
+            sampleSize *= 2
+        }
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inMutable = mutable
+        }
+        return context.contentResolver.openInputStream(Uri.parse(uri))?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        }
+    }
+
+    private companion object {
+        const val MAX_DECODED_DIMENSION_PX = 2048
+    }
 }
 
