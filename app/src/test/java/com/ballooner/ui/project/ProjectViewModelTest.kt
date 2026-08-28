@@ -3,12 +3,15 @@ package com.ballooner.ui.project
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.ballooner.data.balloon.FakeBalloonRepository
+import com.ballooner.data.image.ComposedImage
 import com.ballooner.data.image.FakeImageStore
+import com.ballooner.data.image.RectFraction
 import com.ballooner.data.project.FakeProjectRepository
 import com.ballooner.data.settings.FakeSettingsRepository
 import com.ballooner.domain.model.AppSettings
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.Project
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -74,6 +77,78 @@ class ProjectViewModelTest {
 
             assertEquals("uri2", expectMostRecentItem().imageUri)
             assertEquals(listOf("uri1"), imageStore.deleted)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `adding an image composes it with the existing one and switches to the merged uri`() = runTest {
+        val imageStore = FakeImageStore().apply {
+            composeResult = ComposedImage(
+                uri = "merged-uri",
+                previousImageRect = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f),
+            )
+        }
+        val projectRepository = FakeProjectRepository(
+            initial = listOf(
+                Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+            ),
+        )
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = projectRepository,
+            balloonRepository = FakeBalloonRepository(),
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+
+        viewModel.uiState.test {
+            while (awaitItem().imageUri == null) { /* await the initial project image */ }
+
+            viewModel.onAddImage("added-uri", ImagePosition.RIGHT)
+            advanceUntilIdle()
+
+            assertEquals("merged-uri", expectMostRecentItem().imageUri)
+            assertEquals(Triple("existing-uri", "added-uri", ImagePosition.RIGHT), imageStore.lastComposeRequest)
+            assertEquals(listOf("existing-uri"), imageStore.deleted)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `adding an image remaps existing balloons into the old image's new, smaller rect`() = runTest {
+        val imageStore = FakeImageStore().apply {
+            composeResult = ComposedImage(
+                uri = "merged-uri",
+                previousImageRect = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f),
+            )
+        }
+        val projectRepository = FakeProjectRepository(
+            initial = listOf(
+                Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+            ),
+        )
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = projectRepository,
+            balloonRepository = FakeBalloonRepository(),
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+
+        viewModel.uiState.test {
+            while (awaitItem().imageUri == null) { /* await the initial project image */ }
+
+            viewModel.addBalloon(BalloonType.SPEAK)
+            advanceUntilIdle()
+            expectMostRecentItem()
+
+            viewModel.onAddImage("added-uri", ImagePosition.RIGHT)
+            advanceUntilIdle()
+
+            val balloon = expectMostRecentItem().balloons.single()
+            assertEquals(0.75f, balloon.centerX, 0.0001f)
+            assertEquals(0.2f, balloon.width, 0.0001f)
             cancelAndConsumeRemainingEvents()
         }
     }

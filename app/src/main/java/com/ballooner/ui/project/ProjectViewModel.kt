@@ -5,11 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ballooner.data.balloon.BalloonRepository
 import com.ballooner.data.image.ImageStore
+import com.ballooner.data.image.RectFraction
 import com.ballooner.data.project.ProjectRepository
 import com.ballooner.data.settings.SettingsRepository
 import com.ballooner.domain.model.AppSettings
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.TextSizeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,6 +68,33 @@ class ProjectViewModel @Inject constructor(
             if (previous != null && previous != local) imageStore.deleteImage(previous)
         }
     }
+
+    /**
+     * Adds [sourceUri] as a new panel next to the comic's current image, growing the canvas and
+     * remapping existing balloons so they keep their place on the (now smaller, relative) old image.
+     */
+    fun onAddImage(sourceUri: String, position: ImagePosition) {
+        viewModelScope.launch {
+            val previous = uiState.value.imageUri ?: return@launch
+            val composed = imageStore.composeImages(previous, sourceUri, position) ?: return@launch
+            val rect = composed.previousImageRect
+            uiState.value.balloons.forEach { balloon ->
+                balloonRepository.upsertBalloon(projectId, balloon.remappedInto(rect))
+            }
+            projectRepository.setProjectImage(projectId, composed.uri)
+            imageStore.deleteImage(previous)
+        }
+    }
+
+    private fun Balloon.remappedInto(rect: RectFraction) = copy(
+        centerX = rect.left + centerX * rect.width,
+        centerY = rect.top + centerY * rect.height,
+        width = width * rect.width,
+        height = height * rect.height,
+        // tailLength is a fraction of the canvas's smaller dimension; approximate its new
+        // fraction with the smaller of the two axis scale factors.
+        tailLength = tailLength * minOf(rect.width, rect.height),
+    )
 
     fun setProjectName(name: String) {
         viewModelScope.launch { projectRepository.setProjectName(projectId, name) }

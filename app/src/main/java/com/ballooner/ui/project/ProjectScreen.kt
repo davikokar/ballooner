@@ -109,6 +109,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.ImagePosition
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
@@ -132,6 +133,7 @@ fun ProjectRoute(
         onNavigateBack = onNavigateBack,
         onRenameProject = viewModel::setProjectName,
         onImagePicked = viewModel::onImagePicked,
+        onAddImage = viewModel::onAddImage,
         onAddBalloon = viewModel::addBalloon,
         onSelectBalloon = viewModel::selectBalloon,
         onCommitBalloon = viewModel::commitBalloon,
@@ -149,6 +151,7 @@ fun ProjectScreen(
     onNavigateBack: () -> Unit,
     onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
+    onAddImage: (String, ImagePosition) -> Unit,
     onAddBalloon: (BalloonType) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
@@ -159,13 +162,23 @@ fun ProjectScreen(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val scope = rememberCoroutineScope()
+    // Tracks whether the next picked image should replace the comic's image outright, or be
+    // added alongside it (which then needs a position before it can be composed in).
+    var addingImage by remember { mutableStateOf(false) }
+    var pendingNewImageUri by remember { mutableStateOf<String?>(null) }
     // The Photo Picker shows albums/folders of images and can browse other locations.
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri: Uri? ->
-        if (uri != null) onImagePicked(uri.toString())
+        if (uri == null) return@rememberLauncherForActivityResult
+        if (addingImage && uiState.hasImage) {
+            pendingNewImageUri = uri.toString()
+        } else {
+            onImagePicked(uri.toString())
+        }
     }
-    val launchPicker = {
+    val launchPicker = { addImage: Boolean ->
+        addingImage = addImage
         pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
     // Displayed image width in px, used to scale text to the exported resolution.
@@ -198,7 +211,7 @@ fun ProjectScreen(
     var rotation by remember { mutableStateOf(0f) }
     // A freshly created project jumps straight to image selection.
     LaunchedEffect(Unit) {
-        if (autoOpenPicker) launchPicker()
+        if (autoOpenPicker) launchPicker(false)
     }
     // Keep a balloon selected in edit mode so the controls stay visible.
     LaunchedEffect(editMode, uiState.balloons, uiState.selectedBalloonId) {
@@ -248,14 +261,14 @@ fun ProjectScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (!uiState.hasImage) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    ComicButton(text = "Open image", onClick = { launchPicker() })
+                    ComicButton(text = "Open image", onClick = { launchPicker(false) })
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Toolbar(
                         editMode = editMode,
                         onRotate = { rotation = (rotation + 90f) % 360f },
-                        onChangeImage = { launchPicker() },
+                        onChangeImage = { launchPicker(true) },
                         onSave = onSave,
                         onToggleMode = { editMode = it },
                     )
@@ -272,14 +285,55 @@ fun ProjectScreen(
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
                         onAddBalloon = onAddBalloon,
-                        onOpenImagePicker = { launchPicker() },
+                        onOpenImagePicker = { launchPicker(false) },
                         onLayerWidth = { displayedWidth = it },
                         modifier = Modifier.weight(1f),
                     )
                 }
             }
+            if (pendingNewImageUri != null) {
+                ImagePositionDialog(
+                    onSelect = { position ->
+                        onAddImage(pendingNewImageUri!!, position)
+                        pendingNewImageUri = null
+                    },
+                    onDismiss = { pendingNewImageUri = null },
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun ImagePositionDialog(onSelect: (ImagePosition) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add image") },
+        text = {
+            Column {
+                Text("Where should the new image go, relative to the current one?")
+                Spacer(modifier = Modifier.height(12.dp))
+                ImagePosition.entries.forEach { position ->
+                    ComicButton(
+                        text = position.label(),
+                        onClick = { onSelect(position) },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+private fun ImagePosition.label(): String = when (this) {
+    ImagePosition.LEFT -> "To the left"
+    ImagePosition.RIGHT -> "To the right"
+    ImagePosition.TOP -> "Above"
+    ImagePosition.BOTTOM -> "Below"
 }
 
 @Composable
@@ -1342,6 +1396,7 @@ private fun ProjectScreenNoImagePreview() {
         onNavigateBack = {},
         onRenameProject = {},
         onImagePicked = {},
+        onAddImage = { _, _ -> },
         onAddBalloon = {},
         onSelectBalloon = {},
         onCommitBalloon = {},
