@@ -594,10 +594,13 @@ private fun Editor(
                         .weight(1f)
                         .onSizeChanged { containerSize = it }
                         .padding(16.dp),
-                    // Top-aligned so the shape slider always sits flush under the image,
-                    // instead of floating wherever the leftover space happens to center it.
-                    contentAlignment = Alignment.TopCenter,
                 ) {
+                    val availableWidth = maxWidth
+                    val availableHeight = maxHeight
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                     when (val state = imageState) {
                         ImageResult.Loading -> Text("Loading image\u2026")
                         ImageResult.Failed -> Column(
@@ -622,18 +625,13 @@ private fun Editor(
                         } else {
                             1f
                         }
-                        // Fit the frame within the available space (letterboxed), instead of
-                        // always sizing to width, so tall images don't spill past the toolbar.
+                        // Fit the frame within the available space (letterboxed) with an exact
+                        // size, so the slider below always lands right at its bottom edge.
                         val imageAspect = image.width.toFloat() / image.height.toFloat()
-                        val containerAspect = if (maxHeight > 0.dp) maxWidth / maxHeight else imageAspect
-                        val imageFrameModifier = if (imageAspect > containerAspect) {
-                            Modifier.fillMaxWidth()
-                        } else {
-                            Modifier.fillMaxHeight()
-                        }.aspectRatio(imageAspect)
-                        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        val fitWidth = minOf(availableWidth, availableHeight * imageAspect)
+                        val fitHeight = fitWidth / imageAspect
                         Box(
-                            modifier = imageFrameModifier,
+                            modifier = Modifier.size(fitWidth, fitHeight),
                         ) {
                             // Solid offset shadow behind the photo frame, drawn statically so it
                             // doesn't zoom/pan/rotate with the image layer above it.
@@ -726,7 +724,6 @@ private fun Editor(
                             }
                             }
                         }
-                        }
                         if (editMode && selected != null &&
                             (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
                         ) {
@@ -741,6 +738,7 @@ private fun Editor(
                             )
                         }
                         }
+                    }
                     }
                 }
                 if (editMode && imageState is ImageResult.Loaded) {
