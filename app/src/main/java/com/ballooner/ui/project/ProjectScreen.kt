@@ -594,7 +594,9 @@ private fun Editor(
                         .weight(1f)
                         .onSizeChanged { containerSize = it }
                         .padding(16.dp),
-                    contentAlignment = Alignment.Center,
+                    // Top-aligned so the shape slider always sits flush under the image,
+                    // instead of floating wherever the leftover space happens to center it.
+                    contentAlignment = Alignment.TopCenter,
                 ) {
                     when (val state = imageState) {
                         ImageResult.Loading -> Text("Loading image\u2026")
@@ -960,7 +962,12 @@ private fun BalloonText(
     val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f
     val widthDp = with(density) { (balloon.width * canvasSize.width).toDp() }
     val heightDp = with(density) { (balloon.height * canvasSize.height).toDp() }
-    val innerPadding = if (balloon.type == BalloonType.YELL) 24.dp else 18.dp
+    val innerPadding = when (balloon.type) {
+        BalloonType.YELL -> 24.dp
+        // Captions are a plain rectangle, so the text can sit almost flush with the border.
+        BalloonType.CAPTION -> 2.dp
+        else -> 18.dp
+    }
 
     var text by remember(balloon.id) { mutableStateOf(balloon.text) }
 
@@ -1310,8 +1317,10 @@ private fun DrawScope.drawExportText(
     if (balloon.text.isBlank()) return
     val boxW = balloon.width * canvasSize.width
     val boxH = balloon.height * canvasSize.height
-    val maxW = (boxW * 0.74f).toInt().coerceAtLeast(1)
-    val maxH = (boxH * 0.74f).toInt().coerceAtLeast(1)
+    // Mirrors BalloonText's inner padding so exported text wraps the same way it did on screen.
+    val paddingFraction = if (balloon.type == BalloonType.CAPTION) 0.97f else 0.74f
+    val maxW = (boxW * paddingFraction).toInt().coerceAtLeast(1)
+    val maxH = (boxH * paddingFraction).toInt().coerceAtLeast(1)
     val fontSize = if (autoSize) {
         autoFitFontSize(balloon.text, balloon.font, maxW, maxH, textMeasurer)
     } else {
