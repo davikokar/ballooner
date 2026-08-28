@@ -21,12 +21,14 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -586,7 +588,7 @@ private fun Editor(
                 .dotGridBackground(color = MaterialTheme.colorScheme.outlineVariant),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -618,11 +620,18 @@ private fun Editor(
                         } else {
                             1f
                         }
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        // Fit the frame within the available space (letterboxed), instead of
+                        // always sizing to width, so tall images don't spill past the toolbar.
+                        val imageAspect = image.width.toFloat() / image.height.toFloat()
+                        val containerAspect = if (maxHeight > 0.dp) maxWidth / maxHeight else imageAspect
+                        val imageFrameModifier = if (imageAspect > containerAspect) {
+                            Modifier.fillMaxWidth()
+                        } else {
+                            Modifier.fillMaxHeight()
+                        }.aspectRatio(imageAspect)
+                        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(image.width.toFloat() / image.height.toFloat()),
+                            modifier = imageFrameModifier,
                         ) {
                             // Solid offset shadow behind the photo frame, drawn statically so it
                             // doesn't zoom/pan/rotate with the image layer above it.
@@ -630,13 +639,12 @@ private fun Editor(
                                 modifier = Modifier
                                     .matchParentSize()
                                     .offset(x = 6.dp, y = 6.dp)
-                                    .background(InkBlack, RoundedCornerShape(12.dp)),
+                                    .background(InkBlack),
                             )
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(4.dp, InkBlack, RoundedCornerShape(12.dp))
+                                    .border(4.dp, InkBlack)
                                     // Two-finger pinch zooms / pans; single finger stays for balloons.
                                     .pointerInput(Unit) {
                                         awaitEachGesture {
