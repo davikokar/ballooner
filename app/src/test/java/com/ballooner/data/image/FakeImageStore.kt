@@ -11,9 +11,9 @@ class FakeImageStore : ImageStore {
     var composeResult: ComposedImage? = null
     var lastComposeRequest: List<Any>? = null
 
-    /** Set by tests to control what [eraseRegion] returns. */
-    var eraseResult: String? = null
-    var lastEraseRequest: Pair<String, RectFraction>? = null
+    /** Set by tests to control what [removeRegion] returns. */
+    var removeResult: String? = null
+    var lastRemoveRequest: Triple<String, RectFraction, RectFraction>? = null
 
     override suspend fun importImage(sourceUri: String): String = sourceUri
 
@@ -30,8 +30,8 @@ class FakeImageStore : ImageStore {
         return composeResult
     }
 
-    override suspend fun eraseRegion(uri: String, rect: RectFraction): String? {
-        lastEraseRequest = uri to rect
-        return eraseResult
+    override suspend fun removeRegion(uri: String, removed: RectFraction, retained: RectFraction): String? {
+        lastRemoveRequest = Triple(uri, removed, retained)
+        return removeResult
     }
 }

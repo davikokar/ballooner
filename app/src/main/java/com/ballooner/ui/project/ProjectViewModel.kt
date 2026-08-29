@@ -14,6 +14,8 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.TextSizeMode
+import com.ballooner.domain.model.remappedFrom
+import com.ballooner.domain.model.retainedCanvasRect
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -134,9 +136,8 @@ class ProjectViewModel @Inject constructor(
     )
 
     /**
-     * Removes [panel] from the comic: erases its area from the merged image, leaving the rest
-     * intact, and deletes any balloons placed on it. No-ops if it's the comic's only panel,
-     * since removing that is the same as deleting the whole comic (see [deleteProject]).
+        * Removes [panel], crops empty outer space, and remaps surviving panels and balloons.
+        * No-ops for the comic's only panel; deleting that is handled by [deleteProject].
      */
     fun onDeleteImage(panel: RectFraction) {
         if (uiState.value.panels.size <= 1) return
@@ -144,18 +145,32 @@ class ProjectViewModel @Inject constructor(
             isProcessingImage.value = true
             try {
                 val previous = uiState.value.imageUri ?: return@launch
-                val erased = imageStore.eraseRegion(previous, panel) ?: return@launch
-                uiState.value.balloons
-                    .filter { panel.contains(it.centerX, it.centerY) }
-                    .forEach { balloonRepository.deleteBalloon(it.id) }
-                panelRepository.replacePanels(projectId, uiState.value.panels - panel)
-                projectRepository.setProjectImage(projectId, erased)
+                val remainingPanels = uiState.value.panels - panel
+                val retained = retainedCanvasRect(remainingPanels)
+                val cropped = imageStore.removeRegion(previous, panel, retained) ?: return@launch
+                uiState.value.balloons.forEach { balloon ->
+                    if (panel.contains(balloon.centerX, balloon.centerY)) {
+                        balloonRepository.deleteBalloon(balloon.id)
+                    } else {
+                        balloonRepository.upsertBalloon(projectId, balloon.remappedFrom(retained))
+                    }
+                }
+                panelRepository.replacePanels(projectId, remainingPanels.map { it.remappedFrom(retained) })
+                projectRepository.setProjectImage(projectId, cropped)
                 imageStore.deleteImage(previous)
             } finally {
                 isProcessingImage.value = false
             }
         }
     }
+
+    private fun Balloon.remappedFrom(rect: RectFraction) = copy(
+        centerX = (centerX - rect.left) / rect.width,
+        centerY = (centerY - rect.top) / rect.height,
+        width = width / rect.width,
+        height = height / rect.height,
+        tailLength = tailLength / minOf(rect.width, rect.height),
+    )
 
     fun setProjectName(name: String) {
         viewModelScope.launch { projectRepository.setProjectName(projectId, name) }

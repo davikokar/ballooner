@@ -181,9 +181,10 @@ class ProjectViewModelTest {
     }
 
     @Test
-    fun `deleting an image panel erases its region and switches to the erased uri`() = runTest {
-        val imageStore = FakeImageStore().apply { eraseResult = "erased-uri" }
+    fun `deleting an edge image crops the canvas and expands the remaining panel`() = runTest {
+        val imageStore = FakeImageStore().apply { removeResult = "cropped-uri" }
         val panelRepository = FakePanelRepository()
+        val remainingPanel = RectFraction(left = 0f, top = 0f, width = 0.5f, height = 1f)
         val panelToDelete = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f)
         val projectRepository = FakeProjectRepository(
             initial = listOf(
@@ -198,7 +199,7 @@ class ProjectViewModelTest {
             imageStore = imageStore,
             settingsRepository = FakeSettingsRepository(),
         )
-        panelRepository.replacePanels(1L, listOf(RectFraction(0f, 0f, 0.5f, 1f), panelToDelete))
+        panelRepository.replacePanels(1L, listOf(remainingPanel, panelToDelete))
 
         viewModel.uiState.test {
             while (awaitItem().panels.size < 2) { /* await the seeded panels */ }
@@ -207,9 +208,9 @@ class ProjectViewModelTest {
             advanceUntilIdle()
 
             val state = expectMostRecentItem()
-            assertEquals("erased-uri", state.imageUri)
-            assertEquals(listOf(RectFraction(0f, 0f, 0.5f, 1f)), state.panels)
-            assertEquals("existing-uri" to panelToDelete, imageStore.lastEraseRequest)
+            assertEquals("cropped-uri", state.imageUri)
+            assertEquals(listOf(RectFraction(0f, 0f, 1f, 1f)), state.panels)
+            assertEquals(Triple("existing-uri", panelToDelete, remainingPanel), imageStore.lastRemoveRequest)
             assertEquals(listOf("existing-uri"), imageStore.deleted)
             cancelAndConsumeRemainingEvents()
         }
@@ -217,7 +218,7 @@ class ProjectViewModelTest {
 
     @Test
     fun `deleting an image panel removes balloons centered on it, but not others`() = runTest {
-        val imageStore = FakeImageStore().apply { eraseResult = "erased-uri" }
+        val imageStore = FakeImageStore().apply { removeResult = "cropped-uri" }
         val panelRepository = FakePanelRepository()
         val balloonRepository = FakeBalloonRepository()
         val panelToDelete = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f)
@@ -254,15 +255,17 @@ class ProjectViewModelTest {
             viewModel.onDeleteImage(panelToDelete)
             advanceUntilIdle()
 
-            val remaining = expectMostRecentItem().balloons
-            assertEquals(listOf(onOtherPanel), remaining)
+            val remaining = expectMostRecentItem().balloons.single()
+            assertEquals(onOtherPanel.id, remaining.id)
+            assertEquals(0.5f, remaining.centerX, 0.0001f)
+            assertEquals(onOtherPanel.width * 2f, remaining.width, 0.0001f)
             cancelAndConsumeRemainingEvents()
         }
     }
 
     @Test
     fun `does not delete the only panel, since that's the whole comic`() = runTest {
-        val imageStore = FakeImageStore().apply { eraseResult = "erased-uri" }
+        val imageStore = FakeImageStore().apply { removeResult = "cropped-uri" }
         val panelRepository = FakePanelRepository()
         val onlyPanel = RectFraction(0f, 0f, 1f, 1f)
         val projectRepository = FakeProjectRepository(
@@ -291,7 +294,7 @@ class ProjectViewModelTest {
         advanceUntilIdle()
 
         assertEquals("existing-uri", viewModel.uiState.value.imageUri)
-        assertNull(imageStore.lastEraseRequest)
+        assertNull(imageStore.lastRemoveRequest)
     }
 
     @Test

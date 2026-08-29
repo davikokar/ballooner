@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 class AppImageStore @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -97,17 +98,34 @@ class AppImageStore @Inject constructor(
         }.getOrNull()
     }
 
-    override suspend fun eraseRegion(uri: String, rect: RectFraction): String? = withContext(Dispatchers.IO) {
+    override suspend fun removeRegion(
+        uri: String,
+        removed: RectFraction,
+        retained: RectFraction,
+    ): String? = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = decodeBitmap(uri, mutable = true) ?: return@runCatching null
             val canvas = android.graphics.Canvas(bitmap)
-            val left = rect.left * bitmap.width
-            val top = rect.top * bitmap.height
+            val left = removed.left * bitmap.width
+            val top = removed.top * bitmap.height
             val fillPaint = Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
-            canvas.drawRect(left, top, left + rect.width * bitmap.width, top + rect.height * bitmap.height, fillPaint)
+            canvas.drawRect(
+                left,
+                top,
+                left + removed.width * bitmap.width,
+                top + removed.height * bitmap.height,
+                fillPaint,
+            )
+            val cropLeft = (retained.left * bitmap.width).roundToInt().coerceIn(0, bitmap.width - 1)
+            val cropTop = (retained.top * bitmap.height).roundToInt().coerceIn(0, bitmap.height - 1)
+            val cropRight = ((retained.left + retained.width) * bitmap.width)
+                .roundToInt().coerceIn(cropLeft + 1, bitmap.width)
+            val cropBottom = ((retained.top + retained.height) * bitmap.height)
+                .roundToInt().coerceIn(cropTop + 1, bitmap.height)
+            val cropped = Bitmap.createBitmap(bitmap, cropLeft, cropTop, cropRight - cropLeft, cropBottom - cropTop)
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
-            dest.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
+            dest.outputStream().use { output -> cropped.compress(Bitmap.CompressFormat.PNG, 100, output) }
             Uri.fromFile(dest).toString()
         }.getOrNull()
     }

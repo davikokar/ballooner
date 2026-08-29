@@ -17,3 +17,20 @@ fun List<RectFraction>.panelAt(x: Float, y: Float): RectFraction? =
             val dy = y - (panel.top + panel.height / 2f)
             dx * dx + dy * dy
         }
+
+/** The smallest canvas rectangle containing every panel. */
+fun retainedCanvasRect(panels: List<RectFraction>): RectFraction {
+    val left = panels.minOf { it.left }
+    val top = panels.minOf { it.top }
+    val right = panels.maxOf { it.left + it.width }
+    val bottom = panels.maxOf { it.top + it.height }
+    return RectFraction(left, top, right - left, bottom - top)
+}
+
+/** Converts this rectangle from the old canvas into coordinates relative to [container]. */
+fun RectFraction.remappedFrom(container: RectFraction): RectFraction = RectFraction(
+    left = (left - container.left) / container.width,
+    top = (top - container.top) / container.height,
+    width = width / container.width,
+    height = height / container.height,
+)
