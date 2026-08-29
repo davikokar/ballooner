@@ -21,6 +21,11 @@ fun panelGridCells(panels: List<RectFraction>): Map<RectFraction, PanelGridCell>
     }
 }
 
+fun panelsInReadingOrder(panels: List<RectFraction>): List<RectFraction> {
+    val cells = panelGridCells(panels)
+    return panels.sortedWith(compareBy({ cells.getValue(it).row }, { cells.getValue(it).column }))
+}
+
 fun ImagePlacement.gridCell(panelCells: Map<RectFraction, PanelGridCell>): PanelGridCell {
     val anchorCell = panelCells.getValue(anchor)
     return when (position) {

@@ -14,6 +14,8 @@ class FakeImageStore : ImageStore {
     /** Set by tests to control what [removeRegion] returns. */
     var removeResult: String? = null
     var lastRemoveRequest: Triple<String, RectFraction, RectFraction>? = null
+    var rearrangeResult: RearrangedImage? = null
+    var lastRearrangeRequest: List<Any>? = null
 
     override suspend fun importImage(sourceUri: String): String = sourceUri
 
@@ -33,5 +35,15 @@ class FakeImageStore : ImageStore {
     override suspend fun removeRegion(uri: String, removed: RectFraction, retained: RectFraction): String? {
         lastRemoveRequest = Triple(uri, removed, retained)
         return removeResult
+    }
+
+    override suspend fun rearrangePanels(
+        uri: String,
+        panels: List<RectFraction>,
+        fromIndex: Int,
+        toIndex: Int,
+    ): RearrangedImage? {
+        lastRearrangeRequest = listOf(uri, panels, fromIndex, toIndex)
+        return rearrangeResult
     }
 }

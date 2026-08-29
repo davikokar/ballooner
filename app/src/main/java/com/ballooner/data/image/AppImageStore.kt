@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.net.Uri
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
+import com.ballooner.domain.model.panelGridCells
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -130,6 +131,61 @@ class AppImageStore @Inject constructor(
         }.getOrNull()
     }
 
+    override suspend fun rearrangePanels(
+        uri: String,
+        panels: List<RectFraction>,
+        fromIndex: Int,
+        toIndex: Int,
+    ): RearrangedImage? = withContext(Dispatchers.IO) {
+        runCatching {
+            val bitmap = decodeBitmap(uri) ?: return@runCatching null
+            val sourceRects = panels.map { it.toPixelRect(bitmap.width, bitmap.height) }
+            val panelBitmaps = sourceRects.map { rect ->
+                Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width, rect.height)
+            }
+            val cells = panelGridCells(panels)
+            val rowSizes = panels.groupingBy { cells.getValue(it).row }.eachCount().toSortedMap().values.toList()
+            val gapPx = (sourceRects.minOf { minOf(it.width, it.height) } * PANEL_GAP_FRACTION)
+                .roundToInt().coerceAtLeast(MIN_PANEL_GAP_PX)
+            val layout = computeRearrangeLayout(
+                panelSizes = sourceRects.map { PixelSize(it.width, it.height) },
+                rowSizes = rowSizes,
+                fromIndex = fromIndex,
+                toIndex = toIndex,
+                gapPx = gapPx,
+            )
+            val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(composite)
+            canvas.drawColor(Color.WHITE)
+            panelBitmaps.forEachIndexed { index, panelBitmap ->
+                val target = layout.panelRects[index]
+                canvas.drawBitmap(panelBitmap, target.left.toFloat(), target.top.toFloat(), null)
+            }
+            imagesDir.mkdirs()
+            val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
+            dest.outputStream().use { output -> composite.compress(Bitmap.CompressFormat.PNG, 100, output) }
+            RearrangedImage(
+                uri = Uri.fromFile(dest).toString(),
+                panelRects = layout.panelRects.map { rect ->
+                    RectFraction(
+                        left = rect.left.toFloat() / layout.canvasWidth,
+                        top = rect.top.toFloat() / layout.canvasHeight,
+                        width = rect.width.toFloat() / layout.canvasWidth,
+                        height = rect.height.toFloat() / layout.canvasHeight,
+                    )
+                },
+            )
+        }.getOrNull()
+    }
+
+    private fun RectFraction.toPixelRect(canvasWidth: Int, canvasHeight: Int): PixelRect {
+        val pixelLeft = (left * canvasWidth).roundToInt().coerceIn(0, canvasWidth - 1)
+        val pixelTop = (top * canvasHeight).roundToInt().coerceIn(0, canvasHeight - 1)
+        val pixelRight = ((left + width) * canvasWidth).roundToInt().coerceIn(pixelLeft + 1, canvasWidth)
+        val pixelBottom = ((top + height) * canvasHeight).roundToInt().coerceIn(pixelTop + 1, canvasHeight)
+        return PixelRect(pixelLeft, pixelTop, pixelRight - pixelLeft, pixelBottom - pixelTop)
+    }
+
     private fun borderPaint(strokeWidthPx: Int) = Paint().apply {
         color = Color.BLACK
         style = Paint.Style.STROKE
@@ -168,6 +224,8 @@ class AppImageStore @Inject constructor(
 
     private companion object {
         const val MAX_DECODED_DIMENSION_PX = 2048
+        const val PANEL_GAP_FRACTION = 0.02f
+        const val MIN_PANEL_GAP_PX = 8
     }
 }
 

@@ -5,10 +5,12 @@ import app.cash.turbine.test
 import com.ballooner.data.balloon.FakeBalloonRepository
 import com.ballooner.data.image.ComposedImage
 import com.ballooner.data.image.FakeImageStore
+import com.ballooner.data.image.RearrangedImage
 import com.ballooner.data.panel.FakePanelRepository
 import com.ballooner.data.project.FakeProjectRepository
 import com.ballooner.data.settings.FakeSettingsRepository
 import com.ballooner.domain.model.AppSettings
+import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePlacement
@@ -295,6 +297,57 @@ class ProjectViewModelTest {
 
         assertEquals("existing-uri", viewModel.uiState.value.imageUri)
         assertNull(imageStore.lastRemoveRequest)
+    }
+
+    @Test
+    fun `moving a panel rebuilds the image and persists shifted panel rectangles`() = runTest {
+        val first = RectFraction(0f, 0f, 0.48f, 0.48f)
+        val second = RectFraction(0.52f, 0f, 0.48f, 0.48f)
+        val third = RectFraction(0f, 0.52f, 0.48f, 0.48f)
+        val rearrangedRects = listOf(
+            RectFraction(0.52f, 0f, 0.48f, 0.48f),
+            RectFraction(0f, 0.52f, 0.48f, 0.48f),
+            RectFraction(0f, 0f, 0.48f, 0.48f),
+        )
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("rearranged-uri", rearrangedRects)
+        }
+        val balloonRepository = FakeBalloonRepository()
+        balloonRepository.upsertBalloon(
+            1L,
+            Balloon(id = 0, type = BalloonType.SPEAK, centerX = 0.24f, centerY = 0.76f),
+        )
+        val panelRepository = FakePanelRepository()
+        val projectRepository = FakeProjectRepository(
+            initial = listOf(
+                Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+            ),
+        )
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = projectRepository,
+            balloonRepository = balloonRepository,
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(first, second, third))
+
+        viewModel.uiState.test {
+            while (awaitItem().panels.size < 3) { /* await seeded panels */ }
+
+            viewModel.onMoveImage(third, first)
+            advanceUntilIdle()
+
+            val state = expectMostRecentItem()
+            assertEquals("rearranged-uri", state.imageUri)
+            assertEquals(rearrangedRects, state.panels)
+            assertEquals(listOf("existing-uri", listOf(first, second, third), 2, 0), imageStore.lastRearrangeRequest)
+            assertEquals(listOf("existing-uri"), imageStore.deleted)
+            assertEquals(0.24f, state.balloons.single().centerX, 0.0001f)
+            assertEquals(0.24f, state.balloons.single().centerY, 0.0001f)
+            cancelAndConsumeRemainingEvents()
+        }
     }
 
     @Test

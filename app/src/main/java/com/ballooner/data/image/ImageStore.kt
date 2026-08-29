@@ -20,8 +20,19 @@ interface ImageStore {
 
     /** Erases [removed] and crops the image to [retained], returning the new local uri. */
     suspend fun removeRegion(uri: String, removed: RectFraction, retained: RectFraction): String?
+
+    /** Rebuilds the flattened image after moving one panel in reading order. */
+    suspend fun rearrangePanels(
+        uri: String,
+        panels: List<RectFraction>,
+        fromIndex: Int,
+        toIndex: Int,
+    ): RearrangedImage?
 }
 
 /** The result of [ImageStore.composeImages]. */
 data class ComposedImage(val uri: String, val previousImageRect: RectFraction, val newImageRect: RectFraction)
+
+/** New panel rectangles correspond by index to the input panel list. */
+data class RearrangedImage(val uri: String, val panelRects: List<RectFraction>)
 

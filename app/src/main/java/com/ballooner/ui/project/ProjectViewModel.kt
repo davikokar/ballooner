@@ -14,6 +14,7 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.TextSizeMode
+import com.ballooner.domain.model.panelsInReadingOrder
 import com.ballooner.domain.model.remappedFrom
 import com.ballooner.domain.model.retainedCanvasRect
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -170,6 +171,44 @@ class ProjectViewModel @Inject constructor(
         width = width / rect.width,
         height = height / rect.height,
         tailLength = tailLength / minOf(rect.width, rect.height),
+    )
+
+    /** Inserts [panel] at [target]'s reading-order position and shifts the intervening panels. */
+    fun onMoveImage(panel: RectFraction, target: RectFraction) {
+        if (panel == target) return
+        viewModelScope.launch {
+            isProcessingImage.value = true
+            try {
+                val previous = uiState.value.imageUri ?: return@launch
+                val orderedPanels = panelsInReadingOrder(uiState.value.panels)
+                val fromIndex = orderedPanels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
+                val toIndex = orderedPanels.indexOf(target).takeIf { it >= 0 } ?: return@launch
+                val rearranged = imageStore.rearrangePanels(previous, orderedPanels, fromIndex, toIndex)
+                    ?: return@launch
+                uiState.value.balloons.forEach { balloon ->
+                    val panelIndex = orderedPanels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
+                    if (panelIndex >= 0) {
+                        balloonRepository.upsertBalloon(
+                            projectId,
+                            balloon.remappedBetween(orderedPanels[panelIndex], rearranged.panelRects[panelIndex]),
+                        )
+                    }
+                }
+                panelRepository.replacePanels(projectId, rearranged.panelRects)
+                projectRepository.setProjectImage(projectId, rearranged.uri)
+                imageStore.deleteImage(previous)
+            } finally {
+                isProcessingImage.value = false
+            }
+        }
+    }
+
+    private fun Balloon.remappedBetween(from: RectFraction, to: RectFraction) = copy(
+        centerX = to.left + (centerX - from.left) / from.width * to.width,
+        centerY = to.top + (centerY - from.top) / from.height * to.height,
+        width = width / from.width * to.width,
+        height = height / from.height * to.height,
+        tailLength = tailLength * minOf(to.width / from.width, to.height / from.height),
     )
 
     fun setProjectName(name: String) {
