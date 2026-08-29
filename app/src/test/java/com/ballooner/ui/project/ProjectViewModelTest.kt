@@ -131,7 +131,7 @@ class ProjectViewModelTest {
             val state = expectMostRecentItem()
             assertEquals("merged-uri", state.imageUri)
             assertEquals(false, state.isProcessingImage)
-            assertEquals(listOf("existing-uri", "added-uri", placement, 1, 1), imageStore.lastComposeRequest)
+            assertEquals(listOf("existing-uri", "added-uri", placement), imageStore.lastComposeRequest)
             assertEquals(listOf("existing-uri"), imageStore.deleted)
             cancelAndConsumeRemainingEvents()
         }

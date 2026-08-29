@@ -95,12 +95,12 @@ class ProjectViewModel @Inject constructor(
      * remapping existing panels and balloons so they keep their place on the (now smaller,
      * relative) old image, and persisting the new panel layout.
      */
-    fun onAddImage(sourceUri: String, placement: ImagePlacement, widthSpan: Int = 1, heightSpan: Int = 1) {
+    fun onAddImage(sourceUri: String, placement: ImagePlacement) {
         viewModelScope.launch {
             isProcessingImage.value = true
             try {
                 val previous = uiState.value.imageUri ?: return@launch
-                val composed = imageStore.composeImages(previous, sourceUri, placement, widthSpan, heightSpan)
+                val composed = imageStore.composeImages(previous, sourceUri, placement)
                     ?: return@launch
                 val rect = composed.previousImageRect
                 uiState.value.balloons.forEach { balloon ->

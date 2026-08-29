@@ -42,17 +42,13 @@ fun defaultImagePlacement(
         ?: placements.firstOrNull()
 }
 
-fun availableImagePlacements(
-    panels: List<RectFraction>,
-    widthSpan: Int = 1,
-    heightSpan: Int = 1,
-): List<ImagePlacement> {
+fun availableImagePlacements(panels: List<RectFraction>): List<ImagePlacement> {
     val panelCells = panelGridCells(panels)
     val occupiedCells = panelCells.values.toSet()
     return panels.flatMap { anchor ->
         ImagePosition.entries.map { position -> ImagePlacement(anchor, position) }
     }.filter { placement ->
-        val candidate = placement.targetRect(widthSpan, heightSpan)
+        val candidate = placement.targetRect()
         placement.gridCell(panelCells) !in occupiedCells &&
             panels.none { panel -> panel != placement.anchor && candidate.overlaps(panel) }
     }.groupBy { it.gridCell(panelCells) }
@@ -60,9 +56,9 @@ fun availableImagePlacements(
         .map { candidates -> candidates.minBy { it.position.duplicatePriority } }
 }
 
-fun ImagePlacement.targetRect(widthSpan: Int = 1, heightSpan: Int = 1): RectFraction {
-    val targetWidth = anchor.width * widthSpan
-    val targetHeight = anchor.height * heightSpan
+fun ImagePlacement.targetRect(): RectFraction {
+    val targetWidth = anchor.width
+    val targetHeight = anchor.height
     return when (position) {
         ImagePosition.LEFT -> RectFraction(
             anchor.left - targetWidth,

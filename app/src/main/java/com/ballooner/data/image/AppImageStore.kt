@@ -13,7 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
-import kotlin.math.roundToInt
 
 class AppImageStore @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -52,8 +51,6 @@ class AppImageStore @Inject constructor(
         existingUri: String,
         addedUri: String,
         placement: ImagePlacement,
-        widthSpan: Int,
-        heightSpan: Int,
     ): ComposedImage? = withContext(Dispatchers.IO) {
         runCatching {
             val existingBitmap = decodeBitmap(existingUri) ?: return@runCatching null
@@ -61,12 +58,17 @@ class AppImageStore @Inject constructor(
             val layout = computeComposeLayout(
                 existingWidth = existingBitmap.width,
                 existingHeight = existingBitmap.height,
+                addedWidth = addedBitmap.width,
+                addedHeight = addedBitmap.height,
                 position = placement.position,
-                widthSpan = widthSpan,
-                heightSpan = heightSpan,
                 anchor = placement.anchor,
             )
-            val scaledAdded = centerCrop(addedBitmap, layout.scaledAddedWidth, layout.scaledAddedHeight)
+            val scaledAdded = Bitmap.createScaledBitmap(
+                addedBitmap,
+                layout.scaledAddedWidth,
+                layout.scaledAddedHeight,
+                true,
+            )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(composite)
             // Paper-white background shows through the gap between the two panels (and any
@@ -114,21 +116,6 @@ class AppImageStore @Inject constructor(
         color = Color.BLACK
         style = Paint.Style.STROKE
         strokeWidth = strokeWidthPx.toFloat()
-    }
-
-    /** Scales [bitmap] to cover [targetWidth]x[targetHeight], then crops the centered excess. */
-    private fun centerCrop(bitmap: Bitmap, targetWidth: Int, targetHeight: Int): Bitmap {
-        val scale = maxOf(targetWidth.toFloat() / bitmap.width, targetHeight.toFloat() / bitmap.height)
-        val scaledWidth = (bitmap.width * scale).roundToInt().coerceAtLeast(targetWidth)
-        val scaledHeight = (bitmap.height * scale).roundToInt().coerceAtLeast(targetHeight)
-        val scaled = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
-        return Bitmap.createBitmap(
-            scaled,
-            (scaledWidth - targetWidth) / 2,
-            (scaledHeight - targetHeight) / 2,
-            targetWidth,
-            targetHeight,
-        )
     }
 
     private fun borderRect(left: Int, top: Int, width: Int, height: Int, inset: Float) = android.graphics.RectF(

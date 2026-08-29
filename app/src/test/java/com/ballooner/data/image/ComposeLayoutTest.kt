@@ -13,11 +13,13 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 400,
+            addedHeight = 200,
             position = ImagePosition.RIGHT,
         )
 
         assertEquals(100, layout.canvasHeight)
-        assertEquals(100, layout.scaledAddedWidth)
+        assertEquals(200, layout.scaledAddedWidth)
         assertEquals(100, layout.scaledAddedHeight)
         // The canvas is wider than the two panels combined, leaving room for the gap.
         assertTrue(layout.canvasWidth > 200 + layout.scaledAddedWidth)
@@ -28,6 +30,8 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.RIGHT,
         )
 
@@ -40,6 +44,8 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.RIGHT,
         )
 
@@ -57,6 +63,8 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.RIGHT,
         )
 
@@ -71,6 +79,8 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.LEFT,
         )
 
@@ -83,12 +93,14 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 200,
             position = ImagePosition.BOTTOM,
         )
 
         assertEquals(200, layout.canvasWidth)
         assertEquals(200, layout.scaledAddedWidth)
-        assertEquals(200, layout.scaledAddedHeight)
+        assertEquals(400, layout.scaledAddedHeight)
         assertEquals(0, layout.existingTop)
         assertEquals(0f, layout.existingRect.top, 0.0001f)
         assertEquals(100f / layout.canvasHeight, layout.existingRect.height, 0.0001f)
@@ -99,6 +111,8 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.TOP,
         )
 
@@ -111,56 +125,13 @@ class ComposeLayoutTest {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.RIGHT,
         )
 
         assertEquals(layout.addedLeft.toFloat() / layout.canvasWidth, layout.addedRect.left, 0.0001f)
         assertEquals(layout.scaledAddedWidth.toFloat() / layout.canvasWidth, layout.addedRect.width, 0.0001f)
-    }
-
-    @Test
-    fun `a width span of 2 doubles the added panel's width and letterboxes the existing content if it grows the canvas`() {
-        val layout = computeComposeLayout(
-            existingWidth = 200,
-            existingHeight = 100,
-            position = ImagePosition.RIGHT,
-            widthSpan = 2,
-        )
-
-        assertEquals(100, layout.canvasHeight)
-        assertEquals(200, layout.scaledAddedWidth)
-        assertEquals(100, layout.scaledAddedHeight)
-        assertEquals(0, layout.existingTop)
-    }
-
-    @Test
-    fun `a height span of 2 doubles the added panel's height and letterboxes the existing content`() {
-        val layout = computeComposeLayout(
-            existingWidth = 200,
-            existingHeight = 100,
-            position = ImagePosition.RIGHT,
-            heightSpan = 2,
-        )
-
-        assertEquals(200, layout.canvasHeight)
-        assertEquals(100, layout.scaledAddedWidth)
-        assertEquals(200, layout.scaledAddedHeight)
-        // The existing panel no longer fills the canvas height, so it's centered within it.
-        assertEquals(50, layout.existingTop)
-    }
-
-    @Test
-    fun `width and height spans of 1 keep the existing behavior with no letterboxing`() {
-        val layout = computeComposeLayout(
-            existingWidth = 200,
-            existingHeight = 100,
-            position = ImagePosition.RIGHT,
-            widthSpan = 1,
-            heightSpan = 1,
-        )
-
-        assertEquals(0, layout.existingTop)
-        assertEquals(1f, layout.existingRect.height, 0.0001f)
     }
 
     @Test
@@ -171,12 +142,16 @@ class ComposeLayoutTest {
         val belowLeft = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.BOTTOM,
             anchor = leftPanel,
         )
         val belowRight = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
+            addedWidth = 100,
+            addedHeight = 100,
             position = ImagePosition.BOTTOM,
             anchor = rightPanel,
         )

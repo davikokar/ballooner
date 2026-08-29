@@ -10,7 +10,7 @@ internal data class ComposeLayout(
     val canvasHeight: Int,
     val existingLeft: Int,
     val existingTop: Int,
-    // The added image is center-cropped to this size before being drawn onto the canvas.
+    // The added image is proportionally scaled to this size before being drawn.
     val scaledAddedWidth: Int,
     val scaledAddedHeight: Int,
     val addedLeft: Int,
@@ -37,21 +37,21 @@ internal fun borderThicknessPx(width: Int, height: Int): Int =
 internal fun computeComposeLayout(
     existingWidth: Int,
     existingHeight: Int,
+    addedWidth: Int,
+    addedHeight: Int,
     position: ImagePosition,
-    widthSpan: Int = 1,
-    heightSpan: Int = 1,
     anchor: RectFraction = RectFraction(0f, 0f, 1f, 1f),
 ): ComposeLayout {
     val anchorLeft = (anchor.left * existingWidth).roundToInt()
     val anchorTop = (anchor.top * existingHeight).roundToInt()
     val anchorWidth = (anchor.width * existingWidth).roundToInt().coerceAtLeast(1)
     val anchorHeight = (anchor.height * existingHeight).roundToInt().coerceAtLeast(1)
-    val unit = when (position) {
-        ImagePosition.LEFT, ImagePosition.RIGHT -> anchorHeight
-        ImagePosition.TOP, ImagePosition.BOTTOM -> anchorWidth
+    val scale = when (position) {
+        ImagePosition.LEFT, ImagePosition.RIGHT -> anchorHeight.toFloat() / addedHeight
+        ImagePosition.TOP, ImagePosition.BOTTOM -> anchorWidth.toFloat() / addedWidth
     }
-    val scaledAddedWidth = unit * widthSpan
-    val scaledAddedHeight = unit * heightSpan
+    val scaledAddedWidth = (addedWidth * scale).roundToInt().coerceAtLeast(1)
+    val scaledAddedHeight = (addedHeight * scale).roundToInt().coerceAtLeast(1)
     val matchedExtent = when (position) {
         ImagePosition.LEFT, ImagePosition.RIGHT -> maxOf(existingHeight, scaledAddedHeight)
         ImagePosition.TOP, ImagePosition.BOTTOM -> maxOf(existingWidth, scaledAddedWidth)

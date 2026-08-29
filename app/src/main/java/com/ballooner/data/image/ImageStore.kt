@@ -11,22 +11,11 @@ interface ImageStore {
     /** Deletes the file behind [uri] if it is an app-owned image copy. */
     suspend fun deleteImage(uri: String)
 
-    /**
-     * Merges [addedUri] alongside [existingUri] into one new image, placed per [position]. The
-     * added image is center-cropped to fill a box [widthSpan] by [heightSpan] times a standard
-     * panel unit (the existing image's height for left/right, its width for top/bottom), so it
-     * can occupy the footprint of multiple standard panels in either dimension; the existing
-     * content is centered ("letterboxed") if the canvas grows to fit a larger added panel.
-     * Returns the merged image's uri, the fractional rect the existing image now occupies within
-     * it, and the fractional rect the added image now occupies (so callers can remap anything
-     * positioned relative to the old image, or track the new panel), or null on failure.
-     */
+    /** Merges [addedUri] beside the selected anchor while preserving its aspect ratio. */
     suspend fun composeImages(
         existingUri: String,
         addedUri: String,
         placement: ImagePlacement,
-        widthSpan: Int = 1,
-        heightSpan: Int = 1,
     ): ComposedImage?
 
     /**
