@@ -21,4 +21,39 @@ class ImagePlacementTest {
         assertTrue(ImagePlacement(left, ImagePosition.BOTTOM) in placements)
         assertTrue(ImagePlacement(right, ImagePosition.BOTTOM) in placements)
     }
+
+    @Test
+    fun `preview cells use integer columns and rows regardless of fractional image gaps`() {
+        val topLeft = RectFraction(0f, 0f, 0.45f, 0.45f)
+        val topRight = RectFraction(0.53f, 0f, 0.47f, 0.45f)
+        val bottomLeft = RectFraction(0f, 0.57f, 0.45f, 0.43f)
+
+        val cells = panelGridCells(listOf(topLeft, topRight, bottomLeft))
+
+        assertEquals(PanelGridCell(column = 0, row = 0), cells.getValue(topLeft))
+        assertEquals(PanelGridCell(column = 1, row = 0), cells.getValue(topRight))
+        assertEquals(PanelGridCell(column = 0, row = 1), cells.getValue(bottomLeft))
+    }
+
+    @Test
+    fun `default placement is right of the rightmost panel in the bottom row`() {
+        val topLeft = RectFraction(0f, 0f, 0.48f, 0.48f)
+        val topRight = RectFraction(0.52f, 0f, 0.48f, 0.48f)
+        val bottomLeft = RectFraction(0f, 0.52f, 0.48f, 0.48f)
+        val placements = availableImagePlacements(listOf(topLeft, topRight, bottomLeft))
+
+        val default = defaultImagePlacement(placements, listOf(topLeft, topRight, bottomLeft))
+
+        assertEquals(ImagePlacement(bottomLeft, ImagePosition.RIGHT), default)
+    }
+
+    @Test
+    fun `default placement for one panel is on its right`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+        val placements = availableImagePlacements(listOf(panel))
+
+        val default = defaultImagePlacement(placements, listOf(panel))
+
+        assertEquals(ImagePlacement(panel, ImagePosition.RIGHT), default)
+    }
 }

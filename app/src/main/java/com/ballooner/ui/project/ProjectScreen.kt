@@ -117,8 +117,10 @@ import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.availableImagePlacements
+import com.ballooner.domain.model.defaultImagePlacement
+import com.ballooner.domain.model.gridCell
 import com.ballooner.domain.model.panelAt
-import com.ballooner.domain.model.targetRect
+import com.ballooner.domain.model.panelGridCells
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
@@ -327,12 +329,9 @@ private fun ImagePositionDialog(
     onSelect: (ImagePlacement) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var snapped by remember { mutableStateOf<ImagePlacement?>(null) }
     val placements = remember(panels) { availableImagePlacements(panels) }
-    LaunchedEffect(placements) {
-        if (snapped !in placements) {
-            snapped = placements.lastOrNull { it.position == ImagePosition.RIGHT } ?: placements.firstOrNull()
-        }
+    var snapped by remember(placements) {
+        mutableStateOf(defaultImagePlacement(placements, panels))
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -378,55 +377,37 @@ private fun ImagePositionPicker(
     val pickerSize = DpSize(280.dp, 220.dp)
     val pickerWidthPx = with(density) { pickerSize.width.toPx() }
     val pickerHeightPx = with(density) { pickerSize.height.toPx() }
-    val baseWidth = panels.minOfOrNull { it.width } ?: 1f
-    val baseHeight = panels.minOfOrNull { it.height } ?: 1f
-    fun RectFraction.logicalCell() = RectFraction(
-        left = left / baseWidth,
-        top = top / baseHeight,
-        width = 1f,
-        height = 1f,
-    )
-
-    val panelRects = panels.map { it.logicalCell() }
-    val targetRects = placements.associateWith { it.targetRect().logicalCell() }
-    val allRects = panelRects + targetRects.values
-    val minLeft = allRects.minOfOrNull { it.left } ?: -1f
-    val minTop = allRects.minOfOrNull { it.top } ?: -1f
-    val maxRight = allRects.maxOfOrNull { it.left + it.width } ?: 1f
-    val maxBottom = allRects.maxOfOrNull { it.top + it.height } ?: 1f
-    val contentWidth = (maxRight - minLeft).coerceAtLeast(1f)
-    val contentHeight = (maxBottom - minTop).coerceAtLeast(1f)
+    val panelCells = remember(panels) { panelGridCells(panels) }
+    val targetCells = remember(placements, panelCells) {
+        placements.associateWith { it.gridCell(panelCells) }
+    }
+    val allCells = panelCells.values + targetCells.values
+    val minColumn = allCells.minOfOrNull { it.column } ?: -1
+    val maxColumn = allCells.maxOfOrNull { it.column } ?: 1
+    val minRow = allCells.minOfOrNull { it.row } ?: -1
+    val maxRow = allCells.maxOfOrNull { it.row } ?: 1
+    val columnCount = maxColumn - minColumn + 1
+    val rowCount = maxRow - minRow + 1
     val marginPx = with(density) { 12.dp.toPx() }
+    val gapPx = with(density) { 10.dp.toPx() }
     val cellPx = minOf(
-        (pickerWidthPx - marginPx * 2) / contentWidth,
-        (pickerHeightPx - marginPx * 2) / contentHeight,
+        (pickerWidthPx - marginPx * 2 - gapPx * (columnCount - 1)) / columnCount,
+        (pickerHeightPx - marginPx * 2 - gapPx * (rowCount - 1)) / rowCount,
         with(density) { 56.dp.toPx() },
     )
-    val contentCenterX = (minLeft + maxRight) / 2f
-    val contentCenterY = (minTop + maxBottom) / 2f
-    val previewGapPx = with(density) { 8.dp.toPx() }
-    fun centerOf(rect: RectFraction) = Offset(
-        (rect.left + rect.width / 2f - contentCenterX) * cellPx,
-        (rect.top + rect.height / 2f - contentCenterY) * cellPx,
+    val pitchPx = cellPx + gapPx
+    val centerColumn = (minColumn + maxColumn) / 2f
+    val centerRow = (minRow + maxRow) / 2f
+    fun centerOf(cell: com.ballooner.domain.model.PanelGridCell) = Offset(
+        (cell.column - centerColumn) * pitchPx,
+        (cell.row - centerRow) * pitchPx,
     )
 
-    val snapTargets = targetRects.mapValues { (placement, rect) ->
-        centerOf(rect) + when (placement.position) {
-            ImagePosition.LEFT -> Offset(-previewGapPx, 0f)
-            ImagePosition.RIGHT -> Offset(previewGapPx, 0f)
-            ImagePosition.TOP -> Offset(0f, -previewGapPx)
-            ImagePosition.BOTTOM -> Offset(0f, previewGapPx)
-        }
-    }
+    val snapTargets = targetCells.mapValues { centerOf(it.value) }
     var dragOffset by remember { mutableStateOf<Offset?>(null) }
     LaunchedEffect(panels) { dragOffset = null }
-    val currentDragOffset = dragOffset ?: snapped?.let { snapTargets[it] } ?: Offset.Zero
-    val snapThresholdPx = with(density) { 28.dp.toPx() }
-    val nearestSnap = snapTargets.entries.minByOrNull { (it.value - currentDragOffset).getDistance() }
-        ?.takeIf { (it.value - currentDragOffset).getDistance() < snapThresholdPx }
-        ?.key
-    LaunchedEffect(nearestSnap) { onSnappedChange(nearestSnap) }
-    val displayOffset = snapped?.let { snapTargets[it] } ?: currentDragOffset
+    val displayOffset = dragOffset ?: snapped?.let { snapTargets[it] } ?: Offset.Zero
+    val nearestSnap = snapTargets.entries.minByOrNull { (it.value - displayOffset).getDistance() }?.key
     val newBlockSize = DpSize(with(density) { cellPx.toDp() }, with(density) { cellPx.toDp() })
 
     Box(
@@ -438,38 +419,32 @@ private fun ImagePositionPicker(
         contentAlignment = Alignment.Center,
     ) {
         Box(modifier = Modifier.size(pickerSize)) {
-            targetRects.forEach { (placement, rect) ->
+            targetCells.forEach { (placement, _) ->
                 val target = snapTargets.getValue(placement)
-                val isActive = placement == nearestSnap
+                val isActive = placement == (if (dragOffset == null) snapped else nearestSnap)
                 Box(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (pickerWidthPx / 2f + target.x - rect.width * cellPx / 2f).roundToInt(),
-                                (pickerHeightPx / 2f + target.y - rect.height * cellPx / 2f).roundToInt(),
+                                (pickerWidthPx / 2f + target.x - cellPx / 2f).roundToInt(),
+                                (pickerHeightPx / 2f + target.y - cellPx / 2f).roundToInt(),
                             )
                         }
-                        .size(
-                            with(density) { (rect.width * cellPx).toDp() },
-                            with(density) { (rect.height * cellPx).toDp() },
-                        )
+                        .size(with(density) { cellPx.toDp() })
                         .dashedBorder(2.dp, InkBlack.copy(alpha = if (isActive) 0.8f else 0.35f), RoundedCornerShape(4.dp)),
                 )
             }
-            panelRects.forEach { rect ->
-                val center = centerOf(rect)
+            panelCells.forEach { (_, cell) ->
+                val center = centerOf(cell)
                 Box(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (pickerWidthPx / 2f + center.x - rect.width * cellPx / 2f).roundToInt(),
-                                (pickerHeightPx / 2f + center.y - rect.height * cellPx / 2f).roundToInt(),
+                                (pickerWidthPx / 2f + center.x - cellPx / 2f).roundToInt(),
+                                (pickerHeightPx / 2f + center.y - cellPx / 2f).roundToInt(),
                             )
                         }
-                        .size(
-                            with(density) { (rect.width * cellPx).toDp() },
-                            with(density) { (rect.height * cellPx).toDp() },
-                        )
+                        .size(with(density) { cellPx.toDp() })
                         .background(Color.White, RoundedCornerShape(4.dp))
                         .border(2.dp, InkBlack, RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center,
@@ -490,13 +465,23 @@ private fun ImagePositionPicker(
                     .size(newBlockSize)
                     .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(4.dp))
                     .border(2.dp, InkBlack, RoundedCornerShape(4.dp))
-                    .pointerInput(Unit) {
+                    .pointerInput(snapTargets, snapped) {
+                        var gestureOffset = snapped?.let { snapTargets[it] } ?: Offset.Zero
                         detectDragGestures(
-                            onDragStart = { dragOffset = displayOffset },
+                            onDragStart = {
+                                gestureOffset = snapped?.let { snapTargets[it] } ?: Offset.Zero
+                                dragOffset = gestureOffset
+                            },
                             onDrag = { change, amount ->
                                 change.consume()
-                                dragOffset = (dragOffset ?: displayOffset) + amount
+                                gestureOffset += amount
+                                dragOffset = gestureOffset
                             },
+                            onDragEnd = {
+                                onSnappedChange(snapTargets.minByOrNull { (it.value - gestureOffset).getDistance() }?.key)
+                                dragOffset = null
+                            },
+                            onDragCancel = { dragOffset = null },
                         )
                     },
                 contentAlignment = Alignment.Center,
