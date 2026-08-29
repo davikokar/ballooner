@@ -1,6 +1,6 @@
 package com.ballooner.data.image
 
-import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 
 /** Stores comic images in app-private storage and cleans them up. */
@@ -24,7 +24,7 @@ interface ImageStore {
     suspend fun composeImages(
         existingUri: String,
         addedUri: String,
-        position: ImagePosition,
+        placement: ImagePlacement,
         widthSpan: Int = 1,
         heightSpan: Int = 1,
     ): ComposedImage?

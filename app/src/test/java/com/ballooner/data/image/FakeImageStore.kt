@@ -1,6 +1,6 @@
 package com.ballooner.data.image
 
-import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 
 /** Records deletions and echoes imports so tests can assert cleanup. */
@@ -24,11 +24,11 @@ class FakeImageStore : ImageStore {
     override suspend fun composeImages(
         existingUri: String,
         addedUri: String,
-        position: ImagePosition,
+        placement: ImagePlacement,
         widthSpan: Int,
         heightSpan: Int,
     ): ComposedImage? {
-        lastComposeRequest = listOf(existingUri, addedUri, position, widthSpan, heightSpan)
+        lastComposeRequest = listOf(existingUri, addedUri, placement, widthSpan, heightSpan)
         return composeResult
     }
 

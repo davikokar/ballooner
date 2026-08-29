@@ -6,7 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
-import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +51,7 @@ class AppImageStore @Inject constructor(
     override suspend fun composeImages(
         existingUri: String,
         addedUri: String,
-        position: ImagePosition,
+        placement: ImagePlacement,
         widthSpan: Int,
         heightSpan: Int,
     ): ComposedImage? = withContext(Dispatchers.IO) {
@@ -61,9 +61,10 @@ class AppImageStore @Inject constructor(
             val layout = computeComposeLayout(
                 existingWidth = existingBitmap.width,
                 existingHeight = existingBitmap.height,
-                position = position,
+                position = placement.position,
                 widthSpan = widthSpan,
                 heightSpan = heightSpan,
+                anchor = placement.anchor,
             )
             val scaledAdded = centerCrop(addedBitmap, layout.scaledAddedWidth, layout.scaledAddedHeight)
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)

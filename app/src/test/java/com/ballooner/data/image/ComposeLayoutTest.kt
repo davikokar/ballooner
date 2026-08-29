@@ -1,6 +1,7 @@
 package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.RectFraction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -160,6 +161,30 @@ class ComposeLayoutTest {
 
         assertEquals(0, layout.existingTop)
         assertEquals(1f, layout.existingRect.height, 0.0001f)
+    }
+
+    @Test
+    fun `placing below different panels uses each panel as the horizontal anchor`() {
+        val leftPanel = RectFraction(left = 0f, top = 0f, width = 0.48f, height = 1f)
+        val rightPanel = RectFraction(left = 0.52f, top = 0f, width = 0.48f, height = 1f)
+
+        val belowLeft = computeComposeLayout(
+            existingWidth = 200,
+            existingHeight = 100,
+            position = ImagePosition.BOTTOM,
+            anchor = leftPanel,
+        )
+        val belowRight = computeComposeLayout(
+            existingWidth = 200,
+            existingHeight = 100,
+            position = ImagePosition.BOTTOM,
+            anchor = rightPanel,
+        )
+
+        assertEquals(0, belowLeft.addedLeft)
+        assertEquals(104, belowRight.addedLeft)
+        assertEquals(96, belowLeft.scaledAddedWidth)
+        assertEquals(96, belowRight.scaledAddedWidth)
     }
 }
 

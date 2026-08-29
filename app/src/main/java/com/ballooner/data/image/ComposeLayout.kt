@@ -33,92 +33,72 @@ private const val MIN_BORDER_PX = 3
 internal fun borderThicknessPx(width: Int, height: Int): Int =
     (minOf(width, height) * BORDER_FRACTION).roundToInt().coerceAtLeast(MIN_BORDER_PX)
 
-/**
- * Computes the composite canvas size and where the existing and added images land within it.
- * The added image occupies a box [widthSpan] by [heightSpan] times a standard panel unit — the
- * existing image's height for left/right, its width for top/bottom — so its footprint is always
- * a whole multiple of one panel in each dimension (it gets center-cropped to fit exactly, see
- * [AppImageStore]). A gap is left between the two panels so they don't touch, and the existing
- * content is centered within the canvas if the added panel ends up larger than it.
- */
+/** Computes the canvas geometry for a new image placed beside [anchor]. */
 internal fun computeComposeLayout(
     existingWidth: Int,
     existingHeight: Int,
     position: ImagePosition,
     widthSpan: Int = 1,
     heightSpan: Int = 1,
-): ComposeLayout = when (position) {
-    ImagePosition.LEFT, ImagePosition.RIGHT -> {
-        val unit = existingHeight
-        val scaledAddedWidth = unit * widthSpan
-        val scaledAddedHeight = unit * heightSpan
-        val canvasHeight = maxOf(existingHeight, scaledAddedHeight)
-        val gap = (canvasHeight * GAP_FRACTION).roundToInt().coerceAtLeast(MIN_GAP_PX)
-        val canvasWidth = existingWidth + gap + scaledAddedWidth
-        val existingTop = (canvasHeight - existingHeight) / 2
-        val addedTop = (canvasHeight - scaledAddedHeight) / 2
-        val existingLeft = if (position == ImagePosition.LEFT) scaledAddedWidth + gap else 0
-        val addedLeft = if (position == ImagePosition.LEFT) 0 else existingWidth + gap
-        ComposeLayout(
-            canvasWidth = canvasWidth,
-            canvasHeight = canvasHeight,
-            existingLeft = existingLeft,
-            existingTop = existingTop,
-            scaledAddedWidth = scaledAddedWidth,
-            scaledAddedHeight = scaledAddedHeight,
-            addedLeft = addedLeft,
-            addedTop = addedTop,
-            existingBorderPx = borderThicknessPx(existingWidth, existingHeight),
-            addedBorderPx = borderThicknessPx(scaledAddedWidth, scaledAddedHeight),
-            existingRect = RectFraction(
-                left = existingLeft.toFloat() / canvasWidth,
-                top = existingTop.toFloat() / canvasHeight,
-                width = existingWidth.toFloat() / canvasWidth,
-                height = existingHeight.toFloat() / canvasHeight,
-            ),
-            addedRect = RectFraction(
-                left = addedLeft.toFloat() / canvasWidth,
-                top = addedTop.toFloat() / canvasHeight,
-                width = scaledAddedWidth.toFloat() / canvasWidth,
-                height = scaledAddedHeight.toFloat() / canvasHeight,
-            ),
-        )
+    anchor: RectFraction = RectFraction(0f, 0f, 1f, 1f),
+): ComposeLayout {
+    val anchorLeft = (anchor.left * existingWidth).roundToInt()
+    val anchorTop = (anchor.top * existingHeight).roundToInt()
+    val anchorWidth = (anchor.width * existingWidth).roundToInt().coerceAtLeast(1)
+    val anchorHeight = (anchor.height * existingHeight).roundToInt().coerceAtLeast(1)
+    val unit = when (position) {
+        ImagePosition.LEFT, ImagePosition.RIGHT -> anchorHeight
+        ImagePosition.TOP, ImagePosition.BOTTOM -> anchorWidth
     }
-    ImagePosition.TOP, ImagePosition.BOTTOM -> {
-        val unit = existingWidth
-        val scaledAddedWidth = unit * widthSpan
-        val scaledAddedHeight = unit * heightSpan
-        val canvasWidth = maxOf(existingWidth, scaledAddedWidth)
-        val gap = (canvasWidth * GAP_FRACTION).roundToInt().coerceAtLeast(MIN_GAP_PX)
-        val canvasHeight = existingHeight + gap + scaledAddedHeight
-        val existingLeft = (canvasWidth - existingWidth) / 2
-        val addedLeft = (canvasWidth - scaledAddedWidth) / 2
-        val existingTop = if (position == ImagePosition.TOP) scaledAddedHeight + gap else 0
-        val addedTop = if (position == ImagePosition.TOP) 0 else existingHeight + gap
-        ComposeLayout(
-            canvasWidth = canvasWidth,
-            canvasHeight = canvasHeight,
-            existingLeft = existingLeft,
-            existingTop = existingTop,
-            scaledAddedWidth = scaledAddedWidth,
-            scaledAddedHeight = scaledAddedHeight,
-            addedLeft = addedLeft,
-            addedTop = addedTop,
-            existingBorderPx = borderThicknessPx(existingWidth, existingHeight),
-            addedBorderPx = borderThicknessPx(scaledAddedWidth, scaledAddedHeight),
-            existingRect = RectFraction(
-                left = existingLeft.toFloat() / canvasWidth,
-                top = existingTop.toFloat() / canvasHeight,
-                width = existingWidth.toFloat() / canvasWidth,
-                height = existingHeight.toFloat() / canvasHeight,
-            ),
-            addedRect = RectFraction(
-                left = addedLeft.toFloat() / canvasWidth,
-                top = addedTop.toFloat() / canvasHeight,
-                width = scaledAddedWidth.toFloat() / canvasWidth,
-                height = scaledAddedHeight.toFloat() / canvasHeight,
-            ),
-        )
+    val scaledAddedWidth = unit * widthSpan
+    val scaledAddedHeight = unit * heightSpan
+    val matchedExtent = when (position) {
+        ImagePosition.LEFT, ImagePosition.RIGHT -> maxOf(existingHeight, scaledAddedHeight)
+        ImagePosition.TOP, ImagePosition.BOTTOM -> maxOf(existingWidth, scaledAddedWidth)
     }
+    val gap = (matchedExtent * GAP_FRACTION).roundToInt().coerceAtLeast(MIN_GAP_PX)
+    val unshiftedAddedLeft = when (position) {
+        ImagePosition.LEFT -> anchorLeft - gap - scaledAddedWidth
+        ImagePosition.RIGHT -> anchorLeft + anchorWidth + gap
+        ImagePosition.TOP, ImagePosition.BOTTOM -> anchorLeft + (anchorWidth - scaledAddedWidth) / 2
+    }
+    val unshiftedAddedTop = when (position) {
+        ImagePosition.TOP -> anchorTop - gap - scaledAddedHeight
+        ImagePosition.BOTTOM -> anchorTop + anchorHeight + gap
+        ImagePosition.LEFT, ImagePosition.RIGHT -> anchorTop + (anchorHeight - scaledAddedHeight) / 2
+    }
+    val minLeft = minOf(0, unshiftedAddedLeft)
+    val minTop = minOf(0, unshiftedAddedTop)
+    val canvasWidth = maxOf(existingWidth, unshiftedAddedLeft + scaledAddedWidth) - minLeft
+    val canvasHeight = maxOf(existingHeight, unshiftedAddedTop + scaledAddedHeight) - minTop
+    val existingLeft = -minLeft
+    val existingTop = -minTop
+    val addedLeft = unshiftedAddedLeft - minLeft
+    val addedTop = unshiftedAddedTop - minTop
+
+    return ComposeLayout(
+        canvasWidth = canvasWidth,
+        canvasHeight = canvasHeight,
+        existingLeft = existingLeft,
+        existingTop = existingTop,
+        scaledAddedWidth = scaledAddedWidth,
+        scaledAddedHeight = scaledAddedHeight,
+        addedLeft = addedLeft,
+        addedTop = addedTop,
+        existingBorderPx = borderThicknessPx(existingWidth, existingHeight),
+        addedBorderPx = borderThicknessPx(scaledAddedWidth, scaledAddedHeight),
+        existingRect = RectFraction(
+            left = existingLeft.toFloat() / canvasWidth,
+            top = existingTop.toFloat() / canvasHeight,
+            width = existingWidth.toFloat() / canvasWidth,
+            height = existingHeight.toFloat() / canvasHeight,
+        ),
+        addedRect = RectFraction(
+            left = addedLeft.toFloat() / canvasWidth,
+            top = addedTop.toFloat() / canvasHeight,
+            width = scaledAddedWidth.toFloat() / canvasWidth,
+            height = scaledAddedHeight.toFloat() / canvasHeight,
+        ),
+    )
 }
 

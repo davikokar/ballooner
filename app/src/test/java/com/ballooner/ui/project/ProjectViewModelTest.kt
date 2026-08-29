@@ -11,6 +11,7 @@ import com.ballooner.data.settings.FakeSettingsRepository
 import com.ballooner.domain.model.AppSettings
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.Project
 import com.ballooner.domain.model.RectFraction
@@ -122,14 +123,15 @@ class ProjectViewModelTest {
 
         viewModel.uiState.test {
             while (awaitItem().imageUri == null) { /* await the initial project image */ }
+            val placement = ImagePlacement(RectFraction(0f, 0f, 1f, 1f), ImagePosition.RIGHT)
 
-            viewModel.onAddImage("added-uri", ImagePosition.RIGHT)
+            viewModel.onAddImage("added-uri", placement)
             advanceUntilIdle()
 
             val state = expectMostRecentItem()
             assertEquals("merged-uri", state.imageUri)
             assertEquals(false, state.isProcessingImage)
-            assertEquals(listOf("existing-uri", "added-uri", ImagePosition.RIGHT, 1, 1), imageStore.lastComposeRequest)
+            assertEquals(listOf("existing-uri", "added-uri", placement, 1, 1), imageStore.lastComposeRequest)
             assertEquals(listOf("existing-uri"), imageStore.deleted)
             cancelAndConsumeRemainingEvents()
         }
@@ -165,7 +167,10 @@ class ProjectViewModelTest {
             advanceUntilIdle()
             expectMostRecentItem()
 
-            viewModel.onAddImage("added-uri", ImagePosition.RIGHT)
+            viewModel.onAddImage(
+                "added-uri",
+                ImagePlacement(RectFraction(0f, 0f, 1f, 1f), ImagePosition.RIGHT),
+            )
             advanceUntilIdle()
 
             val balloon = expectMostRecentItem().balloons.single()

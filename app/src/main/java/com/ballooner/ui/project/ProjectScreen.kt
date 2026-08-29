@@ -113,8 +113,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
+import com.ballooner.domain.model.availableImagePlacements
+import com.ballooner.domain.model.targetRect
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
@@ -157,7 +160,7 @@ fun ProjectScreen(
     onNavigateBack: () -> Unit,
     onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
-    onAddImage: (String, ImagePosition, Int, Int) -> Unit,
+    onAddImage: (String, ImagePlacement, Int, Int) -> Unit,
     onAddBalloon: (BalloonType) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
@@ -303,8 +306,8 @@ fun ProjectScreen(
             if (pendingNewImageUri != null) {
                 ImagePositionDialog(
                     panels = uiState.panels,
-                    onSelect = { position, widthSpan, heightSpan ->
-                        onAddImage(pendingNewImageUri!!, position, widthSpan, heightSpan)
+                    onSelect = { placement, widthSpan, heightSpan ->
+                        onAddImage(pendingNewImageUri!!, placement, widthSpan, heightSpan)
                         pendingNewImageUri = null
                     },
                     onDismiss = { pendingNewImageUri = null },
@@ -320,13 +323,20 @@ fun ProjectScreen(
 @Composable
 private fun ImagePositionDialog(
     panels: List<RectFraction>,
-    onSelect: (ImagePosition, Int, Int) -> Unit,
+    onSelect: (ImagePlacement, Int, Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // Defaults to the right of the existing panels, the most common next-panel placement.
-    var snapped by remember { mutableStateOf<ImagePosition?>(ImagePosition.RIGHT) }
+    var snapped by remember { mutableStateOf<ImagePlacement?>(null) }
     var widthSpan by remember { mutableStateOf(1) }
     var heightSpan by remember { mutableStateOf(1) }
+    val placements = remember(panels, widthSpan, heightSpan) {
+        availableImagePlacements(panels, widthSpan, heightSpan)
+    }
+    LaunchedEffect(placements) {
+        if (snapped !in placements) {
+            snapped = placements.lastOrNull { it.position == ImagePosition.RIGHT } ?: placements.firstOrNull()
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add image") },
@@ -336,6 +346,7 @@ private fun ImagePositionDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 ImagePositionPicker(
                     panels = panels,
+                    placements = placements,
                     snapped = snapped,
                     onSnappedChange = { snapped = it },
                     widthSpan = widthSpan,
@@ -394,88 +405,70 @@ private const val MAX_IMAGE_SPAN = 3
 @Composable
 private fun ImagePositionPicker(
     panels: List<RectFraction>,
-    snapped: ImagePosition?,
-    onSnappedChange: (ImagePosition?) -> Unit,
+    placements: List<ImagePlacement>,
+    snapped: ImagePlacement?,
+    onSnappedChange: (ImagePlacement?) -> Unit,
     widthSpan: Int,
     heightSpan: Int,
 ) {
     val density = LocalDensity.current
     val pickerSize = DpSize(280.dp, 220.dp)
-    val gap = 10.dp
-    val count = panels.size.coerceAtLeast(1)
-
-    // Existing panels are laid out as a single strip; detect whether it runs mostly
-    // horizontally or vertically so the uniform boxes are ordered the same way.
-    val horizontal = remember(panels) {
-        if (panels.size < 2) {
-            true
-        } else {
-            val xSpread = panels.maxOf { it.left } - panels.minOf { it.left }
-            val ySpread = panels.maxOf { it.top } - panels.minOf { it.top }
-            xSpread >= ySpread
-        }
-    }
-    val orderedPanels = remember(panels, horizontal) {
-        panels.sortedBy { if (horizontal) it.left else it.top }
-    }
-
     val pickerWidthPx = with(density) { pickerSize.width.toPx() }
     val pickerHeightPx = with(density) { pickerSize.height.toPx() }
-    val gapPx = with(density) { gap.toPx() }
+    val baseWidth = panels.minOfOrNull { it.width } ?: 1f
+    val baseHeight = panels.minOfOrNull { it.height } ?: 1f
+    fun RectFraction.logical() = RectFraction(
+        left = left / baseWidth,
+        top = top / baseHeight,
+        width = width / baseWidth,
+        height = height / baseHeight,
+    )
 
-    // Solve for the largest uniform cell size that still leaves a full cell's worth of margin
-    // on every side of the strip, so the new-image box always has somewhere to be dragged.
-    val cellPx = remember(count, horizontal, pickerWidthPx, pickerHeightPx, gapPx) {
-        val mainAxisPx = if (horizontal) pickerWidthPx else pickerHeightPx
-        val crossAxisPx = if (horizontal) pickerHeightPx else pickerWidthPx
-        val cellFromMainAxis = (mainAxisPx - gapPx * (count + 1)) / (count + 2)
-        val cellFromCrossAxis = (crossAxisPx - gapPx * 2) / 3
-        minOf(cellFromMainAxis, cellFromCrossAxis).coerceAtMost(with(density) { 56.dp.toPx() })
-    }
-    val cellSize = with(density) { cellPx.toDp() }
+    val panelRects = panels.map { it.logical() }
+    val targetRects = placements.associateWith { it.targetRect(widthSpan, heightSpan).logical() }
+    val allRects = panelRects + targetRects.values
+    val minLeft = allRects.minOfOrNull { it.left } ?: -1f
+    val minTop = allRects.minOfOrNull { it.top } ?: -1f
+    val maxRight = allRects.maxOfOrNull { it.left + it.width } ?: 1f
+    val maxBottom = allRects.maxOfOrNull { it.top + it.height } ?: 1f
+    val contentWidth = (maxRight - minLeft).coerceAtLeast(1f)
+    val contentHeight = (maxBottom - minTop).coerceAtLeast(1f)
+    val marginPx = with(density) { 12.dp.toPx() }
+    val cellPx = minOf(
+        (pickerWidthPx - marginPx * 2) / contentWidth,
+        (pickerHeightPx - marginPx * 2) / contentHeight,
+        with(density) { 56.dp.toPx() },
+    )
+    val contentCenterX = (minLeft + maxRight) / 2f
+    val contentCenterY = (minTop + maxBottom) / 2f
+    val previewGapPx = with(density) { 8.dp.toPx() }
+    fun centerOf(rect: RectFraction) = Offset(
+        (rect.left + rect.width / 2f - contentCenterX) * cellPx,
+        (rect.top + rect.height / 2f - contentCenterY) * cellPx,
+    )
 
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
-
-    val stripLengthPx = count * cellPx + (count - 1) * gapPx
-    val stripStart = if (horizontal) -stripLengthPx / 2f else -cellPx / 2f
-    val stripCrossStart = if (horizontal) -cellPx / 2f else -stripLengthPx / 2f
-
-    // Manhattan-style snap zones: always all four cardinal sides of the existing strip, so the
-    // new panel can go right next to, above, or below the others regardless of layout shape.
-    val snapTargets = remember(cellPx, stripLengthPx, gapPx, horizontal) {
-        val halfStrip = stripLengthPx / 2f
-        val halfCell = cellPx / 2f
-        // Along the strip's own axis the new box extends past its far end; across the strip
-        // it just sits beside the (single) row/column, one cell over.
-        val along = halfStrip + gapPx + halfCell
-        val across = halfCell + gapPx + halfCell
-        if (horizontal) {
-            mapOf(
-                ImagePosition.LEFT to Offset(-along, 0f),
-                ImagePosition.RIGHT to Offset(along, 0f),
-                ImagePosition.TOP to Offset(0f, -across),
-                ImagePosition.BOTTOM to Offset(0f, across),
-            )
-        } else {
-            mapOf(
-                ImagePosition.TOP to Offset(0f, -along),
-                ImagePosition.BOTTOM to Offset(0f, along),
-                ImagePosition.LEFT to Offset(-across, 0f),
-                ImagePosition.RIGHT to Offset(across, 0f),
-            )
+    val snapTargets = targetRects.mapValues { (placement, rect) ->
+        centerOf(rect) + when (placement.position) {
+            ImagePosition.LEFT -> Offset(-previewGapPx, 0f)
+            ImagePosition.RIGHT -> Offset(previewGapPx, 0f)
+            ImagePosition.TOP -> Offset(0f, -previewGapPx)
+            ImagePosition.BOTTOM -> Offset(0f, previewGapPx)
         }
     }
-    // Start the drag offset at the default snap target so the block appears there initially.
-    LaunchedEffect(Unit) {
-        snapped?.let { dragOffset = snapTargets.getValue(it) }
-    }
+    var dragOffset by remember { mutableStateOf<Offset?>(null) }
+    LaunchedEffect(widthSpan, heightSpan, panels) { dragOffset = null }
+    val currentDragOffset = dragOffset ?: snapped?.let { snapTargets[it] } ?: Offset.Zero
     val snapThresholdPx = with(density) { 28.dp.toPx() }
-    val nearestSnap = snapTargets.entries.minBy { (it.value - dragOffset).getDistance() }
-        .takeIf { (it.value - dragOffset).getDistance() < snapThresholdPx }
+    val nearestSnap = snapTargets.entries.minByOrNull { (it.value - currentDragOffset).getDistance() }
+        ?.takeIf { (it.value - currentDragOffset).getDistance() < snapThresholdPx }
         ?.key
     LaunchedEffect(nearestSnap) { onSnappedChange(nearestSnap) }
-    val displayOffset = snapped?.let { snapTargets[it] } ?: dragOffset
-    val newBlockSize = DpSize(cellSize * widthSpan, cellSize * heightSpan)
+    val displayOffset = snapped?.let { snapTargets[it] } ?: currentDragOffset
+    val selectedRect = snapped?.let { targetRects[it] }
+    val newBlockSize = DpSize(
+        with(density) { (cellPx * (selectedRect?.width ?: widthSpan.toFloat())).toDp() },
+        with(density) { (cellPx * (selectedRect?.height ?: heightSpan.toFloat())).toDp() },
+    )
 
     Box(
         modifier = Modifier
@@ -486,35 +479,38 @@ private fun ImagePositionPicker(
         contentAlignment = Alignment.Center,
     ) {
         Box(modifier = Modifier.size(pickerSize)) {
-            // Faint placeholders at all four sides, showing every spot the new panel can go;
-            // the one closest to the drag brightens up to confirm it's about to snap there.
-            snapTargets.forEach { (position, target) ->
-                val isActive = position == nearestSnap
+            targetRects.forEach { (placement, rect) ->
+                val target = snapTargets.getValue(placement)
+                val isActive = placement == nearestSnap
                 Box(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (pickerWidthPx / 2f + target.x - cellPx / 2f).roundToInt(),
-                                (pickerHeightPx / 2f + target.y - cellPx / 2f).roundToInt(),
+                                (pickerWidthPx / 2f + target.x - rect.width * cellPx / 2f).roundToInt(),
+                                (pickerHeightPx / 2f + target.y - rect.height * cellPx / 2f).roundToInt(),
                             )
                         }
-                        .size(cellSize)
+                        .size(
+                            with(density) { (rect.width * cellPx).toDp() },
+                            with(density) { (rect.height * cellPx).toDp() },
+                        )
                         .dashedBorder(2.dp, InkBlack.copy(alpha = if (isActive) 0.8f else 0.35f), RoundedCornerShape(4.dp)),
                 )
             }
-            orderedPanels.forEachIndexed { index, _ ->
-                val mainOffset = index * (cellPx + gapPx)
-                val left = if (horizontal) stripStart + mainOffset else stripCrossStart
-                val top = if (horizontal) stripCrossStart else stripStart + mainOffset
+            panelRects.forEach { rect ->
+                val center = centerOf(rect)
                 Box(
                     modifier = Modifier
                         .offset {
                             IntOffset(
-                                (pickerWidthPx / 2f + left).roundToInt(),
-                                (pickerHeightPx / 2f + top).roundToInt(),
+                                (pickerWidthPx / 2f + center.x - rect.width * cellPx / 2f).roundToInt(),
+                                (pickerHeightPx / 2f + center.y - rect.height * cellPx / 2f).roundToInt(),
                             )
                         }
-                        .size(cellSize)
+                        .size(
+                            with(density) { (rect.width * cellPx).toDp() },
+                            with(density) { (rect.height * cellPx).toDp() },
+                        )
                         .background(Color.White, RoundedCornerShape(4.dp))
                         .border(2.dp, InkBlack, RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center,
@@ -537,9 +533,10 @@ private fun ImagePositionPicker(
                     .border(2.dp, InkBlack, RoundedCornerShape(4.dp))
                     .pointerInput(Unit) {
                         detectDragGestures(
+                            onDragStart = { dragOffset = displayOffset },
                             onDrag = { change, amount ->
                                 change.consume()
-                                dragOffset += amount
+                                dragOffset = (dragOffset ?: displayOffset) + amount
                             },
                         )
                     },
