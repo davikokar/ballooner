@@ -133,6 +133,30 @@ class ProjectViewModel @Inject constructor(
         height = height * rect.height,
     )
 
+    /**
+     * Removes [panel] from the comic: erases its area from the merged image, leaving the rest
+     * intact, and deletes any balloons placed on it. No-ops if it's the comic's only panel,
+     * since removing that is the same as deleting the whole comic (see [deleteProject]).
+     */
+    fun onDeleteImage(panel: RectFraction) {
+        if (uiState.value.panels.size <= 1) return
+        viewModelScope.launch {
+            isProcessingImage.value = true
+            try {
+                val previous = uiState.value.imageUri ?: return@launch
+                val erased = imageStore.eraseRegion(previous, panel) ?: return@launch
+                uiState.value.balloons
+                    .filter { panel.contains(it.centerX, it.centerY) }
+                    .forEach { balloonRepository.deleteBalloon(it.id) }
+                panelRepository.replacePanels(projectId, uiState.value.panels - panel)
+                projectRepository.setProjectImage(projectId, erased)
+                imageStore.deleteImage(previous)
+            } finally {
+                isProcessingImage.value = false
+            }
+        }
+    }
+
     fun setProjectName(name: String) {
         viewModelScope.launch { projectRepository.setProjectName(projectId, name) }
     }

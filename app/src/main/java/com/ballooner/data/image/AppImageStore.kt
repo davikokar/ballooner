@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
 import com.ballooner.domain.model.ImagePosition
+import com.ballooner.domain.model.RectFraction
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -90,6 +91,21 @@ class AppImageStore @Inject constructor(
                 previousImageRect = layout.existingRect,
                 newImageRect = layout.addedRect,
             )
+        }.getOrNull()
+    }
+
+    override suspend fun eraseRegion(uri: String, rect: RectFraction): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val bitmap = decodeBitmap(uri, mutable = true) ?: return@runCatching null
+            val canvas = android.graphics.Canvas(bitmap)
+            val left = rect.left * bitmap.width
+            val top = rect.top * bitmap.height
+            val fillPaint = Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
+            canvas.drawRect(left, top, left + rect.width * bitmap.width, top + rect.height * bitmap.height, fillPaint)
+            imagesDir.mkdirs()
+            val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
+            dest.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
+            Uri.fromFile(dest).toString()
         }.getOrNull()
     }
 

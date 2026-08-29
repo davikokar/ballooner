@@ -176,6 +176,120 @@ class ProjectViewModelTest {
     }
 
     @Test
+    fun `deleting an image panel erases its region and switches to the erased uri`() = runTest {
+        val imageStore = FakeImageStore().apply { eraseResult = "erased-uri" }
+        val panelRepository = FakePanelRepository()
+        val panelToDelete = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f)
+        val projectRepository = FakeProjectRepository(
+            initial = listOf(
+                Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+            ),
+        )
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = projectRepository,
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(RectFraction(0f, 0f, 0.5f, 1f), panelToDelete))
+
+        viewModel.uiState.test {
+            while (awaitItem().panels.size < 2) { /* await the seeded panels */ }
+
+            viewModel.onDeleteImage(panelToDelete)
+            advanceUntilIdle()
+
+            val state = expectMostRecentItem()
+            assertEquals("erased-uri", state.imageUri)
+            assertEquals(listOf(RectFraction(0f, 0f, 0.5f, 1f)), state.panels)
+            assertEquals("existing-uri" to panelToDelete, imageStore.lastEraseRequest)
+            assertEquals(listOf("existing-uri"), imageStore.deleted)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `deleting an image panel removes balloons centered on it, but not others`() = runTest {
+        val imageStore = FakeImageStore().apply { eraseResult = "erased-uri" }
+        val panelRepository = FakePanelRepository()
+        val balloonRepository = FakeBalloonRepository()
+        val panelToDelete = RectFraction(left = 0.5f, top = 0f, width = 0.5f, height = 1f)
+        val projectRepository = FakeProjectRepository(
+            initial = listOf(
+                Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+            ),
+        )
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = projectRepository,
+            balloonRepository = balloonRepository,
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(RectFraction(0f, 0f, 0.5f, 1f), panelToDelete))
+
+        viewModel.uiState.test {
+            while (awaitItem().panels.size < 2) { /* await the seeded panels */ }
+
+            viewModel.selectBalloon(null)
+            viewModel.addBalloon(BalloonType.SPEAK) // lands at the default center (0.5, 0.5), on the deleted panel
+            advanceUntilIdle()
+            val onOtherPanel = expectMostRecentItem().balloons.single().copy(centerX = 0.25f)
+            viewModel.commitBalloon(onOtherPanel)
+            advanceUntilIdle()
+            expectMostRecentItem()
+
+            viewModel.addBalloon(BalloonType.SPEAK) // default center (0.5, 0.5) is on the deleted panel
+            advanceUntilIdle()
+            expectMostRecentItem()
+
+            viewModel.onDeleteImage(panelToDelete)
+            advanceUntilIdle()
+
+            val remaining = expectMostRecentItem().balloons
+            assertEquals(listOf(onOtherPanel), remaining)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `does not delete the only panel, since that's the whole comic`() = runTest {
+        val imageStore = FakeImageStore().apply { eraseResult = "erased-uri" }
+        val panelRepository = FakePanelRepository()
+        val onlyPanel = RectFraction(0f, 0f, 1f, 1f)
+        val projectRepository = FakeProjectRepository(
+            initial = listOf(
+                Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+            ),
+        )
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = projectRepository,
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(onlyPanel))
+
+        viewModel.uiState.test {
+            while (awaitItem().panels.isEmpty()) { /* await the seeded panel */ }
+            cancelAndConsumeRemainingEvents()
+        }
+
+        // A no-op produces no new state emission, so assert on the current value directly
+        // instead of awaiting one (StateFlow dedupes equal consecutive values).
+        viewModel.onDeleteImage(onlyPanel)
+        advanceUntilIdle()
+
+        assertEquals("existing-uri", viewModel.uiState.value.imageUri)
+        assertNull(imageStore.lastEraseRequest)
+    }
+
+    @Test
     fun `adds a balloon of the requested type and selects it`() = runTest {
         val viewModel = viewModel()
 

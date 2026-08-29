@@ -42,6 +42,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -143,6 +144,7 @@ fun ProjectRoute(
         onCommitBalloon = viewModel::commitBalloon,
         onDeleteSelected = viewModel::deleteSelectedBalloon,
         onDeleteComic = { viewModel.deleteProject(onNavigateBack) },
+        onDeleteImage = viewModel::onDeleteImage,
     )
 }
 
@@ -161,6 +163,7 @@ fun ProjectScreen(
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
     onDeleteComic: () -> Unit,
+    onDeleteImage: (RectFraction) -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -291,6 +294,8 @@ fun ProjectScreen(
                         onAddBalloon = onAddBalloon,
                         onOpenImagePicker = { launchPicker(false) },
                         onLayerWidth = { displayedWidth = it },
+                        panels = uiState.panels,
+                        onDeleteImage = onDeleteImage,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -851,6 +856,8 @@ private fun Editor(
     onAddBalloon: (BalloonType) -> Unit,
     onOpenImagePicker: () -> Unit,
     onLayerWidth: (Int) -> Unit,
+    panels: List<RectFraction>,
+    onDeleteImage: (RectFraction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageState = rememberImageState(imageUri)
@@ -860,6 +867,11 @@ private fun Editor(
     // View-only transform: pinch to zoom / pan; rotation is hoisted to the caller.
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
+    // Long-pressing one image panel (only offered once there's more than one) shows a delete
+    // badge for it; cleared whenever the underlying panels change or the user taps elsewhere.
+    var panelPendingDelete by remember { mutableStateOf<RectFraction?>(null) }
+    var showConfirmDeleteImage by remember { mutableStateOf(false) }
+    LaunchedEffect(panels) { panelPendingDelete = null }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
     // instead of overwriting each other before Room has round-tripped a commit.
@@ -961,13 +973,22 @@ private fun Editor(
                                         layerSize = it
                                         onLayerWidth(it.width)
                                     }
-                                    .pointerInput(balloons, editMode) {
-                                        detectTapGestures { offset ->
-                                            if (!editMode) return@detectTapGestures
-                                            val canvas = Size(size.width.toFloat(), size.height.toFloat())
-                                            val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
-                                            if (hit != null) onSelectBalloon(hit.id)
-                                        }
+                                    .pointerInput(balloons, panels, editMode) {
+                                        detectTapGestures(
+                                            onTap = { offset ->
+                                                panelPendingDelete = null
+                                                if (!editMode) return@detectTapGestures
+                                                val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                                                val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
+                                                if (hit != null) onSelectBalloon(hit.id)
+                                            },
+                                            onLongPress = { offset ->
+                                                if (!editMode || panels.size <= 1) return@detectTapGestures
+                                                val u = offset.x / size.width
+                                                val v = offset.y / size.height
+                                                panelPendingDelete = panels.lastOrNull { it.contains(u, v) }
+                                            },
+                                        )
                                     },
                             ) {
                                 Canvas(modifier = Modifier.matchParentSize()) {
@@ -1004,6 +1025,15 @@ private fun Editor(
                                             onLiveChange = { live = it },
                                             onCommit = { live?.let(onCommitBalloon) },
                                             onDelete = onDeleteSelected,
+                                        )
+                                    }
+                                    panelPendingDelete?.let { pending ->
+                                        ImageDeleteHandle(
+                                            centerPx = Offset(
+                                                (pending.left + pending.width) * size.width,
+                                                pending.top * size.height,
+                                            ),
+                                            onTap = { showConfirmDeleteImage = true },
                                         )
                                     }
                                 }
@@ -1061,6 +1091,25 @@ private fun Editor(
                 )
             }
         }
+    }
+    if (showConfirmDeleteImage) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDeleteImage = false },
+            title = { Text("Delete image?") },
+            text = { Text("This permanently removes this image and any balloons on it.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        panelPendingDelete?.let(onDeleteImage)
+                        panelPendingDelete = null
+                        showConfirmDeleteImage = false
+                    },
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDeleteImage = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -1440,6 +1489,29 @@ private fun Handles(
     }
 }
 
+/** Delete badge for a whole image panel, styled to match the comic list's delete button. */
+@Composable
+private fun ImageDeleteHandle(centerPx: Offset, onTap: () -> Unit) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { 16.dp.toPx() }
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(32.dp)
+            .background(MaterialTheme.colorScheme.secondary, CircleShape)
+            .border(2.dp, InkBlack, CircleShape)
+            .pointerInput(Unit) { detectTapGestures { onTap() } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Close,
+            contentDescription = "Delete image",
+            tint = Color.White,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
 private data class Corner(val pos: Offset, val signX: Float, val signY: Float)
 
 @Composable
@@ -1631,5 +1703,6 @@ private fun ProjectScreenNoImagePreview() {
         onCommitBalloon = {},
         onDeleteSelected = {},
         onDeleteComic = {},
+        onDeleteImage = {},
     )
 }
