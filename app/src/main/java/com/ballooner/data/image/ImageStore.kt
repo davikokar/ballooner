@@ -13,10 +13,10 @@ interface ImageStore {
 
     /**
      * Merges [addedUri] alongside [existingUri] into one new image, placed per [position]. The
-     * added image is scaled so its matched dimension (height for left/right, width for
-     * top/bottom) is [sizeSpan] times the existing image's, so it can occupy the same footprint
-     * as one or two standard panels; the existing content is centered ("letterboxed") if the
-     * canvas grows to fit a larger added panel.
+     * added image is center-cropped to fill a box [widthSpan] by [heightSpan] times a standard
+     * panel unit (the existing image's height for left/right, its width for top/bottom), so it
+     * can occupy the footprint of multiple standard panels in either dimension; the existing
+     * content is centered ("letterboxed") if the canvas grows to fit a larger added panel.
      * Returns the merged image's uri, the fractional rect the existing image now occupies within
      * it, and the fractional rect the added image now occupies (so callers can remap anything
      * positioned relative to the old image, or track the new panel), or null on failure.
@@ -25,7 +25,8 @@ interface ImageStore {
         existingUri: String,
         addedUri: String,
         position: ImagePosition,
-        sizeSpan: Int = 1,
+        widthSpan: Int = 1,
+        heightSpan: Int = 1,
     ): ComposedImage?
 }
 

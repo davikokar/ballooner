@@ -155,7 +155,7 @@ fun ProjectScreen(
     onNavigateBack: () -> Unit,
     onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
-    onAddImage: (String, ImagePosition, Int) -> Unit,
+    onAddImage: (String, ImagePosition, Int, Int) -> Unit,
     onAddBalloon: (BalloonType) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
@@ -298,8 +298,8 @@ fun ProjectScreen(
             if (pendingNewImageUri != null) {
                 ImagePositionDialog(
                     panels = uiState.panels,
-                    onSelect = { position, sizeSpan ->
-                        onAddImage(pendingNewImageUri!!, position, sizeSpan)
+                    onSelect = { position, widthSpan, heightSpan ->
+                        onAddImage(pendingNewImageUri!!, position, widthSpan, heightSpan)
                         pendingNewImageUri = null
                     },
                     onDismiss = { pendingNewImageUri = null },
@@ -315,35 +315,36 @@ fun ProjectScreen(
 @Composable
 private fun ImagePositionDialog(
     panels: List<RectFraction>,
-    onSelect: (ImagePosition, Int) -> Unit,
+    onSelect: (ImagePosition, Int, Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Defaults to the right of the existing panels, the most common next-panel placement.
     var snapped by remember { mutableStateOf<ImagePosition?>(ImagePosition.RIGHT) }
-    var sizeSpan by remember { mutableStateOf(1) }
+    var widthSpan by remember { mutableStateOf(1) }
+    var heightSpan by remember { mutableStateOf(1) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add image") },
         text = {
             Column {
-                Text("Drag the new panel next to the existing ones, then tap Add.")
+                Text("Drag the new panel next to any existing one, then tap Add.")
                 Spacer(modifier = Modifier.height(12.dp))
                 ImagePositionPicker(
                     panels = panels,
                     snapped = snapped,
                     onSnappedChange = { snapped = it },
-                    sizeSpan = sizeSpan,
+                    widthSpan = widthSpan,
+                    heightSpan = heightSpan,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SizeSpanOption(text = "Normal size", selected = sizeSpan == 1, onClick = { sizeSpan = 1 })
-                    SizeSpanOption(text = "Large panel", selected = sizeSpan == 2, onClick = { sizeSpan = 2 })
-                }
+                SpanSlider(label = "Width", value = widthSpan, onValueChange = { widthSpan = it })
+                Spacer(modifier = Modifier.height(8.dp))
+                SpanSlider(label = "Height", value = heightSpan, onValueChange = { heightSpan = it })
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { snapped?.let { onSelect(it, sizeSpan) } },
+                onClick = { snapped?.let { onSelect(it, widthSpan, heightSpan) } },
                 enabled = snapped != null,
             ) { Text("Add") }
         },
@@ -353,22 +354,31 @@ private fun ImagePositionDialog(
     )
 }
 
+/** A labelled 1x/2x/3x slider, styled like the balloon size controls. */
 @Composable
-private fun SizeSpanOption(text: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary else Color.White,
-                RoundedCornerShape(6.dp),
+private fun SpanSlider(label: String, value: Int, onValueChange: (Int) -> Unit) {
+    Column {
+        Text("$label: ${value}x", color = InkBlack, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White, RoundedCornerShape(8.dp))
+                .border(2.dp, InkBlack, RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Slider(
+                value = value.toFloat(),
+                onValueChange = { onValueChange(it.roundToInt()) },
+                valueRange = 1f..MAX_IMAGE_SPAN.toFloat(),
+                steps = MAX_IMAGE_SPAN - 2,
+                modifier = Modifier.height(32.dp),
             )
-            .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text, color = if (selected) Color.White else InkBlack, fontSize = 13.sp)
+        }
     }
 }
+
+private const val MAX_IMAGE_SPAN = 3
 
 /**
  * A visual position picker: one uniformly-sized white box per existing image panel, plus a
@@ -381,7 +391,8 @@ private fun ImagePositionPicker(
     panels: List<RectFraction>,
     snapped: ImagePosition?,
     onSnappedChange: (ImagePosition?) -> Unit,
-    sizeSpan: Int,
+    widthSpan: Int,
+    heightSpan: Int,
 ) {
     val density = LocalDensity.current
     val pickerSize = DpSize(280.dp, 220.dp)
@@ -424,6 +435,8 @@ private fun ImagePositionPicker(
     val stripStart = if (horizontal) -stripLengthPx / 2f else -cellPx / 2f
     val stripCrossStart = if (horizontal) -cellPx / 2f else -stripLengthPx / 2f
 
+    // Manhattan-style snap zones: always all four cardinal sides of the existing strip, so the
+    // new panel can go right next to, above, or below the others regardless of layout shape.
     val snapTargets = remember(cellPx, stripLengthPx, gapPx, horizontal) {
         val halfStrip = stripLengthPx / 2f
         val halfCell = cellPx / 2f
@@ -457,13 +470,7 @@ private fun ImagePositionPicker(
         ?.key
     LaunchedEffect(nearestSnap) { onSnappedChange(nearestSnap) }
     val displayOffset = snapped?.let { snapTargets[it] } ?: dragOffset
-    // The block grows along whichever axis a "large" panel would actually be scaled on.
-    val isVerticalSnap = snapped == ImagePosition.TOP || snapped == ImagePosition.BOTTOM
-    val newBlockSize = if (isVerticalSnap) {
-        DpSize(cellSize * sizeSpan, cellSize)
-    } else {
-        DpSize(cellSize, cellSize * sizeSpan)
-    }
+    val newBlockSize = DpSize(cellSize * widthSpan, cellSize * heightSpan)
 
     Box(
         modifier = Modifier
@@ -474,6 +481,22 @@ private fun ImagePositionPicker(
         contentAlignment = Alignment.Center,
     ) {
         Box(modifier = Modifier.size(pickerSize)) {
+            // Faint placeholders at all four sides, showing every spot the new panel can go;
+            // the one closest to the drag brightens up to confirm it's about to snap there.
+            snapTargets.forEach { (position, target) ->
+                val isActive = position == nearestSnap
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                (pickerWidthPx / 2f + target.x - cellPx / 2f).roundToInt(),
+                                (pickerHeightPx / 2f + target.y - cellPx / 2f).roundToInt(),
+                            )
+                        }
+                        .size(cellSize)
+                        .dashedBorder(2.dp, InkBlack.copy(alpha = if (isActive) 0.8f else 0.35f), RoundedCornerShape(4.dp)),
+                )
+            }
             orderedPanels.forEachIndexed { index, _ ->
                 val mainOffset = index * (cellPx + gapPx)
                 val left = if (horizontal) stripStart + mainOffset else stripCrossStart
@@ -1602,7 +1625,7 @@ private fun ProjectScreenNoImagePreview() {
         onNavigateBack = {},
         onRenameProject = {},
         onImagePicked = {},
-        onAddImage = { _, _, _ -> },
+        onAddImage = { _, _, _, _ -> },
         onAddBalloon = {},
         onSelectBalloon = {},
         onCommitBalloon = {},

@@ -20,9 +20,10 @@ class FakeImageStore : ImageStore {
         existingUri: String,
         addedUri: String,
         position: ImagePosition,
-        sizeSpan: Int,
+        widthSpan: Int,
+        heightSpan: Int,
     ): ComposedImage? {
-        lastComposeRequest = listOf(existingUri, addedUri, position, sizeSpan)
+        lastComposeRequest = listOf(existingUri, addedUri, position, widthSpan, heightSpan)
         return composeResult
     }
 }
