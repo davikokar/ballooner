@@ -117,6 +117,7 @@ import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.availableImagePlacements
+import com.ballooner.domain.model.panelAt
 import com.ballooner.domain.model.targetRect
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
@@ -941,7 +942,7 @@ private fun Editor(
                                                 if (!editMode || panels.size <= 1) return@detectTapGestures
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
-                                                panelPendingDelete = panels.lastOrNull { it.contains(u, v) }
+                                                panelPendingDelete = panels.panelAt(u, v)
                                             },
                                         )
                                     },
