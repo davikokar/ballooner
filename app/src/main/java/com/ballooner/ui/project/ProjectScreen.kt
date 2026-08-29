@@ -128,6 +128,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import kotlin.math.abs
 
 @Composable
 fun ProjectRoute(
@@ -171,7 +172,7 @@ fun ProjectScreen(
     onDeleteSelected: () -> Unit,
     onDeleteComic: () -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
-    onMoveImage: (RectFraction, RectFraction) -> Unit,
+    onMoveImage: (RectFraction, ImagePlacement) -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -802,7 +803,7 @@ private fun Editor(
     onLayerWidth: (Int) -> Unit,
     panels: List<RectFraction>,
     onDeleteImage: (RectFraction) -> Unit,
-    onMoveImage: (RectFraction, RectFraction) -> Unit,
+    onMoveImage: (RectFraction, ImagePlacement) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageState = rememberImageState(imageUri)
@@ -814,12 +815,16 @@ private fun Editor(
     var pan by remember { mutableStateOf(Offset.Zero) }
     var selectedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
-    var moveTarget by remember { mutableStateOf<RectFraction?>(null) }
+    var moveTarget by remember { mutableStateOf<ImagePlacement?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     LaunchedEffect(panels) {
         selectedPanel = null
         moveHandleOffset = Offset.Zero
         moveTarget = null
+    }
+    LaunchedEffect(imageUri) {
+        zoom = 1f
+        pan = Offset.Zero
     }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -979,13 +984,24 @@ private fun Editor(
                                         )
                                     }
                                     val moveHighlightColor = MaterialTheme.colorScheme.tertiary
-                                    moveTarget?.let { target ->
+                                    moveTarget?.let { placement ->
+                                        val target = placement.anchor
                                         Canvas(modifier = Modifier.matchParentSize()) {
-                                            drawRect(
+                                            val left = target.left * size.width
+                                            val top = target.top * size.height
+                                            val right = (target.left + target.width) * size.width
+                                            val bottom = (target.top + target.height) * size.height
+                                            val (start, end) = when (placement.position) {
+                                                ImagePosition.LEFT -> Offset(left, top) to Offset(left, bottom)
+                                                ImagePosition.RIGHT -> Offset(right, top) to Offset(right, bottom)
+                                                ImagePosition.TOP -> Offset(left, top) to Offset(right, top)
+                                                ImagePosition.BOTTOM -> Offset(left, bottom) to Offset(right, bottom)
+                                            }
+                                            drawLine(
                                                 color = moveHighlightColor,
-                                                topLeft = Offset(target.left * size.width, target.top * size.height),
-                                                size = Size(target.width * size.width, target.height * size.height),
-                                                style = Stroke(width = 5.dp.toPx()),
+                                                start = start,
+                                                end = end,
+                                                strokeWidth = 5.dp.toPx(),
                                             )
                                         }
                                     }
@@ -1001,13 +1017,16 @@ private fun Editor(
                                                     (pending.left + pending.width / 2f) * size.width,
                                                     pending.top * size.height,
                                                 ) + moveHandleOffset
-                                                moveTarget = panels.panelAt(
-                                                    (center.x / size.width).coerceIn(0f, 0.999999f),
-                                                    (center.y / size.height).coerceIn(0f, 0.999999f),
-                                                )
+                                                val u = (center.x / size.width).coerceIn(0f, 0.999999f)
+                                                val v = (center.y / size.height).coerceIn(0f, 0.999999f)
+                                                moveTarget = panels.panelAt(u, v)?.let { target ->
+                                                    ImagePlacement(target, target.dropPosition(u, v))
+                                                }
                                             },
                                             onDragEnd = {
-                                                moveTarget?.takeIf { it != pending }?.let { onMoveImage(pending, it) }
+                                                moveTarget?.takeIf { it.anchor != pending }?.let {
+                                                    onMoveImage(pending, it)
+                                                }
                                                 moveHandleOffset = Offset.Zero
                                                 moveTarget = null
                                             },
@@ -1094,6 +1113,16 @@ private fun Editor(
                 TextButton(onClick = { showConfirmDeleteImage = false }) { Text("Cancel") }
             },
         )
+    }
+}
+
+private fun RectFraction.dropPosition(x: Float, y: Float): ImagePosition {
+    val horizontal = (x - (left + width / 2f)) / width
+    val vertical = (y - (top + height / 2f)) / height
+    return if (abs(horizontal) > abs(vertical)) {
+        if (horizontal < 0f) ImagePosition.LEFT else ImagePosition.RIGHT
+    } else {
+        if (vertical < 0f) ImagePosition.TOP else ImagePosition.BOTTOM
     }
 }
 

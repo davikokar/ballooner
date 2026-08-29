@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
 import com.ballooner.domain.model.ImagePlacement
+import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.panelGridCells
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -135,7 +136,8 @@ class AppImageStore @Inject constructor(
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
-        toIndex: Int,
+        targetIndex: Int,
+        position: ImagePosition,
     ): RearrangedImage? = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = decodeBitmap(uri) ?: return@runCatching null
@@ -151,7 +153,8 @@ class AppImageStore @Inject constructor(
                 panelSizes = sourceRects.map { PixelSize(it.width, it.height) },
                 rowSizes = rowSizes,
                 fromIndex = fromIndex,
-                toIndex = toIndex,
+                targetIndex = targetIndex,
+                position = position,
                 gapPx = gapPx,
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)

@@ -174,16 +174,22 @@ class ProjectViewModel @Inject constructor(
     )
 
     /** Inserts [panel] at [target]'s reading-order position and shifts the intervening panels. */
-    fun onMoveImage(panel: RectFraction, target: RectFraction) {
-        if (panel == target) return
+    fun onMoveImage(panel: RectFraction, placement: ImagePlacement) {
+        if (panel == placement.anchor) return
         viewModelScope.launch {
             isProcessingImage.value = true
             try {
                 val previous = uiState.value.imageUri ?: return@launch
                 val orderedPanels = panelsInReadingOrder(uiState.value.panels)
                 val fromIndex = orderedPanels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
-                val toIndex = orderedPanels.indexOf(target).takeIf { it >= 0 } ?: return@launch
-                val rearranged = imageStore.rearrangePanels(previous, orderedPanels, fromIndex, toIndex)
+                val targetIndex = orderedPanels.indexOf(placement.anchor).takeIf { it >= 0 } ?: return@launch
+                val rearranged = imageStore.rearrangePanels(
+                    previous,
+                    orderedPanels,
+                    fromIndex,
+                    targetIndex,
+                    placement.position,
+                )
                     ?: return@launch
                 uiState.value.balloons.forEach { balloon ->
                     val panelIndex = orderedPanels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }

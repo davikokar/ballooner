@@ -1,6 +1,7 @@
 package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePlacement
+import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 
 /** Stores comic images in app-private storage and cleans them up. */
@@ -26,7 +27,8 @@ interface ImageStore {
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
-        toIndex: Int,
+        targetIndex: Int,
+        position: ImagePosition,
     ): RearrangedImage?
 }
 
