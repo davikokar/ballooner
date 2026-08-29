@@ -160,7 +160,7 @@ fun ProjectScreen(
     onNavigateBack: () -> Unit,
     onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
-    onAddImage: (String, ImagePlacement, Int, Int) -> Unit,
+    onAddImage: (String, ImagePlacement) -> Unit,
     onAddBalloon: (BalloonType) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
@@ -306,8 +306,8 @@ fun ProjectScreen(
             if (pendingNewImageUri != null) {
                 ImagePositionDialog(
                     panels = uiState.panels,
-                    onSelect = { placement, widthSpan, heightSpan ->
-                        onAddImage(pendingNewImageUri!!, placement, widthSpan, heightSpan)
+                    onSelect = { placement ->
+                        onAddImage(pendingNewImageUri!!, placement)
                         pendingNewImageUri = null
                     },
                     onDismiss = { pendingNewImageUri = null },
@@ -323,15 +323,11 @@ fun ProjectScreen(
 @Composable
 private fun ImagePositionDialog(
     panels: List<RectFraction>,
-    onSelect: (ImagePlacement, Int, Int) -> Unit,
+    onSelect: (ImagePlacement) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var snapped by remember { mutableStateOf<ImagePlacement?>(null) }
-    var widthSpan by remember { mutableStateOf(1) }
-    var heightSpan by remember { mutableStateOf(1) }
-    val placements = remember(panels, widthSpan, heightSpan) {
-        availableImagePlacements(panels, widthSpan, heightSpan)
-    }
+    val placements = remember(panels) { availableImagePlacements(panels) }
     LaunchedEffect(placements) {
         if (snapped !in placements) {
             snapped = placements.lastOrNull { it.position == ImagePosition.RIGHT } ?: placements.firstOrNull()
@@ -349,18 +345,12 @@ private fun ImagePositionDialog(
                     placements = placements,
                     snapped = snapped,
                     onSnappedChange = { snapped = it },
-                    widthSpan = widthSpan,
-                    heightSpan = heightSpan,
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                SpanSlider(label = "Width", value = widthSpan, onValueChange = { widthSpan = it })
-                Spacer(modifier = Modifier.height(8.dp))
-                SpanSlider(label = "Height", value = heightSpan, onValueChange = { heightSpan = it })
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { snapped?.let { onSelect(it, widthSpan, heightSpan) } },
+                onClick = { snapped?.let(onSelect) },
                 enabled = snapped != null,
             ) { Text("Add") }
         },
@@ -369,32 +359,6 @@ private fun ImagePositionDialog(
         },
     )
 }
-
-/** A labelled 1x/2x/3x slider, styled like the balloon size controls. */
-@Composable
-private fun SpanSlider(label: String, value: Int, onValueChange: (Int) -> Unit) {
-    Column {
-        Text("$label: ${value}x", color = InkBlack, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(8.dp))
-                .border(2.dp, InkBlack, RoundedCornerShape(8.dp))
-                .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Slider(
-                value = value.toFloat(),
-                onValueChange = { onValueChange(it.roundToInt()) },
-                valueRange = 1f..MAX_IMAGE_SPAN.toFloat(),
-                steps = MAX_IMAGE_SPAN - 2,
-                modifier = Modifier.height(32.dp),
-            )
-        }
-    }
-}
-
-private const val MAX_IMAGE_SPAN = 3
 
 /**
  * A visual position picker: one uniformly-sized white box per existing image panel, plus a
@@ -408,8 +372,6 @@ private fun ImagePositionPicker(
     placements: List<ImagePlacement>,
     snapped: ImagePlacement?,
     onSnappedChange: (ImagePlacement?) -> Unit,
-    widthSpan: Int,
-    heightSpan: Int,
 ) {
     val density = LocalDensity.current
     val pickerSize = DpSize(280.dp, 220.dp)
@@ -417,15 +379,15 @@ private fun ImagePositionPicker(
     val pickerHeightPx = with(density) { pickerSize.height.toPx() }
     val baseWidth = panels.minOfOrNull { it.width } ?: 1f
     val baseHeight = panels.minOfOrNull { it.height } ?: 1f
-    fun RectFraction.logical() = RectFraction(
+    fun RectFraction.logicalCell() = RectFraction(
         left = left / baseWidth,
         top = top / baseHeight,
-        width = width / baseWidth,
-        height = height / baseHeight,
+        width = 1f,
+        height = 1f,
     )
 
-    val panelRects = panels.map { it.logical() }
-    val targetRects = placements.associateWith { it.targetRect(widthSpan, heightSpan).logical() }
+    val panelRects = panels.map { it.logicalCell() }
+    val targetRects = placements.associateWith { it.targetRect().logicalCell() }
     val allRects = panelRects + targetRects.values
     val minLeft = allRects.minOfOrNull { it.left } ?: -1f
     val minTop = allRects.minOfOrNull { it.top } ?: -1f
@@ -456,7 +418,7 @@ private fun ImagePositionPicker(
         }
     }
     var dragOffset by remember { mutableStateOf<Offset?>(null) }
-    LaunchedEffect(widthSpan, heightSpan, panels) { dragOffset = null }
+    LaunchedEffect(panels) { dragOffset = null }
     val currentDragOffset = dragOffset ?: snapped?.let { snapTargets[it] } ?: Offset.Zero
     val snapThresholdPx = with(density) { 28.dp.toPx() }
     val nearestSnap = snapTargets.entries.minByOrNull { (it.value - currentDragOffset).getDistance() }
@@ -464,11 +426,7 @@ private fun ImagePositionPicker(
         ?.key
     LaunchedEffect(nearestSnap) { onSnappedChange(nearestSnap) }
     val displayOffset = snapped?.let { snapTargets[it] } ?: currentDragOffset
-    val selectedRect = snapped?.let { targetRects[it] }
-    val newBlockSize = DpSize(
-        with(density) { (cellPx * (selectedRect?.width ?: widthSpan.toFloat())).toDp() },
-        with(density) { (cellPx * (selectedRect?.height ?: heightSpan.toFloat())).toDp() },
-    )
+    val newBlockSize = DpSize(with(density) { cellPx.toDp() }, with(density) { cellPx.toDp() })
 
     Box(
         modifier = Modifier
@@ -1694,7 +1652,7 @@ private fun ProjectScreenNoImagePreview() {
         onNavigateBack = {},
         onRenameProject = {},
         onImagePicked = {},
-        onAddImage = { _, _, _, _ -> },
+        onAddImage = { _, _ -> },
         onAddBalloon = {},
         onSelectBalloon = {},
         onCommitBalloon = {},
