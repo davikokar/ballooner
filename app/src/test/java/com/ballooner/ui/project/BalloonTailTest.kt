@@ -43,7 +43,7 @@ class BalloonTailTest {
     }
 
     @Test
-    fun `tail sides curve outward from their straight midpoints`() {
+    fun `tail sides curve inward toward a narrow point`() {
         val canvas = Size(1000f, 800f)
         val balloon = Balloon(id = 1, type = BalloonType.SPEAK, tailAngleDegrees = 90f)
 
@@ -52,8 +52,8 @@ class BalloonTailTest {
         val centerX = balloon.bodyCenter(canvas).x
         val firstStraightMidpointX = (tail.firstBase.x + tail.tip.x) / 2f
         val secondStraightMidpointX = (tail.secondBase.x + tail.tip.x) / 2f
-        assertTrue(tail.firstControl.x < firstStraightMidpointX)
-        assertTrue(tail.secondControl.x > secondStraightMidpointX)
+        assertTrue(tail.firstControl.x > firstStraightMidpointX)
+        assertTrue(tail.secondControl.x < secondStraightMidpointX)
         assertEquals(centerX, (tail.firstControl.x + tail.secondControl.x) / 2f, 0.001f)
     }
 

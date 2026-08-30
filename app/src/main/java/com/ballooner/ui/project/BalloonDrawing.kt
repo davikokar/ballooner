@@ -237,9 +237,9 @@ private fun curvedTail(g: BalloonGeometry, tailWidth: Float): CurvedTail {
     val curve = baseHalf * 0.25f
     return CurvedTail(
         firstBase = firstBase,
-        firstControl = firstMidpoint + perp * curve,
+        firstControl = firstMidpoint - perp * curve,
         tip = g.tip,
-        secondControl = secondMidpoint - perp * curve,
+        secondControl = secondMidpoint + perp * curve,
         secondBase = secondBase,
     )
 }
