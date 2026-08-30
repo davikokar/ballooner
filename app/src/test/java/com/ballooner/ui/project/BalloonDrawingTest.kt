@@ -13,16 +13,16 @@ import org.junit.Test
 class BalloonDrawingTest {
 
     @Test
-    fun `panel bounds scale to canvas pixels`() {
+    fun `balloon clip bounds preserve the panel border`() {
         val canvas = Size(1000f, 800f)
         val panel = RectFraction(left = 0.25f, top = 0.1f, width = 0.5f, height = 0.4f)
 
-        val bounds = panel.pixelBounds(canvas)
+        val bounds = panel.balloonClipBounds(canvas)
 
-        assertEquals(250f, bounds.left, 0.001f)
-        assertEquals(80f, bounds.top, 0.001f)
-        assertEquals(750f, bounds.right, 0.001f)
-        assertEquals(400f, bounds.bottom, 0.001f)
+        assertEquals(253f, bounds.left, 0.001f)
+        assertEquals(83f, bounds.top, 0.001f)
+        assertEquals(747f, bounds.right, 0.001f)
+        assertEquals(397f, bounds.bottom, 0.001f)
     }
 
     @Test

@@ -965,7 +965,7 @@ private fun Editor(
                                 if (size.width > 0f && size.height > 0f) {
                                     effective.forEach { balloon ->
                                         val panel = panels.panelAt(balloon.centerX, balloon.centerY)
-                                        val bounds = panel?.pixelBounds(size)
+                                        val bounds = panel?.balloonClipBounds(size)
                                         Box(
                                             modifier = if (bounds == null) {
                                                 Modifier.matchParentSize()
@@ -1736,19 +1736,24 @@ private suspend fun exportComic(
     }
 }
 
-internal fun RectFraction.pixelBounds(canvasSize: Size): Rect = Rect(
-    left = left * canvasSize.width,
-    top = top * canvasSize.height,
-    right = (left + width) * canvasSize.width,
-    bottom = (top + height) * canvasSize.height,
-)
+internal fun RectFraction.balloonClipBounds(canvasSize: Size): Rect {
+    val panelWidth = width * canvasSize.width
+    val panelHeight = height * canvasSize.height
+    val border = maxOf(minOf(panelWidth, panelHeight) * 0.006f, 3f)
+    return Rect(
+        left = left * canvasSize.width + border,
+        top = top * canvasSize.height + border,
+        right = (left + width) * canvasSize.width - border,
+        bottom = (top + height) * canvasSize.height - border,
+    )
+}
 
 private fun DrawScope.clipToPanel(panel: RectFraction?, canvasSize: Size, draw: DrawScope.() -> Unit) {
     if (panel == null) {
         draw()
         return
     }
-    val bounds = panel.pixelBounds(canvasSize)
+    val bounds = panel.balloonClipBounds(canvasSize)
     clipRect(bounds.left, bounds.top, bounds.right, bounds.bottom, block = draw)
 }
 
