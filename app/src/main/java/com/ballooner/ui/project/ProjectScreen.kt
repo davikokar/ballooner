@@ -68,9 +68,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -84,6 +86,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -210,6 +213,7 @@ fun ProjectScreen(
                     outUri = uri,
                     imageUri = imageUri,
                     balloons = uiState.balloons,
+                    panels = uiState.panels,
                     displayedWidth = displayedWidth,
                     autoTextSize = uiState.autoTextSize,
                     textMeasurer = textMeasurer,
@@ -948,28 +952,49 @@ private fun Editor(
                                     },
                             ) {
                                 Canvas(modifier = Modifier.matchParentSize()) {
-                                drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
-                                effective.forEach { balloon ->
-                                    drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
+                                    drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                                    effective.forEach { balloon ->
+                                        val panel = panels.panelAt(balloon.centerX, balloon.centerY)
+                                        clipToPanel(panel, size) {
+                                            drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
+                                        }
+                                    }
                                 }
-                            }
 
-                            val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
-                            if (size.width > 0f && size.height > 0f) {
-                                effective.forEach { balloon ->
-                                    BalloonText(
-                                        balloon = balloon,
-                                        canvasSize = size,
-                                        editable = editMode,
-                                        autoSize = autoTextSize,
-                                        onTextChange = { newText ->
-                                            val current = live?.takeIf { it.id == balloon.id } ?: balloon
-                                            val updated = current.copy(text = newText)
-                                            if (selectedBalloonId == balloon.id) live = updated
-                                            onCommitBalloon(updated)
-                                        },
-                                        onFocused = { onSelectBalloon(balloon.id) },
-                                    )
+                                val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
+                                if (size.width > 0f && size.height > 0f) {
+                                    effective.forEach { balloon ->
+                                        val panel = panels.panelAt(balloon.centerX, balloon.centerY)
+                                        val bounds = panel?.pixelBounds(size)
+                                        Box(
+                                            modifier = if (bounds == null) {
+                                                Modifier.matchParentSize()
+                                            } else {
+                                                Modifier
+                                                    .offset { IntOffset(bounds.left.roundToInt(), bounds.top.roundToInt()) }
+                                                    .size(
+                                                        with(LocalDensity.current) { bounds.width.toDp() },
+                                                        with(LocalDensity.current) { bounds.height.toDp() },
+                                                    )
+                                                    .clipToBounds()
+                                            },
+                                        ) {
+                                            BalloonText(
+                                                balloon = balloon,
+                                                canvasSize = size,
+                                                origin = bounds?.topLeft ?: Offset.Zero,
+                                                editable = editMode,
+                                                autoSize = autoTextSize,
+                                                onTextChange = { newText ->
+                                                    val current = live?.takeIf { it.id == balloon.id } ?: balloon
+                                                    val updated = current.copy(text = newText)
+                                                    if (selectedBalloonId == balloon.id) live = updated
+                                                    onCommitBalloon(updated)
+                                                },
+                                                onFocused = { onSelectBalloon(balloon.id) },
+                                            )
+                                        }
+                                    }
                                 }
 
                                 if (editMode) {
@@ -1040,7 +1065,6 @@ private fun Editor(
                                         )
                                     }
                                 }
-                            }
                             }
                             }
                         }
@@ -1288,14 +1312,15 @@ private fun ComicFieldLabel(text: String) {
 private fun BalloonText(
     balloon: Balloon,
     canvasSize: Size,
+    origin: Offset,
     editable: Boolean,
     autoSize: Boolean,
     onTextChange: (String) -> Unit,
     onFocused: () -> Unit,
 ) {
     val density = LocalDensity.current
-    val left = balloon.centerX * canvasSize.width - balloon.width * canvasSize.width / 2f
-    val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f
+    val left = balloon.centerX * canvasSize.width - balloon.width * canvasSize.width / 2f - origin.x
+    val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f - origin.y
     val widthDp = with(density) { (balloon.width * canvasSize.width).toDp() }
     val heightDp = with(density) { (balloon.height * canvasSize.height).toDp() }
     val innerPadding = when (balloon.type) {
@@ -1674,6 +1699,7 @@ private suspend fun exportComic(
     outUri: Uri,
     imageUri: String,
     balloons: List<Balloon>,
+    panels: List<RectFraction>,
     displayedWidth: Int,
     autoTextSize: Boolean,
     textMeasurer: TextMeasurer,
@@ -1689,8 +1715,16 @@ private suspend fun exportComic(
     val size = Size(width.toFloat(), height.toFloat())
     CanvasDrawScope().draw(density, LayoutDirection.Ltr, canvas, size) {
         drawImage(source)
-        balloons.forEach { drawBalloon(it, size, bodyColor = Color.White, outlineColor = Color.Black) }
-        balloons.forEach { drawExportText(it, size, textMeasurer, scale, autoTextSize) }
+        balloons.forEach { balloon ->
+            clipToPanel(panels.panelAt(balloon.centerX, balloon.centerY), size) {
+                drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
+            }
+        }
+        balloons.forEach { balloon ->
+            clipToPanel(panels.panelAt(balloon.centerX, balloon.centerY), size) {
+                drawExportText(balloon, size, textMeasurer, scale, autoTextSize)
+            }
+        }
     }
     return withContext(Dispatchers.IO) {
         runCatching {
@@ -1700,6 +1734,22 @@ private suspend fun exportComic(
             true
         }.getOrDefault(false)
     }
+}
+
+internal fun RectFraction.pixelBounds(canvasSize: Size): Rect = Rect(
+    left = left * canvasSize.width,
+    top = top * canvasSize.height,
+    right = (left + width) * canvasSize.width,
+    bottom = (top + height) * canvasSize.height,
+)
+
+private fun DrawScope.clipToPanel(panel: RectFraction?, canvasSize: Size, draw: DrawScope.() -> Unit) {
+    if (panel == null) {
+        draw()
+        return
+    }
+    val bounds = panel.pixelBounds(canvasSize)
+    clipRect(bounds.left, bounds.top, bounds.right, bounds.bottom, block = draw)
 }
 
 private fun DrawScope.drawExportText(

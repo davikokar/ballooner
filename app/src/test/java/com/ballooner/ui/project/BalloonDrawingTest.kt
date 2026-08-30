@@ -4,11 +4,26 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.RectFraction
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BalloonDrawingTest {
+
+    @Test
+    fun `panel bounds scale to canvas pixels`() {
+        val canvas = Size(1000f, 800f)
+        val panel = RectFraction(left = 0.25f, top = 0.1f, width = 0.5f, height = 0.4f)
+
+        val bounds = panel.pixelBounds(canvas)
+
+        assertEquals(250f, bounds.left, 0.001f)
+        assertEquals(80f, bounds.top, 0.001f)
+        assertEquals(750f, bounds.right, 0.001f)
+        assertEquals(400f, bounds.bottom, 0.001f)
+    }
 
     @Test
     fun `containsPoint treats a caption as a rectangle, including its corners`() {
