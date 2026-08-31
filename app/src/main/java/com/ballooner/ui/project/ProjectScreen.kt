@@ -12,10 +12,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -90,7 +86,6 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -227,8 +222,7 @@ fun ProjectScreen(
     val onSave = { saveLauncher.launch("${projectName.ifBlank { "comic" }}.png") }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
-    // View-only transform: a 90° rotate button, hoisted here so it can live in the toolbar
-    // while the reset affordance stays next to the pinch-zoom/pan it also resets.
+    // View-only rotation is hoisted so the toolbar and reset affordance share the same state.
     var rotation by remember { mutableStateOf(0f) }
     // A freshly created project jumps straight to image selection.
     LaunchedEffect(Unit) {
@@ -815,9 +809,6 @@ private fun Editor(
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     // Available area for the image, used to refit it after a 90° rotation.
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    // View-only transform: pinch to zoom / pan; rotation is hoisted to the caller.
-    var zoom by remember { mutableStateOf(1f) }
-    var pan by remember { mutableStateOf(Offset.Zero) }
     var selectedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var moveTarget by remember { mutableStateOf<ImagePlacement?>(null) }
@@ -826,10 +817,6 @@ private fun Editor(
         selectedPanel = null
         moveHandleOffset = Offset.Zero
         moveTarget = null
-    }
-    LaunchedEffect(imageUri) {
-        zoom = 1f
-        pan = Offset.Zero
     }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -903,25 +890,9 @@ private fun Editor(
                                     // No outer border here: each stored image already has its own
                                     // border baked in (see AppImageStore), so a group-level border
                                     // isn't drawn around composited panels.
-                                    // Two-finger pinch zooms / pans; single finger stays for balloons.
-                                    .pointerInput(Unit) {
-                                        awaitEachGesture {
-                                            awaitFirstDown(requireUnconsumed = false)
-                                            do {
-                                                val event = awaitPointerEvent()
-                                                if (event.changes.count { it.pressed } >= 2) {
-                                                    zoom = (zoom * event.calculateZoom()).coerceIn(1f, 6f)
-                                                    pan += event.calculatePan()
-                                                    event.changes.forEach { if (it.positionChanged()) it.consume() }
-                                                }
-                                            } while (event.changes.any { it.pressed })
-                                        }
-                                    }
                                     .graphicsLayer {
-                                        scaleX = zoom * fitScale
-                                        scaleY = zoom * fitScale
-                                        translationX = pan.x
-                                        translationY = pan.y
+                                        scaleX = fitScale
+                                        scaleY = fitScale
                                         rotationZ = rotation
                                     },
                             ) {
@@ -1003,7 +974,7 @@ private fun Editor(
                                         Handles(
                                             balloon = sel,
                                             canvasSize = size,
-                                            contentScale = zoom * fitScale,
+                                            contentScale = fitScale,
                                             base = { live ?: sel },
                                             onLiveChange = { live = it },
                                             onCommit = { live?.let(onCommitBalloon) },
@@ -1038,7 +1009,7 @@ private fun Editor(
                                                 (pending.left + pending.width / 2f) * size.width,
                                                 pending.top * size.height,
                                             ) + moveHandleOffset,
-                                            contentScale = zoom * fitScale,
+                                            contentScale = fitScale,
                                             onDrag = { delta ->
                                                 moveHandleOffset += delta
                                                 val center = Offset(
@@ -1064,7 +1035,7 @@ private fun Editor(
                                                 (pending.left + pending.width) * size.width,
                                                 pending.top * size.height,
                                             ),
-                                            contentScale = zoom * fitScale,
+                                            contentScale = fitScale,
                                             onTap = { showConfirmDeleteImage = true },
                                         )
                                     }
@@ -1115,14 +1086,10 @@ private fun Editor(
                     )
                 }
             }
-            if (imageState is ImageResult.Loaded && (zoom != 1f || pan != Offset.Zero || rotation != 0f)) {
+            if (imageState is ImageResult.Loaded && rotation != 0f) {
                 ComicButton(
                     text = "Reset",
-                    onClick = {
-                        zoom = 1f
-                        pan = Offset.Zero
-                        onRotationChange(0f)
-                    },
+                    onClick = { onRotationChange(0f) },
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp),

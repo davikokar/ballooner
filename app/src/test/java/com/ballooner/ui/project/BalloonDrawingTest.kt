@@ -26,7 +26,7 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `control scale cancels the editor content zoom`() {
+    fun `control scale cancels rotation fitting scale`() {
         assertEquals(0.25f, fixedControlScale(contentScale = 4f), 0.001f)
         assertEquals(1f, fixedControlScale(contentScale = 0f), 0.001f)
     }
