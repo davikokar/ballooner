@@ -107,6 +107,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -858,6 +859,7 @@ private fun Editor(
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var moveTarget by remember { mutableStateOf<ImagePlacement?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
+    var comicKitExpanded by remember { mutableStateOf(true) }
     LaunchedEffect(panels) {
         moveHandleOffset = Offset.Zero
         moveTarget = null
@@ -1145,8 +1147,9 @@ private fun Editor(
                     }
                 }
                 if (editMode && imageState is ImageResult.Loaded) {
-                    Spacer(modifier = Modifier.height(16.dp))
                     ComicKit(
+                        expanded = comicKitExpanded,
+                        onToggleExpanded = { comicKitExpanded = !comicKitExpanded },
                         selected = selected,
                         hideFontSelector = hideFontSelector,
                         autoTextSize = autoTextSize,
@@ -1266,16 +1269,11 @@ private fun FocusNavigation(
                 ImagePosition.TOP -> Icons.Default.KeyboardArrowUp
                 ImagePosition.BOTTOM -> Icons.Default.KeyboardArrowDown
             }
-            val edgeOffset = when (position) {
-                ImagePosition.LEFT -> IntOffset(-15, 0)
-                ImagePosition.RIGHT -> IntOffset(15, 0)
-                ImagePosition.TOP -> IntOffset(0, -15)
-                ImagePosition.BOTTOM -> IntOffset(0, 15)
-            }
+            val edgeOffset = focusNavigationOffset(position)
             Box(
                 modifier = Modifier
                     .align(alignment)
-                    .offset { edgeOffset }
+                    .offset(x = edgeOffset.x, y = edgeOffset.y)
                     .size(30.dp)
                     .background(Color(0xFFFFD21F), CircleShape)
                     .border(2.dp, InkBlack, CircleShape)
@@ -1295,6 +1293,13 @@ private fun FocusNavigation(
     }
 }
 
+internal fun focusNavigationOffset(position: ImagePosition): DpOffset = when (position) {
+    ImagePosition.LEFT -> DpOffset((-15).dp, 0.dp)
+    ImagePosition.RIGHT -> DpOffset(15.dp, 0.dp)
+    ImagePosition.TOP -> DpOffset(0.dp, (-15).dp)
+    ImagePosition.BOTTOM -> DpOffset(0.dp, 15.dp)
+}
+
 private fun RectFraction.dropPosition(x: Float, y: Float): ImagePosition {
     val horizontal = (x - (left + width / 2f)) / width
     val vertical = (y - (top + height / 2f)) / height
@@ -1308,6 +1313,8 @@ private fun RectFraction.dropPosition(x: Float, y: Float): ImagePosition {
 /** The bottom "comic kit" panel: balloon types plus the currently selected balloon's controls. */
 @Composable
 private fun ComicKit(
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
     selected: Balloon?,
     hideFontSelector: Boolean,
     autoTextSize: Boolean,
@@ -1320,29 +1327,51 @@ private fun ComicKit(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary)
-            .padding(vertical = 12.dp),
+            .padding(bottom = if (expanded) 12.dp else 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                BalloonType.entries.forEach { type ->
-                    BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
+        Box(
+            modifier = Modifier
+                .offset(y = (-12).dp)
+                .size(width = 52.dp, height = 28.dp)
+                .background(Color(0xFFFFD21F), RoundedCornerShape(8.dp))
+                .border(3.dp, InkBlack, RoundedCornerShape(8.dp))
+                .clickable(
+                    onClickLabel = if (expanded) "Collapse balloon tools" else "Expand balloon tools",
+                    onClick = onToggleExpanded,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                contentDescription = if (expanded) "Collapse balloon tools" else "Expand balloon tools",
+                tint = InkBlack,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        if (expanded) {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    BalloonType.entries.forEach { type ->
+                        BalloonTypeButton(type = type, onClick = { onAddBalloon(type) })
+                    }
                 }
             }
-        }
-        if (selected != null && (!hideFontSelector || !autoTextSize)) {
-            Spacer(modifier = Modifier.height(12.dp))
-            TextControls(
-                font = selected.font,
-                fontSize = selected.fontSize,
-                showFontSelector = !hideFontSelector,
-                showSizeSlider = !autoTextSize,
-                onFontChange = onFontChange,
-                onSizeChange = onSizeChange,
-                onSizeChangeFinished = onSizeChangeFinished,
-            )
+            if (selected != null && (!hideFontSelector || !autoTextSize)) {
+                Spacer(modifier = Modifier.height(12.dp))
+                TextControls(
+                    font = selected.font,
+                    fontSize = selected.fontSize,
+                    showFontSelector = !hideFontSelector,
+                    showSizeSlider = !autoTextSize,
+                    onFontChange = onFontChange,
+                    onSizeChange = onSizeChange,
+                    onSizeChangeFinished = onSizeChangeFinished,
+                )
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package com.ballooner.ui.project
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.dp
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePosition
@@ -75,6 +76,14 @@ class BalloonDrawingTest {
         assertEquals(bottomLeft, adjacent[ImagePosition.BOTTOM])
         assertFalse(ImagePosition.LEFT in adjacent)
         assertFalse(ImagePosition.TOP in adjacent)
+    }
+
+    @Test
+    fun `focus navigation offsets center arrows on image edges`() {
+        assertEquals((-15).dp, focusNavigationOffset(ImagePosition.LEFT).x)
+        assertEquals(15.dp, focusNavigationOffset(ImagePosition.RIGHT).x)
+        assertEquals((-15).dp, focusNavigationOffset(ImagePosition.TOP).y)
+        assertEquals(15.dp, focusNavigationOffset(ImagePosition.BOTTOM).y)
     }
 
     @Test
