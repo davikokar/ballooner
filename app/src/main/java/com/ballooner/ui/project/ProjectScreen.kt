@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -915,8 +916,7 @@ private fun Editor(
                         val viewportAspect = image.width * viewport.width / (image.height * viewport.height)
                         val fitWidth = minOf(availableWidth, (availableHeight - shapeSliderSpace) * viewportAspect)
                         val fitHeight = fitWidth / viewportAspect
-                        val contentWidth = fitWidth / viewport.width
-                        val contentHeight = fitHeight / viewport.height
+                        val focusLayout = focusedPanel?.focusLayout(fitWidth.value, fitHeight.value)
                         Box(
                             modifier = Modifier
                                 .size(fitWidth, fitHeight)
@@ -925,10 +925,13 @@ private fun Editor(
                             Box(
                                 modifier = Modifier
                                     .offset(
-                                        x = -contentWidth * viewport.left,
-                                        y = -contentHeight * viewport.top,
+                                        x = (focusLayout?.offsetX ?: 0f).dp,
+                                        y = (focusLayout?.offsetY ?: 0f).dp,
                                     )
-                                    .size(contentWidth, contentHeight)
+                                    .requiredSize(
+                                        width = (focusLayout?.contentWidth ?: fitWidth.value).dp,
+                                        height = (focusLayout?.contentHeight ?: fitHeight.value).dp,
+                                    )
                                     // No outer border here: each stored image already has its own
                                     // border baked in (see AppImageStore), so a group-level border
                                     // isn't drawn around composited panels.
@@ -1166,6 +1169,24 @@ internal fun imageFocusTarget(
     selectedPanel: RectFraction?,
     focusedPanel: RectFraction?,
 ): RectFraction? = if (focusedPanel == null) selectedPanel ?: panels.firstOrNull() else null
+
+internal data class FocusLayout(
+    val contentWidth: Float,
+    val contentHeight: Float,
+    val offsetX: Float,
+    val offsetY: Float,
+)
+
+internal fun RectFraction.focusLayout(viewportWidth: Float, viewportHeight: Float): FocusLayout {
+    val contentWidth = viewportWidth / width
+    val contentHeight = viewportHeight / height
+    return FocusLayout(
+        contentWidth = contentWidth,
+        contentHeight = contentHeight,
+        offsetX = -left * contentWidth,
+        offsetY = -top * contentHeight,
+    )
+}
 
 private fun RectFraction.dropPosition(x: Float, y: Float): ImagePosition {
     val horizontal = (x - (left + width / 2f)) / width

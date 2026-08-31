@@ -49,6 +49,20 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `focused panel maps exactly onto the viewport`() {
+        val panel = RectFraction(left = 0.5f, top = 0.25f, width = 0.25f, height = 0.5f)
+
+        val layout = panel.focusLayout(viewportWidth = 400f, viewportHeight = 600f)
+
+        assertEquals(1600f, layout.contentWidth, 0.001f)
+        assertEquals(1200f, layout.contentHeight, 0.001f)
+        assertEquals(0f, layout.offsetX + panel.left * layout.contentWidth, 0.001f)
+        assertEquals(0f, layout.offsetY + panel.top * layout.contentHeight, 0.001f)
+        assertEquals(400f, layout.offsetX + (panel.left + panel.width) * layout.contentWidth, 0.001f)
+        assertEquals(600f, layout.offsetY + (panel.top + panel.height) * layout.contentHeight, 0.001f)
+    }
+
+    @Test
     fun `containsPoint treats a caption as a rectangle, including its corners`() {
         val canvas = Size(1000f, 800f)
         val balloon = Balloon(id = 1, type = BalloonType.CAPTION, width = 0.4f, height = 0.2f)
