@@ -173,7 +173,7 @@ fun ProjectScreen(
     onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
     onAddImage: (String, ImagePlacement) -> Unit,
-    onAddBalloon: (BalloonType) -> Unit,
+    onAddBalloon: (BalloonType, RectFraction?) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
@@ -322,7 +322,9 @@ fun ProjectScreen(
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
-                        onAddBalloon = onAddBalloon,
+                        onAddBalloon = { type ->
+                            onAddBalloon(type, focusedPanel ?: selectedPanel ?: uiState.panels.firstOrNull())
+                        },
                         onOpenImagePicker = { launchPicker(false) },
                         onLayerWidth = { displayedWidth = it },
                         panels = uiState.panels,
@@ -987,7 +989,7 @@ private fun Editor(
                                 Canvas(modifier = Modifier.matchParentSize()) {
                                     drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
                                     effective.forEach { balloon ->
-                                        val panel = panels.panelAt(balloon.centerX, balloon.centerY)
+                                        val panel = panels.ownerPanel(balloon.centerX, balloon.centerY)
                                         clipToPanel(panel, size) {
                                             drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
                                         }
@@ -997,7 +999,7 @@ private fun Editor(
                                 val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
                                 if (size.width > 0f && size.height > 0f) {
                                     effective.forEach { balloon ->
-                                        val panel = panels.panelAt(balloon.centerX, balloon.centerY)
+                                        val panel = panels.ownerPanel(balloon.centerX, balloon.centerY)
                                         val bounds = panel?.balloonClipBounds(size)
                                         Box(
                                             modifier = if (bounds == null) {
@@ -1031,17 +1033,6 @@ private fun Editor(
                                 }
 
                                 if (editMode) {
-                                    selected?.let { sel ->
-                                        Handles(
-                                            balloon = sel,
-                                            canvasSize = size,
-                                            contentScale = fitScale,
-                                            base = { live ?: sel },
-                                            onLiveChange = { live = it },
-                                            onCommit = { live?.let(onCommitBalloon) },
-                                            onDelete = onDeleteSelected,
-                                        )
-                                    }
                                     val moveHighlightColor = MaterialTheme.colorScheme.tertiary
                                     moveTarget?.let { placement ->
                                         val target = placement.anchor
@@ -1103,6 +1094,40 @@ private fun Editor(
                                 }
                             }
                             }
+                            }
+                            if (editMode && selected != null && layerSize.width > 0 && layerSize.height > 0) {
+                                val handleCanvasSize = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
+                                Box(
+                                    modifier = Modifier
+                                        .wrapContentSize(align = Alignment.TopStart, unbounded = true)
+                                        .offset(
+                                            x = (focusLayout?.offsetX ?: 0f).dp,
+                                            y = (focusLayout?.offsetY ?: 0f).dp,
+                                        )
+                                        .requiredSize(
+                                            width = (focusLayout?.contentWidth ?: fitWidth.value).dp,
+                                            height = (focusLayout?.contentHeight ?: fitHeight.value).dp,
+                                        )
+                                        .graphicsLayer {
+                                            scaleX = fitScale
+                                            scaleY = fitScale
+                                            rotationZ = rotation
+                                        },
+                                ) {
+                                    val ownerBounds = panels
+                                        .ownerPanel(selected.centerX, selected.centerY)
+                                        ?.panelBounds(handleCanvasSize)
+                                    Handles(
+                                        balloon = selected,
+                                        canvasSize = handleCanvasSize,
+                                        imageBounds = ownerBounds,
+                                        contentScale = fitScale,
+                                        base = { live ?: selected },
+                                        onLiveChange = { live = it },
+                                        onCommit = { live?.let(onCommitBalloon) },
+                                        onDelete = onDeleteSelected,
+                                    )
+                                }
                             }
                             if (focusedPanel != null) {
                                 FocusNavigation(
@@ -1205,6 +1230,13 @@ internal fun imageFocusTarget(
     selectedPanel: RectFraction?,
     focusedPanel: RectFraction?,
 ): RectFraction? = if (focusedPanel == null) selectedPanel ?: panels.firstOrNull() else null
+
+internal fun List<RectFraction>.ownerPanel(x: Float, y: Float): RectFraction? =
+    panelAt(x, y) ?: minByOrNull { panel ->
+        val dx = x - (panel.left + panel.width / 2f)
+        val dy = y - (panel.top + panel.height / 2f)
+        dx * dx + dy * dy
+    }
 
 internal data class FocusLayout(
     val contentWidth: Float,
@@ -1608,6 +1640,7 @@ private const val AUTO_MAX_FONT_SIZE = 96f
 private fun Handles(
     balloon: Balloon,
     canvasSize: Size,
+    imageBounds: Rect?,
     contentScale: Float,
     base: () -> Balloon,
     onLiveChange: (Balloon) -> Unit,
@@ -1622,12 +1655,14 @@ private fun Handles(
     val selectionColor = MaterialTheme.colorScheme.primary
 
     // Move handle (top-center).
+    val moveHandleCenter = Offset(center.x, center.y - halfY)
     DragHandle(
-        centerPx = Offset(center.x, center.y - halfY),
+        centerPx = visibleHandleCenter(moveHandleCenter, imageBounds),
         sizeDp = 26.dp,
         color = selectionColor,
         shape = RoundedCornerShape(6.dp),
         keyId = balloon.id,
+        alpha = handleAlpha(moveHandleCenter, imageBounds),
         contentScale = contentScale,
         onDrag = { d ->
             val b = base()
@@ -1645,11 +1680,12 @@ private fun Handles(
     )
     corners.forEach { corner ->
         DragHandle(
-            centerPx = corner.pos,
+            centerPx = visibleHandleCenter(corner.pos, imageBounds),
             sizeDp = 22.dp,
             color = Color(0xFFE8325A),
             shape = CircleShape,
             keyId = balloon.id,
+            alpha = handleAlpha(corner.pos, imageBounds),
             contentScale = contentScale,
             onDrag = { d ->
                 val b = base()
@@ -1670,12 +1706,14 @@ private fun Handles(
 
     // Tail handle (drag the tip to set both direction and length). Captions have no tail.
     if (balloon.type != BalloonType.CAPTION) {
+        val tailTip = balloon.tailTip(canvasSize)
         DragHandle(
-            centerPx = balloon.tailTip(canvasSize),
+            centerPx = visibleHandleCenter(tailTip, imageBounds),
             sizeDp = 28.dp,
             color = Color(0xFF00C9B1),
             shape = CircleShape,
             keyId = balloon.id,
+            alpha = handleAlpha(tailTip, imageBounds),
             contentScale = contentScale,
             onDrag = { d ->
                 val b = base()
@@ -1689,12 +1727,14 @@ private fun Handles(
     // Tail-width handle (drag sideways to set the tail thickness). Not for Think,
     // whose tail is made of bubbles, or Caption, which has no tail.
     if (balloon.type != BalloonType.THINK && balloon.type != BalloonType.CAPTION) {
+        val tailBaseHandle = balloon.tailBaseHandle(canvasSize)
         DragHandle(
-            centerPx = balloon.tailBaseHandle(canvasSize),
+            centerPx = visibleHandleCenter(tailBaseHandle, imageBounds),
             sizeDp = 24.dp,
             color = Color(0xFF2ECC71),
             shape = CircleShape,
             keyId = balloon.id,
+            alpha = handleAlpha(tailBaseHandle, imageBounds),
             contentScale = contentScale,
             onDrag = { d ->
                 val b = base()
@@ -1706,10 +1746,12 @@ private fun Handles(
     }
 
     // Delete handle (top-right).
+    val deleteHandleCenter = Offset(center.x + halfX, center.y - halfY)
     TapHandle(
-        centerPx = Offset(center.x + halfX, center.y - halfY),
+        centerPx = visibleHandleCenter(deleteHandleCenter, imageBounds),
         sizeDp = 26.dp,
         color = Color(0xFFE8325A),
+        alpha = handleAlpha(deleteHandleCenter, imageBounds),
         contentScale = contentScale,
         onTap = onDelete,
     ) {
@@ -1794,6 +1836,7 @@ private fun DragHandle(
     color: Color,
     shape: Shape,
     keyId: Long,
+    alpha: Float,
     contentScale: Float,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
@@ -1805,6 +1848,7 @@ private fun DragHandle(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
             .size(sizeDp)
+            .alpha(alpha)
             .graphicsLayer {
                 scaleX = fixedControlScale(contentScale)
                 scaleY = fixedControlScale(contentScale)
@@ -1829,6 +1873,7 @@ private fun TapHandle(
     centerPx: Offset,
     sizeDp: Dp,
     color: Color,
+    alpha: Float,
     contentScale: Float,
     onTap: () -> Unit,
     content: @Composable () -> Unit,
@@ -1839,6 +1884,7 @@ private fun TapHandle(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
             .size(sizeDp)
+            .alpha(alpha)
             .graphicsLayer {
                 scaleX = fixedControlScale(contentScale)
                 scaleY = fixedControlScale(contentScale)
@@ -1852,6 +1898,17 @@ private fun TapHandle(
 
 internal fun fixedControlScale(contentScale: Float): Float =
     if (contentScale > 0f) 1f / contentScale else 1f
+
+internal fun handleAlpha(center: Offset, imageBounds: Rect?): Float =
+    if (imageBounds == null || imageBounds.contains(center)) 1f else 0.55f
+
+internal fun visibleHandleCenter(center: Offset, imageBounds: Rect?): Offset =
+    imageBounds?.let { bounds ->
+        Offset(
+            x = center.x.coerceIn(bounds.left, bounds.right),
+            y = center.y.coerceIn(bounds.top, bounds.bottom),
+        )
+    } ?: center
 
 private fun BalloonType.label(): String = when (this) {
     BalloonType.SPEAK -> "Speak"
@@ -1960,6 +2017,13 @@ internal fun RectFraction.balloonClipBounds(canvasSize: Size): Rect {
     )
 }
 
+internal fun RectFraction.panelBounds(canvasSize: Size): Rect = Rect(
+    left = left * canvasSize.width,
+    top = top * canvasSize.height,
+    right = (left + width) * canvasSize.width,
+    bottom = (top + height) * canvasSize.height,
+)
+
 private fun DrawScope.clipToPanel(panel: RectFraction?, canvasSize: Size, draw: DrawScope.() -> Unit) {
     if (panel == null) {
         draw()
@@ -2014,7 +2078,7 @@ private fun ProjectScreenNoImagePreview() {
         onRenameProject = {},
         onImagePicked = {},
         onAddImage = { _, _ -> },
-        onAddBalloon = {},
+        onAddBalloon = { _, _ -> },
         onSelectBalloon = {},
         onCommitBalloon = {},
         onDeleteSelected = {},

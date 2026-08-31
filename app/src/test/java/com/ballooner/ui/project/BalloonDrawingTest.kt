@@ -87,6 +87,24 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `handles outside their image are dimmed but remain visible`() {
+        val imageBounds = androidx.compose.ui.geometry.Rect(100f, 100f, 300f, 300f)
+
+        assertEquals(1f, handleAlpha(Offset(200f, 200f), imageBounds), 0.001f)
+        assertEquals(0.55f, handleAlpha(Offset(80f, 200f), imageBounds), 0.001f)
+        assertEquals(Offset(100f, 200f), visibleHandleCenter(Offset(80f, 200f), imageBounds))
+    }
+
+    @Test
+    fun `balloon outside all images keeps the nearest image as owner`() {
+        val left = RectFraction(0f, 0f, 0.45f, 1f)
+        val right = RectFraction(0.55f, 0f, 0.45f, 1f)
+
+        assertEquals(left, listOf(left, right).ownerPanel(x = -0.2f, y = 0.5f))
+        assertEquals(right, listOf(left, right).ownerPanel(x = 1.2f, y = 0.5f))
+    }
+
+    @Test
     fun `containsPoint treats a caption as a rectangle, including its corners`() {
         val canvas = Size(1000f, 800f)
         val balloon = Balloon(id = 1, type = BalloonType.CAPTION, width = 0.4f, height = 0.2f)

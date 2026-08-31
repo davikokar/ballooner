@@ -231,13 +231,19 @@ class ProjectViewModel @Inject constructor(
         }
     }
 
-    fun addBalloon(type: BalloonType) {
+    fun addBalloon(type: BalloonType, targetPanel: RectFraction? = null) {
         viewModelScope.launch {
-            val balloon = if (type == BalloonType.CAPTION) {
+            val initial = if (type == BalloonType.CAPTION) {
                 Balloon(id = 0, type = type, font = settings.value.defaultFont, tailLength = 0f, cornerRoundness = 0f)
             } else {
                 Balloon(id = 0, type = type, font = settings.value.defaultFont)
             }
+            val balloon = targetPanel?.let { panel ->
+                initial.copy(
+                    centerX = panel.left + panel.width / 2f,
+                    centerY = panel.top + panel.height / 2f,
+                )
+            } ?: initial
             val id = balloonRepository.upsertBalloon(projectId, balloon)
             selectedBalloonId.value = id
         }

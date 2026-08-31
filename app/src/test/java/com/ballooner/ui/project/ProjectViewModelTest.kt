@@ -370,6 +370,22 @@ class ProjectViewModelTest {
     }
 
     @Test
+    fun `adds a balloon at the center of the target image`() = runTest {
+        val viewModel = viewModel()
+        val target = RectFraction(left = 0.5f, top = 0.25f, width = 0.25f, height = 0.5f)
+
+        viewModel.uiState.test {
+            viewModel.addBalloon(BalloonType.SPEAK, target)
+            advanceUntilIdle()
+
+            val balloon = expectMostRecentItem().balloons.single()
+            assertEquals(0.625f, balloon.centerX, 0.0001f)
+            assertEquals(0.5f, balloon.centerY, 0.0001f)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
     fun `adds a caption with no tail and square corners`() = runTest {
         val viewModel = viewModel()
 
