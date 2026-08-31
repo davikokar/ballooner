@@ -330,7 +330,7 @@ fun ProjectScreen(
                         focusedPanel = focusedPanel,
                         onFocusPanel = {
                             focusedPanel = it
-                            selectedPanel = it
+                            selectedPanel = null
                         },
                         onDeleteImage = onDeleteImage,
                         onMoveImage = onMoveImage,
@@ -928,10 +928,13 @@ private fun Editor(
                         val fitHeight = fitWidth / viewportAspect
                         val focusLayout = focusedPanel?.focusLayout(fitWidth.value, fitHeight.value)
                         Box(
-                            modifier = Modifier
-                                .size(fitWidth, fitHeight)
-                                .then(if (focusedPanel != null) Modifier.clipToBounds() else Modifier),
+                            modifier = Modifier.size(fitWidth, fitHeight),
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .then(if (focusedPanel != null) Modifier.clipToBounds() else Modifier),
+                            ) {
                             Box(
                                 modifier = Modifier
                                     .wrapContentSize(align = Alignment.TopStart, unbounded = true)
@@ -1059,7 +1062,7 @@ private fun Editor(
                                             )
                                         }
                                     }
-                                    selectedPanel?.let { pending ->
+                                    selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
                                         ImageMoveHandle(
                                             centerPx = Offset(
                                                 (pending.left + pending.width / 2f) * size.width,
@@ -1098,12 +1101,24 @@ private fun Editor(
                                 }
                             }
                             }
+                            }
                             if (focusedPanel != null) {
                                 FocusNavigation(
                                     adjacentPanels = adjacentPanels(panels, focusedPanel),
                                     onFocusPanel = onFocusPanel,
                                     modifier = Modifier.matchParentSize(),
                                 )
+                                if (selectedPanel == focusedPanel) {
+                                    val density = LocalDensity.current
+                                    ImageDeleteHandle(
+                                        centerPx = Offset(
+                                            with(density) { fitWidth.toPx() },
+                                            0f,
+                                        ),
+                                        contentScale = 1f,
+                                        onTap = { showConfirmDeleteImage = true },
+                                    )
+                                }
                             }
                         }
                         if (showShapeSlider) {
@@ -1251,13 +1266,19 @@ private fun FocusNavigation(
                 ImagePosition.TOP -> Icons.Default.KeyboardArrowUp
                 ImagePosition.BOTTOM -> Icons.Default.KeyboardArrowDown
             }
+            val edgeOffset = when (position) {
+                ImagePosition.LEFT -> IntOffset(-15, 0)
+                ImagePosition.RIGHT -> IntOffset(15, 0)
+                ImagePosition.TOP -> IntOffset(0, -15)
+                ImagePosition.BOTTOM -> IntOffset(0, 15)
+            }
             Box(
                 modifier = Modifier
                     .align(alignment)
-                    .padding(8.dp)
-                    .size(38.dp)
+                    .offset { edgeOffset }
+                    .size(30.dp)
                     .background(Color(0xFFFFD21F), CircleShape)
-                    .border(3.dp, InkBlack, CircleShape)
+                    .border(2.dp, InkBlack, CircleShape)
                     .clickable(onClickLabel = "Show image ${position.name.lowercase()}") {
                         onFocusPanel(panel)
                     },
@@ -1267,7 +1288,7 @@ private fun FocusNavigation(
                     imageVector = icon,
                     contentDescription = "Show image ${position.name.lowercase()}",
                     tint = InkBlack,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
