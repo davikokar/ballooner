@@ -65,6 +65,29 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `quarter turn swaps focused panel layout dimensions`() {
+        val panel = RectFraction(left = 0.5f, top = 0f, width = 0.25f, height = 1f)
+
+        val layout = panel.focusLayout(viewportWidth = 600f, viewportHeight = 300f, quarterTurned = true)
+
+        assertEquals(1200f, layout.contentWidth, 0.001f)
+        assertEquals(600f, layout.contentHeight, 0.001f)
+        assertEquals(300f, layout.offsetX + (panel.left + panel.width / 2f) * layout.contentWidth, 0.001f)
+        assertEquals(150f, layout.offsetY + (panel.top + panel.height / 2f) * layout.contentHeight, 0.001f)
+    }
+
+    @Test
+    fun `rotation targets the only focused or selected image`() {
+        val first = RectFraction(0f, 0f, 0.5f, 1f)
+        val second = RectFraction(0.5f, 0f, 0.5f, 1f)
+
+        assertEquals(first, rotationTarget(listOf(first), selectedPanel = null, focusedPanel = null))
+        assertNull(rotationTarget(listOf(first, second), selectedPanel = null, focusedPanel = null))
+        assertEquals(second, rotationTarget(listOf(first, second), selectedPanel = second, focusedPanel = null))
+        assertEquals(first, rotationTarget(listOf(first, second), selectedPanel = second, focusedPanel = first))
+    }
+
+    @Test
     fun `focused image navigation exposes only adjacent panels`() {
         val topLeft = RectFraction(0f, 0f, 0.5f, 0.5f)
         val topRight = RectFraction(0.5f, 0f, 0.5f, 0.5f)

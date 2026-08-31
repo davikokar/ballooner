@@ -84,6 +84,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
@@ -296,6 +297,7 @@ fun ProjectScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     Toolbar(
                         editMode = editMode,
+                        canRotate = rotationTarget(uiState.panels, selectedPanel, focusedPanel) != null,
                         canFocusImage = uiState.panels.size > 1,
                         imageFocused = focusedPanel != null,
                         onToggleImageFocus = {
@@ -303,8 +305,13 @@ fun ProjectScreen(
                             rotation = 0f
                         },
                         onRotate = {
-                            focusedPanel = null
-                            rotation = (rotation + 90f) % 360f
+                            rotationTarget(uiState.panels, selectedPanel, focusedPanel)?.let { target ->
+                                if (uiState.panels.size > 1) {
+                                    focusedPanel = target
+                                    selectedPanel = null
+                                }
+                                rotation = (rotation + 90f) % 360f
+                            }
                         },
                         onChangeImage = { launchPicker(true) },
                         onSave = onSave,
@@ -318,7 +325,6 @@ fun ProjectScreen(
                         hideFontSelector = uiState.hideFontSelector,
                         autoTextSize = uiState.autoTextSize,
                         rotation = rotation,
-                        onRotationChange = { rotation = it },
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
@@ -334,6 +340,7 @@ fun ProjectScreen(
                         onFocusPanel = {
                             focusedPanel = it
                             selectedPanel = null
+                            rotation = 0f
                         },
                         onDeleteImage = onDeleteImage,
                         onMoveImage = onMoveImage,
@@ -624,6 +631,7 @@ private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
 @Composable
 private fun Toolbar(
     editMode: Boolean,
+    canRotate: Boolean,
     canFocusImage: Boolean,
     imageFocused: Boolean,
     onToggleImageFocus: () -> Unit,
@@ -648,7 +656,13 @@ private fun Toolbar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ComicButton(text = "Rotate", onClick = onRotate, icon = BalloonerIcons.Rotate, showLabel = false)
+        ComicButton(
+            text = "Rotate",
+            onClick = onRotate,
+            icon = BalloonerIcons.Rotate,
+            showLabel = false,
+            enabled = canRotate,
+        )
         ComicButton(
             text = if (imageFocused) "Show all images" else "Focus image",
             onClick = onToggleImageFocus,
@@ -838,7 +852,6 @@ private fun Editor(
     hideFontSelector: Boolean,
     autoTextSize: Boolean,
     rotation: Float,
-    onRotationChange: (Float) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
@@ -856,8 +869,6 @@ private fun Editor(
 ) {
     val imageState = rememberImageState(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
-    // Available area for the image, used to refit it after a 90° rotation.
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var moveTarget by remember { mutableStateOf<ImagePlacement?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
@@ -887,7 +898,6 @@ private fun Editor(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .onSizeChanged { containerSize = it }
                         .padding(16.dp),
                 ) {
                     val availableWidth = maxWidth
@@ -907,19 +917,7 @@ private fun Editor(
                         }
                         is ImageResult.Loaded -> {
                         val image = state.bitmap
-                        // A quarter turn swaps width/height, so scale the layer to refill the space.
                         val quarterTurned = ((rotation / 90f).roundToInt() % 2) != 0
-                        val fitScale = if (
-                            quarterTurned && layerSize.width > 0 && layerSize.height > 0 &&
-                            containerSize.width > 0 && containerSize.height > 0
-                        ) {
-                            minOf(
-                                containerSize.width.toFloat() / layerSize.height,
-                                containerSize.height.toFloat() / layerSize.width,
-                            )
-                        } else {
-                            1f
-                        }
                         // Fit the frame within the available space (letterboxed) with an exact
                         // size, reserving room below for the shape slider so tall images never
                         // push it off-screen.
@@ -927,17 +925,26 @@ private fun Editor(
                             (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
                         val shapeSliderSpace = if (showShapeSlider) 8.dp + 24.dp else 0.dp
                         val viewport = focusedPanel ?: RectFraction(0f, 0f, 1f, 1f)
-                        val viewportAspect = image.width * viewport.width / (image.height * viewport.height)
+                        val unrotatedAspect = image.width * viewport.width / (image.height * viewport.height)
+                        val viewportAspect = if (quarterTurned) 1f / unrotatedAspect else unrotatedAspect
                         val fitWidth = minOf(availableWidth, (availableHeight - shapeSliderSpace) * viewportAspect)
                         val fitHeight = fitWidth / viewportAspect
-                        val focusLayout = focusedPanel?.focusLayout(fitWidth.value, fitHeight.value)
+                        val focusLayout = if (focusedPanel != null || rotation != 0f) {
+                            viewport.focusLayout(fitWidth.value, fitHeight.value, quarterTurned)
+                        } else {
+                            null
+                        }
+                        val rotationOrigin = TransformOrigin(
+                            pivotFractionX = viewport.left + viewport.width / 2f,
+                            pivotFractionY = viewport.top + viewport.height / 2f,
+                        )
                         Box(
                             modifier = Modifier.size(fitWidth, fitHeight),
                         ) {
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .then(if (focusedPanel != null) Modifier.clipToBounds() else Modifier),
+                                    .then(if (focusedPanel != null || rotation != 0f) Modifier.clipToBounds() else Modifier),
                             ) {
                             Box(
                                 modifier = Modifier
@@ -954,9 +961,8 @@ private fun Editor(
                                     // border baked in (see AppImageStore), so a group-level border
                                     // isn't drawn around composited panels.
                                     .graphicsLayer {
-                                        scaleX = fitScale
-                                        scaleY = fitScale
                                         rotationZ = rotation
+                                        transformOrigin = rotationOrigin
                                     },
                             ) {
                             Box(
@@ -1061,7 +1067,7 @@ private fun Editor(
                                                 (pending.left + pending.width / 2f) * size.width,
                                                 pending.top * size.height,
                                             ) + moveHandleOffset,
-                                            contentScale = fitScale,
+                                            contentScale = 1f,
                                             onDrag = { delta ->
                                                 moveHandleOffset += delta
                                                 val center = Offset(
@@ -1087,7 +1093,7 @@ private fun Editor(
                                                 (pending.left + pending.width) * size.width,
                                                 pending.top * size.height,
                                             ),
-                                            contentScale = fitScale,
+                                            contentScale = 1f,
                                             onTap = { showConfirmDeleteImage = true },
                                         )
                                     }
@@ -1109,9 +1115,8 @@ private fun Editor(
                                             height = (focusLayout?.contentHeight ?: fitHeight.value).dp,
                                         )
                                         .graphicsLayer {
-                                            scaleX = fitScale
-                                            scaleY = fitScale
                                             rotationZ = rotation
+                                            transformOrigin = rotationOrigin
                                         },
                                 ) {
                                     val ownerBounds = panels
@@ -1121,7 +1126,7 @@ private fun Editor(
                                         balloon = selected,
                                         canvasSize = handleCanvasSize,
                                         imageBounds = ownerBounds,
-                                        contentScale = fitScale,
+                                        contentScale = 1f,
                                         base = { live ?: selected },
                                         onLiveChange = { live = it },
                                         onCommit = { live?.let(onCommitBalloon) },
@@ -1192,16 +1197,6 @@ private fun Editor(
                     )
                 }
             }
-            if (imageState is ImageResult.Loaded && rotation != 0f) {
-                ComicButton(
-                    text = "Reset",
-                    onClick = { onRotationChange(0f) },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp),
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                )
-            }
         }
     }
     if (showConfirmDeleteImage) {
@@ -1231,6 +1226,12 @@ internal fun imageFocusTarget(
     focusedPanel: RectFraction?,
 ): RectFraction? = if (focusedPanel == null) selectedPanel ?: panels.firstOrNull() else null
 
+internal fun rotationTarget(
+    panels: List<RectFraction>,
+    selectedPanel: RectFraction?,
+    focusedPanel: RectFraction?,
+): RectFraction? = focusedPanel ?: selectedPanel ?: panels.singleOrNull()
+
 internal fun List<RectFraction>.ownerPanel(x: Float, y: Float): RectFraction? =
     panelAt(x, y) ?: minByOrNull { panel ->
         val dx = x - (panel.left + panel.width / 2f)
@@ -1245,14 +1246,18 @@ internal data class FocusLayout(
     val offsetY: Float,
 )
 
-internal fun RectFraction.focusLayout(viewportWidth: Float, viewportHeight: Float): FocusLayout {
-    val contentWidth = viewportWidth / width
-    val contentHeight = viewportHeight / height
+internal fun RectFraction.focusLayout(
+    viewportWidth: Float,
+    viewportHeight: Float,
+    quarterTurned: Boolean = false,
+): FocusLayout {
+    val contentWidth = (if (quarterTurned) viewportHeight else viewportWidth) / width
+    val contentHeight = (if (quarterTurned) viewportWidth else viewportHeight) / height
     return FocusLayout(
         contentWidth = contentWidth,
         contentHeight = contentHeight,
-        offsetX = -left * contentWidth,
-        offsetY = -top * contentHeight,
+        offsetX = viewportWidth / 2f - (left + width / 2f) * contentWidth,
+        offsetY = viewportHeight / 2f - (top + height / 2f) * contentHeight,
     )
 }
 
