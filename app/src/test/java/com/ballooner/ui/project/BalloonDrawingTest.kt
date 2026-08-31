@@ -26,6 +26,12 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `control scale cancels the editor content zoom`() {
+        assertEquals(0.25f, fixedControlScale(contentScale = 4f), 0.001f)
+        assertEquals(1f, fixedControlScale(contentScale = 0f), 0.001f)
+    }
+
+    @Test
     fun `containsPoint treats a caption as a rectangle, including its corners`() {
         val canvas = Size(1000f, 800f)
         val balloon = Balloon(id = 1, type = BalloonType.CAPTION, width = 0.4f, height = 0.2f)

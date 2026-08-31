@@ -111,6 +111,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
@@ -1002,6 +1003,7 @@ private fun Editor(
                                         Handles(
                                             balloon = sel,
                                             canvasSize = size,
+                                            contentScale = zoom * fitScale,
                                             base = { live ?: sel },
                                             onLiveChange = { live = it },
                                             onCommit = { live?.let(onCommitBalloon) },
@@ -1036,6 +1038,7 @@ private fun Editor(
                                                 (pending.left + pending.width / 2f) * size.width,
                                                 pending.top * size.height,
                                             ) + moveHandleOffset,
+                                            contentScale = zoom * fitScale,
                                             onDrag = { delta ->
                                                 moveHandleOffset += delta
                                                 val center = Offset(
@@ -1061,6 +1064,7 @@ private fun Editor(
                                                 (pending.left + pending.width) * size.width,
                                                 pending.top * size.height,
                                             ),
+                                            contentScale = zoom * fitScale,
                                             onTap = { showConfirmDeleteImage = true },
                                         )
                                     }
@@ -1069,15 +1073,23 @@ private fun Editor(
                             }
                         }
                         if (showShapeSlider) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            ShapeSlider(
-                                roundness = selected.cornerRoundness,
-                                onChange = {
-                                    val sel = selected
-                                    live = (live ?: sel).copy(cornerRoundness = it)
-                                },
-                                onChangeFinished = { live?.let(onCommitBalloon) },
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(shapeSliderSpace)
+                                    .background(MaterialTheme.colorScheme.background)
+                                    .zIndex(1f),
+                            ) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                ShapeSlider(
+                                    roundness = selected.cornerRoundness,
+                                    onChange = {
+                                        val sel = selected
+                                        live = (live ?: sel).copy(cornerRoundness = it)
+                                    },
+                                    onChangeFinished = { live?.let(onCommitBalloon) },
+                                )
+                            }
                         }
                         }
                     }
@@ -1424,6 +1436,7 @@ private const val AUTO_MAX_FONT_SIZE = 96f
 private fun Handles(
     balloon: Balloon,
     canvasSize: Size,
+    contentScale: Float,
     base: () -> Balloon,
     onLiveChange: (Balloon) -> Unit,
     onCommit: () -> Unit,
@@ -1443,6 +1456,7 @@ private fun Handles(
         color = selectionColor,
         shape = RoundedCornerShape(6.dp),
         keyId = balloon.id,
+        contentScale = contentScale,
         onDrag = { d ->
             val b = base()
             onLiveChange(b.copy(centerX = b.centerX + d.x / w, centerY = b.centerY + d.y / h))
@@ -1464,6 +1478,7 @@ private fun Handles(
             color = Color(0xFFE8325A),
             shape = CircleShape,
             keyId = balloon.id,
+            contentScale = contentScale,
             onDrag = { d ->
                 val b = base()
                 val dxf = d.x / w
@@ -1489,6 +1504,7 @@ private fun Handles(
             color = Color(0xFF00C9B1),
             shape = CircleShape,
             keyId = balloon.id,
+            contentScale = contentScale,
             onDrag = { d ->
                 val b = base()
                 val target = b.tailTip(canvasSize) + d
@@ -1507,6 +1523,7 @@ private fun Handles(
             color = Color(0xFF2ECC71),
             shape = CircleShape,
             keyId = balloon.id,
+            contentScale = contentScale,
             onDrag = { d ->
                 val b = base()
                 val target = b.tailBaseHandle(canvasSize) + d
@@ -1521,6 +1538,7 @@ private fun Handles(
         centerPx = Offset(center.x + halfX, center.y - halfY),
         sizeDp = 26.dp,
         color = Color(0xFFE8325A),
+        contentScale = contentScale,
         onTap = onDelete,
     ) {
         Text(text = "\u00D7", color = Color.White)
@@ -1529,13 +1547,17 @@ private fun Handles(
 
 /** Delete badge for a whole image panel, styled to match the comic list's delete button. */
 @Composable
-private fun ImageDeleteHandle(centerPx: Offset, onTap: () -> Unit) {
+private fun ImageDeleteHandle(centerPx: Offset, contentScale: Float, onTap: () -> Unit) {
     val density = LocalDensity.current
     val halfPx = with(density) { 16.dp.toPx() }
     Box(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
             .size(32.dp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
             .background(MaterialTheme.colorScheme.secondary, CircleShape)
             .border(2.dp, InkBlack, CircleShape)
             .pointerInput(Unit) { detectTapGestures { onTap() } },
@@ -1554,6 +1576,7 @@ private fun ImageDeleteHandle(centerPx: Offset, onTap: () -> Unit) {
 @Composable
 private fun ImageMoveHandle(
     centerPx: Offset,
+    contentScale: Float,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
 ) {
@@ -1563,6 +1586,10 @@ private fun ImageMoveHandle(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
             .size(32.dp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
             .background(MaterialTheme.colorScheme.tertiary, CircleShape)
             .border(2.dp, InkBlack, CircleShape)
             .pointerInput(Unit) {
@@ -1571,7 +1598,7 @@ private fun ImageMoveHandle(
                     onDragCancel = onDragEnd,
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        onDrag(dragAmount)
+                        onDrag(dragAmount / contentScale)
                     },
                 )
             },
@@ -1595,6 +1622,7 @@ private fun DragHandle(
     color: Color,
     shape: Shape,
     keyId: Long,
+    contentScale: Float,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
     content: @Composable () -> Unit = {},
@@ -1605,6 +1633,10 @@ private fun DragHandle(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
             .size(sizeDp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
             .border(2.dp, Color.White, shape)
             .background(color, shape)
             .pointerInput(keyId) {
@@ -1612,7 +1644,7 @@ private fun DragHandle(
                     onDragEnd = onDragEnd,
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        onDrag(dragAmount)
+                        onDrag(dragAmount / contentScale)
                     },
                 )
             },
@@ -1625,6 +1657,7 @@ private fun TapHandle(
     centerPx: Offset,
     sizeDp: Dp,
     color: Color,
+    contentScale: Float,
     onTap: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -1634,12 +1667,19 @@ private fun TapHandle(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
             .size(sizeDp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
             .border(2.dp, Color.White, CircleShape)
             .background(color, CircleShape)
             .pointerInput(Unit) { detectTapGestures { onTap() } },
         contentAlignment = Alignment.Center,
     ) { content() }
 }
+
+internal fun fixedControlScale(contentScale: Float): Float =
+    if (contentScale > 0f) 1f / contentScale else 1f
 
 private fun BalloonType.label(): String = when (this) {
     BalloonType.SPEAK -> "Speak"
