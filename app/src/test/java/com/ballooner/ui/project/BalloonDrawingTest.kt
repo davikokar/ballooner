@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
+import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -60,6 +61,20 @@ class BalloonDrawingTest {
         assertEquals(0f, layout.offsetY + panel.top * layout.contentHeight, 0.001f)
         assertEquals(400f, layout.offsetX + (panel.left + panel.width) * layout.contentWidth, 0.001f)
         assertEquals(600f, layout.offsetY + (panel.top + panel.height) * layout.contentHeight, 0.001f)
+    }
+
+    @Test
+    fun `focused image navigation exposes only adjacent panels`() {
+        val topLeft = RectFraction(0f, 0f, 0.5f, 0.5f)
+        val topRight = RectFraction(0.5f, 0f, 0.5f, 0.5f)
+        val bottomLeft = RectFraction(0f, 0.5f, 0.5f, 0.5f)
+
+        val adjacent = adjacentPanels(listOf(topLeft, topRight, bottomLeft), topLeft)
+
+        assertEquals(topRight, adjacent[ImagePosition.RIGHT])
+        assertEquals(bottomLeft, adjacent[ImagePosition.BOTTOM])
+        assertFalse(ImagePosition.LEFT in adjacent)
+        assertFalse(ImagePosition.TOP in adjacent)
     }
 
     @Test

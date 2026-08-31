@@ -41,6 +41,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -324,6 +328,10 @@ fun ProjectScreen(
                         selectedPanel = selectedPanel,
                         onSelectPanel = { selectedPanel = it },
                         focusedPanel = focusedPanel,
+                        onFocusPanel = {
+                            focusedPanel = it
+                            selectedPanel = it
+                        },
                         onDeleteImage = onDeleteImage,
                         onMoveImage = onMoveImage,
                         modifier = Modifier.weight(1f),
@@ -838,6 +846,7 @@ private fun Editor(
     selectedPanel: RectFraction?,
     onSelectPanel: (RectFraction?) -> Unit,
     focusedPanel: RectFraction?,
+    onFocusPanel: (RectFraction) -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, ImagePlacement) -> Unit,
     modifier: Modifier = Modifier,
@@ -1089,6 +1098,13 @@ private fun Editor(
                                 }
                             }
                             }
+                            if (focusedPanel != null) {
+                                FocusNavigation(
+                                    adjacentPanels = adjacentPanels(panels, focusedPanel),
+                                    onFocusPanel = onFocusPanel,
+                                    modifier = Modifier.matchParentSize(),
+                                )
+                            }
                         }
                         if (showShapeSlider) {
                             Column(
@@ -1188,6 +1204,74 @@ internal fun RectFraction.focusLayout(viewportWidth: Float, viewportHeight: Floa
         offsetX = -left * contentWidth,
         offsetY = -top * contentHeight,
     )
+}
+
+internal fun adjacentPanels(
+    panels: List<RectFraction>,
+    focusedPanel: RectFraction,
+): Map<ImagePosition, RectFraction> {
+    val cells = panelGridCells(panels)
+    val focusedCell = cells[focusedPanel] ?: return emptyMap()
+    return ImagePosition.entries.mapNotNull { position ->
+        val candidates = cells.filter { (_, cell) ->
+            when (position) {
+                ImagePosition.LEFT -> cell.row == focusedCell.row && cell.column < focusedCell.column
+                ImagePosition.RIGHT -> cell.row == focusedCell.row && cell.column > focusedCell.column
+                ImagePosition.TOP -> cell.column == focusedCell.column && cell.row < focusedCell.row
+                ImagePosition.BOTTOM -> cell.column == focusedCell.column && cell.row > focusedCell.row
+            }
+        }
+        val nearest = when (position) {
+            ImagePosition.LEFT -> candidates.maxByOrNull { it.value.column }
+            ImagePosition.RIGHT -> candidates.minByOrNull { it.value.column }
+            ImagePosition.TOP -> candidates.maxByOrNull { it.value.row }
+            ImagePosition.BOTTOM -> candidates.minByOrNull { it.value.row }
+        }
+        nearest?.key?.let { position to it }
+    }.toMap()
+}
+
+@Composable
+private fun FocusNavigation(
+    adjacentPanels: Map<ImagePosition, RectFraction>,
+    onFocusPanel: (RectFraction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.zIndex(2f)) {
+        adjacentPanels.forEach { (position, panel) ->
+            val alignment = when (position) {
+                ImagePosition.LEFT -> Alignment.CenterStart
+                ImagePosition.RIGHT -> Alignment.CenterEnd
+                ImagePosition.TOP -> Alignment.TopCenter
+                ImagePosition.BOTTOM -> Alignment.BottomCenter
+            }
+            val icon = when (position) {
+                ImagePosition.LEFT -> Icons.Default.KeyboardArrowLeft
+                ImagePosition.RIGHT -> Icons.Default.KeyboardArrowRight
+                ImagePosition.TOP -> Icons.Default.KeyboardArrowUp
+                ImagePosition.BOTTOM -> Icons.Default.KeyboardArrowDown
+            }
+            Box(
+                modifier = Modifier
+                    .align(alignment)
+                    .padding(8.dp)
+                    .size(38.dp)
+                    .background(Color(0xFFFFD21F), CircleShape)
+                    .border(3.dp, InkBlack, CircleShape)
+                    .clickable(onClickLabel = "Show image ${position.name.lowercase()}") {
+                        onFocusPanel(panel)
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = "Show image ${position.name.lowercase()}",
+                    tint = InkBlack,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+    }
 }
 
 private fun RectFraction.dropPosition(x: Float, y: Float): ImagePosition {
