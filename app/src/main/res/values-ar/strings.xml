@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">Ballooner</string>
+    <string name="settings_title">الإعدادات</string>
+    <string name="back">رجوع</string>
+    <string name="close">إغلاق</string>
+    <string name="settings_general">عام</string>
+    <string name="settings_change_language">تغيير اللغة</string>
+    <string name="settings_text">إعدادات النص</string>
+    <string name="settings_app">التطبيق</string>
+    <string name="settings_share_app">مشاركة التطبيق</string>
+    <string name="share_app_text">أنشئ قصصًا مصورة باستخدام Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="settings_rate_app">تقييم التطبيق</string>
+    <string name="settings_customer_support">دعم العملاء</string>
+    <string name="support_email_subject">طلب دعم Ballooner</string>
+    <string name="error_no_email_app">لم يتم العثور على تطبيق بريد إلكتروني</string>
+    <string name="settings_about">حول التطبيق</string>
+    <string name="about_message">Ballooner تطبيق بسيط لإنشاء قصص مصورة قصيرة باستخدام صور من جهازك.</string>
+    <string name="about_version">الإصدار %1$s</string>
+    <string name="settings_community_support">المجتمع والدعم</string>
+    <string name="settings_buy_coffee">اشترِ لي قهوة</string>
+    <string name="settings_legal">الشؤون القانونية</string>
+    <string name="settings_privacy">سياسة الخصوصية</string>
+    <string name="settings_terms">الشروط</string>
+    <string name="privacy_policy_text">يعالج Ballooner الصور التي تحددها ونصوص القصص المصورة على جهازك. تُنسخ الصور إلى مساحة التخزين الخاصة بالتطبيق لتحريرها. لا يجمع التطبيق البيانات الشخصية ولا يخزنها عن بُعد ولا يشاركها.</string>
+    <string name="terms_text">يُقدَّم Ballooner كما هو للاستخدام الإبداعي الشخصي. أنت مسؤول عن الصور والنصوص التي تضيفها وعن ضمان امتثال قصصك المصورة للقوانين المعمول بها وحقوق الأطراف الأخرى.</string>
+    <string name="default_text_font">خط النص الافتراضي</string>
+    <string name="default_text_font_description">يُستخدم كخط أولي للبالونات الجديدة.</string>
+    <string name="hide_font_selector">إخفاء محدد الخط</string>
+    <string name="hide_font_selector_description">يخفي منتقي الخط في محرر البالونات.</string>
+    <string name="text_size">حجم النص</string>
+    <string name="text_size_description">يضبط النص تلقائيًا لملء كل بالون ويخفي شريط تمرير الحجم.</string>
+    <string name="manual">يدوي</string>
+    <string name="auto">تلقائي</string>
+</resources>

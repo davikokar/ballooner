@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">Ballooner</string>
+    <string name="settings_title">Impostazioni</string>
+    <string name="back">Indietro</string>
+    <string name="close">Chiudi</string>
+    <string name="settings_general">Generali</string>
+    <string name="settings_change_language">Cambia lingua</string>
+    <string name="settings_text">Impostazioni testo</string>
+    <string name="settings_app">App</string>
+    <string name="settings_share_app">Condividi app</string>
+    <string name="share_app_text">Crea fumetti con Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="settings_rate_app">Valuta app</string>
+    <string name="settings_customer_support">Assistenza clienti</string>
+    <string name="support_email_subject">Richiesta di assistenza Ballooner</string>
+    <string name="error_no_email_app">Nessuna app di posta elettronica trovata</string>
+    <string name="settings_about">Informazioni</string>
+    <string name="about_message">Ballooner è una semplice app per creare brevi fumetti con le immagini del tuo dispositivo.</string>
+    <string name="about_version">Versione %1$s</string>
+    <string name="settings_community_support">Community e assistenza</string>
+    <string name="settings_buy_coffee">Offrimi un caffè</string>
+    <string name="settings_legal">Note legali</string>
+    <string name="settings_privacy">Informativa sulla privacy</string>
+    <string name="settings_terms">Termini</string>
+    <string name="privacy_policy_text">Ballooner elabora sul tuo dispositivo le immagini selezionate e il testo dei fumetti. Le immagini vengono copiate nello spazio di archiviazione privato dell’app per la modifica. L’app non raccoglie, non archivia da remoto e non condivide dati personali.</string>
+    <string name="terms_text">Ballooner viene fornito così com’è per uso creativo personale. Sei responsabile delle immagini e del testo che aggiungi e devi assicurarti che i tuoi fumetti rispettino le leggi applicabili e i diritti di terzi.</string>
+    <string name="default_text_font">Carattere predefinito</string>
+    <string name="default_text_font_description">Usato come carattere iniziale per i nuovi fumetti.</string>
+    <string name="hide_font_selector">Nascondi selettore carattere</string>
+    <string name="hide_font_selector_description">Nasconde il selettore del carattere nell’editor dei fumetti.</string>
+    <string name="text_size">Dimensione testo</string>
+    <string name="text_size_description">Adatta automaticamente il testo a ogni fumetto e nasconde il cursore delle dimensioni.</string>
+    <string name="manual">Manuale</string>
+    <string name="auto">Automatico</string>
+</resources>
