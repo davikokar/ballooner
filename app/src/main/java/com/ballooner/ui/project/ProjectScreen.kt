@@ -66,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -224,6 +225,12 @@ fun ProjectScreen(
     var editMode by remember { mutableStateOf(true) }
     // View-only rotation is hoisted so the toolbar and reset affordance share the same state.
     var rotation by remember { mutableStateOf(0f) }
+    var selectedPanel by remember { mutableStateOf<RectFraction?>(null) }
+    var focusedPanel by remember { mutableStateOf<RectFraction?>(null) }
+    LaunchedEffect(uiState.panels) {
+        if (selectedPanel !in uiState.panels) selectedPanel = null
+        if (focusedPanel !in uiState.panels) focusedPanel = null
+    }
     // A freshly created project jumps straight to image selection.
     LaunchedEffect(Unit) {
         if (autoOpenPicker) launchPicker(false)
@@ -282,7 +289,16 @@ fun ProjectScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     Toolbar(
                         editMode = editMode,
-                        onRotate = { rotation = (rotation + 90f) % 360f },
+                        canFocusImage = uiState.panels.size > 1,
+                        imageFocused = focusedPanel != null,
+                        onToggleImageFocus = {
+                            focusedPanel = imageFocusTarget(uiState.panels, selectedPanel, focusedPanel)
+                            rotation = 0f
+                        },
+                        onRotate = {
+                            focusedPanel = null
+                            rotation = (rotation + 90f) % 360f
+                        },
                         onChangeImage = { launchPicker(true) },
                         onSave = onSave,
                         onToggleMode = { editMode = it },
@@ -303,6 +319,9 @@ fun ProjectScreen(
                         onOpenImagePicker = { launchPicker(false) },
                         onLayerWidth = { displayedWidth = it },
                         panels = uiState.panels,
+                        selectedPanel = selectedPanel,
+                        onSelectPanel = { selectedPanel = it },
+                        focusedPanel = focusedPanel,
                         onDeleteImage = onDeleteImage,
                         onMoveImage = onMoveImage,
                         modifier = Modifier.weight(1f),
@@ -592,6 +611,9 @@ private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
 @Composable
 private fun Toolbar(
     editMode: Boolean,
+    canFocusImage: Boolean,
+    imageFocused: Boolean,
+    onToggleImageFocus: () -> Unit,
     onRotate: () -> Unit,
     onChangeImage: () -> Unit,
     onSave: () -> Unit,
@@ -614,6 +636,14 @@ private fun Toolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ComicButton(text = "Rotate", onClick = onRotate, icon = BalloonerIcons.Rotate, showLabel = false)
+        ComicButton(
+            text = if (imageFocused) "Show all images" else "Focus image",
+            onClick = onToggleImageFocus,
+            icon = BalloonerIcons.FocusImage,
+            showLabel = false,
+            enabled = canFocusImage,
+            containerColor = if (imageFocused) MaterialTheme.colorScheme.tertiary else Color.White,
+        )
         ModeToggle(editMode = editMode, onToggleMode = onToggleMode)
         if (editMode) {
             ComicButton(text = "Change image", onClick = onChangeImage, icon = BalloonerIcons.Image, showLabel = false)
@@ -672,12 +702,14 @@ private fun ComicButton(
     showLabel: Boolean = true,
     containerColor: Color = Color.White,
     contentColor: Color = InkBlack,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = modifier
+            .alpha(if (enabled) 1f else 0.4f)
             .background(containerColor, RoundedCornerShape(8.dp))
             .border(4.dp, InkBlack, RoundedCornerShape(8.dp))
-            .clickable(onClickLabel = text, onClick = onClick)
+            .clickable(enabled = enabled, onClickLabel = text, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -801,6 +833,9 @@ private fun Editor(
     onOpenImagePicker: () -> Unit,
     onLayerWidth: (Int) -> Unit,
     panels: List<RectFraction>,
+    selectedPanel: RectFraction?,
+    onSelectPanel: (RectFraction?) -> Unit,
+    focusedPanel: RectFraction?,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, ImagePlacement) -> Unit,
     modifier: Modifier = Modifier,
@@ -809,12 +844,10 @@ private fun Editor(
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     // Available area for the image, used to refit it after a 90° rotation.
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var selectedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var moveTarget by remember { mutableStateOf<ImagePlacement?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     LaunchedEffect(panels) {
-        selectedPanel = null
         moveHandleOffset = Offset.Zero
         moveTarget = null
     }
@@ -878,15 +911,24 @@ private fun Editor(
                         val showShapeSlider = editMode && selected != null &&
                             (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
                         val shapeSliderSpace = if (showShapeSlider) 8.dp + 24.dp else 0.dp
-                        val imageAspect = image.width.toFloat() / image.height.toFloat()
-                        val fitWidth = minOf(availableWidth, (availableHeight - shapeSliderSpace) * imageAspect)
-                        val fitHeight = fitWidth / imageAspect
+                        val viewport = focusedPanel ?: RectFraction(0f, 0f, 1f, 1f)
+                        val viewportAspect = image.width * viewport.width / (image.height * viewport.height)
+                        val fitWidth = minOf(availableWidth, (availableHeight - shapeSliderSpace) * viewportAspect)
+                        val fitHeight = fitWidth / viewportAspect
+                        val contentWidth = fitWidth / viewport.width
+                        val contentHeight = fitHeight / viewport.height
                         Box(
-                            modifier = Modifier.size(fitWidth, fitHeight),
+                            modifier = Modifier
+                                .size(fitWidth, fitHeight)
+                                .then(if (focusedPanel != null) Modifier.clipToBounds() else Modifier),
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .matchParentSize()
+                                    .offset(
+                                        x = -contentWidth * viewport.left,
+                                        y = -contentHeight * viewport.top,
+                                    )
+                                    .size(contentWidth, contentHeight)
                                     // No outer border here: each stored image already has its own
                                     // border baked in (see AppImageStore), so a group-level border
                                     // isn't drawn around composited panels.
@@ -906,7 +948,7 @@ private fun Editor(
                                     .pointerInput(balloons, panels, editMode) {
                                         detectTapGestures(
                                             onTap = { offset ->
-                                                selectedPanel = null
+                                                onSelectPanel(null)
                                                 if (!editMode) return@detectTapGestures
                                                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                                                 val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
@@ -916,7 +958,7 @@ private fun Editor(
                                                 if (!editMode || panels.size <= 1) return@detectTapGestures
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
-                                                selectedPanel = panels.panelAt(u, v)
+                                                onSelectPanel(panels.panelAt(u, v))
                                                 moveHandleOffset = Offset.Zero
                                                 moveTarget = null
                                             },
@@ -1107,7 +1149,7 @@ private fun Editor(
                 TextButton(
                     onClick = {
                         selectedPanel?.let(onDeleteImage)
-                        selectedPanel = null
+                        onSelectPanel(null)
                         showConfirmDeleteImage = false
                     },
                 ) { Text("Delete") }
@@ -1118,6 +1160,12 @@ private fun Editor(
         )
     }
 }
+
+internal fun imageFocusTarget(
+    panels: List<RectFraction>,
+    selectedPanel: RectFraction?,
+    focusedPanel: RectFraction?,
+): RectFraction? = if (focusedPanel == null) selectedPanel ?: panels.firstOrNull() else null
 
 private fun RectFraction.dropPosition(x: Float, y: Float): ImagePosition {
     val horizontal = (x - (left + width / 2f)) / width

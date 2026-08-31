@@ -7,6 +7,7 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.RectFraction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -29,6 +30,22 @@ class BalloonDrawingTest {
     fun `control scale cancels rotation fitting scale`() {
         assertEquals(0.25f, fixedControlScale(contentScale = 4f), 0.001f)
         assertEquals(1f, fixedControlScale(contentScale = 0f), 0.001f)
+    }
+
+    @Test
+    fun `image focus uses the selected panel and falls back to the first panel`() {
+        val first = RectFraction(0f, 0f, 0.5f, 1f)
+        val second = RectFraction(0.5f, 0f, 0.5f, 1f)
+
+        assertEquals(second, imageFocusTarget(listOf(first, second), second, focusedPanel = null))
+        assertEquals(first, imageFocusTarget(listOf(first, second), selectedPanel = null, focusedPanel = null))
+    }
+
+    @Test
+    fun `image focus toggle restores the multiimage view`() {
+        val focused = RectFraction(0f, 0f, 0.5f, 1f)
+
+        assertNull(imageFocusTarget(listOf(focused), selectedPanel = null, focusedPanel = focused))
     }
 
     @Test
