@@ -41,9 +41,9 @@ class AppSettingsRepository @Inject constructor(
     }
 
     private fun readSettings() = AppSettings(
-        defaultFont = prefs.getString(KEY_FONT, null).toEnum(BalloonFont::valueOf) ?: BalloonFont.DEFAULT,
-        hideFontSelector = prefs.getBoolean(KEY_HIDE_FONT, false),
-        textSizeMode = prefs.getString(KEY_TEXT_MODE, null).toEnum(TextSizeMode::valueOf) ?: TextSizeMode.MANUAL,
+        defaultFont = prefs.getString(KEY_FONT, null).toEnum(BalloonFont::valueOf) ?: BalloonFont.ANIME_ACE,
+        hideFontSelector = prefs.getBoolean(KEY_HIDE_FONT, true),
+        textSizeMode = prefs.getString(KEY_TEXT_MODE, null).toEnum(TextSizeMode::valueOf) ?: TextSizeMode.AUTO,
     )
 
     private fun <T> String?.toEnum(parse: (String) -> T): T? =

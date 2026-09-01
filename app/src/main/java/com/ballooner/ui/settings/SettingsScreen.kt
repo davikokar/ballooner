@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -58,6 +59,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.R
@@ -68,6 +70,8 @@ import com.ballooner.ui.project.label
 import com.ballooner.ui.theme.balloonerTopAppBarColors
 
 private enum class SettingsDialog { TEXT, ABOUT, PRIVACY, TERMS }
+
+internal val selectableDefaultFonts = BalloonFont.entries.filterNot { it == BalloonFont.DEFAULT }
 
 @Composable
 fun SettingsRoute(
@@ -243,10 +247,16 @@ private fun TextSettingsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier
+            .fillMaxWidth(0.92f)
+            .widthIn(max = 560.dp),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         title = { Text(stringResource(R.string.settings_text)) },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 SettingControl(
@@ -265,13 +275,18 @@ private fun TextSettingsDialog(
                     title = stringResource(R.string.text_size),
                     subtitle = stringResource(R.string.text_size_description),
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         FilterChip(
+                            modifier = Modifier.weight(1f),
                             selected = settings.textSizeMode == TextSizeMode.MANUAL,
                             onClick = { onTextSizeModeChange(TextSizeMode.MANUAL) },
                             label = { Text(stringResource(R.string.manual)) },
                         )
                         FilterChip(
+                            modifier = Modifier.weight(1f),
                             selected = settings.textSizeMode == TextSizeMode.AUTO,
                             onClick = { onTextSizeModeChange(TextSizeMode.AUTO) },
                             label = { Text(stringResource(R.string.auto)) },
@@ -286,9 +301,14 @@ private fun TextSettingsDialog(
 
 @Composable
 private fun SettingControl(title: String, subtitle: String, control: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = subtitle,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         control()
     }
 }
@@ -298,8 +318,14 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = subtitle,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        Spacer(Modifier.width(16.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -307,13 +333,22 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
 @Composable
 private fun FontDropdown(selected: BalloonFont, onSelect: (BalloonFont) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton(onClick = { expanded = true }) {
-            Text(selected.label())
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(selected.label(), modifier = Modifier.weight(1f))
             Icon(Icons.Default.ArrowDropDown, contentDescription = null)
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            BalloonFont.entries.forEach { entry ->
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .fillMaxWidth(0.82f)
+                .heightIn(max = 320.dp),
+        ) {
+            selectableDefaultFonts.forEach { entry ->
                 DropdownMenuItem(
                     text = { Text(entry.label()) },
                     onClick = {

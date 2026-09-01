@@ -23,9 +23,18 @@ class SettingsViewModelTest {
         val viewModel = SettingsViewModel(FakeSettingsRepository())
 
         viewModel.uiState.test {
-            assertEquals(BalloonFont.DEFAULT, expectMostRecentItem().settings.defaultFont)
+            val settings = expectMostRecentItem().settings
+            assertEquals(BalloonFont.ANIME_ACE, settings.defaultFont)
+            assertEquals(true, settings.hideFontSelector)
+            assertEquals(TextSizeMode.AUTO, settings.textSizeMode)
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    @Test
+    fun `default font choices exclude the generic default font`() {
+        assertEquals(false, selectableDefaultFonts.contains(BalloonFont.DEFAULT))
+        assertEquals(true, selectableDefaultFonts.contains(BalloonFont.ANIME_ACE))
     }
 
     @Test
