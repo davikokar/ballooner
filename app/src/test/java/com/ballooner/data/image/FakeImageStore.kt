@@ -17,8 +17,15 @@ class FakeImageStore : ImageStore {
     var lastRemoveRequest: Triple<String, RectFraction, RectFraction>? = null
     var rearrangeResult: RearrangedImage? = null
     var lastRearrangeRequest: List<Any>? = null
+    var initialGridResult: InitialImageGrid? = null
+    var lastInitialGridRequest: Pair<List<String>, Int>? = null
 
     override suspend fun importImage(sourceUri: String): String = sourceUri
+
+    override suspend fun createInitialGrid(sourceUris: List<String>, columns: Int): InitialImageGrid? {
+        lastInitialGridRequest = sourceUris to columns
+        return initialGridResult
+    }
 
     override suspend fun deleteImage(uri: String) {
         deleted += uri

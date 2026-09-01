@@ -6,6 +6,9 @@
     <string name="settings_general">General</string>
     <string name="settings_change_language">Change language</string>
     <string name="settings_text">Text settings</string>
+    <string name="settings_layout">Layout settings</string>
+    <string name="layout_columns">Columns</string>
+    <string name="layout_columns_description">Number of columns used when selecting the first images for a new comic.</string>
     <string name="settings_app">App</string>
     <string name="settings_share_app">Share app</string>
     <string name="share_app_text">Create comics with Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>

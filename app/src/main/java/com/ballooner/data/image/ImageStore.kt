@@ -9,6 +9,9 @@ interface ImageStore {
     /** Copies [sourceUri] into app storage and returns the local uri, or null on failure. */
     suspend fun importImage(sourceUri: String): String?
 
+    /** Creates the first comic image by arranging all selected images in a column-based grid. */
+    suspend fun createInitialGrid(sourceUris: List<String>, columns: Int): InitialImageGrid?
+
     /** Deletes the file behind [uri] if it is an app-owned image copy. */
     suspend fun deleteImage(uri: String)
 
@@ -37,4 +40,6 @@ data class ComposedImage(val uri: String, val previousImageRect: RectFraction, v
 
 /** New panel rectangles correspond by index to the input panel list. */
 data class RearrangedImage(val uri: String, val panelRects: List<RectFraction>)
+
+data class InitialImageGrid(val uri: String, val panelRects: List<RectFraction>)
 

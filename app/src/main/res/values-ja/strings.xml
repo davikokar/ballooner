@@ -6,6 +6,9 @@
     <string name="settings_general">一般</string>
     <string name="settings_change_language">言語を変更</string>
     <string name="settings_text">テキスト設定</string>
+    <string name="settings_layout">レイアウト設定</string>
+    <string name="layout_columns">列数</string>
+    <string name="layout_columns_description">新しいコミックで最初に画像を選択するときに使用する列数です。</string>
     <string name="settings_app">アプリ</string>
     <string name="settings_share_app">アプリを共有</string>
     <string name="share_app_text">Balloonerでコミックを作成: https://play.google.com/store/apps/details?id=%1$s</string>

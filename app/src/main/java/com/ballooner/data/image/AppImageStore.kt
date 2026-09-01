@@ -40,6 +40,41 @@ class AppImageStore @Inject constructor(
         }.getOrNull()
     }
 
+    override suspend fun createInitialGrid(sourceUris: List<String>, columns: Int): InitialImageGrid? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val bitmaps = sourceUris.map { uri -> decodeBitmap(uri) ?: return@runCatching null }
+                if (bitmaps.isEmpty()) return@runCatching null
+                val actualColumns = columns.coerceIn(1, bitmaps.size)
+                val gapPx = MIN_PANEL_GAP_PX
+                val columnWidth = ((MAX_GRID_WIDTH_PX - (actualColumns - 1) * gapPx) / actualColumns)
+                    .coerceAtLeast(1)
+                val layout = computeInitialGridLayout(
+                    imageSizes = bitmaps.map { PixelSize(it.width, it.height) },
+                    columns = actualColumns,
+                    columnWidth = columnWidth,
+                    gapPx = gapPx,
+                )
+                val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
+                composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
+                val canvas = android.graphics.Canvas(composite)
+                bitmaps.forEachIndexed { index, bitmap ->
+                    val target = layout.imageRects[index]
+                    val scaled = Bitmap.createScaledBitmap(bitmap, target.width, target.height, true)
+                    canvas.drawBitmap(scaled, target.left.toFloat(), target.top.toFloat(), null)
+                    val borderWidth = borderThicknessPx(target.width, target.height)
+                    canvas.drawRect(
+                        borderRect(target.left, target.top, target.width, target.height, borderWidth / 2f),
+                        borderPaint(borderWidth),
+                    )
+                }
+                imagesDir.mkdirs()
+                val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
+                dest.outputStream().use { output -> composite.compress(Bitmap.CompressFormat.PNG, 100, output) }
+                InitialImageGrid(Uri.fromFile(dest).toString(), layout.panelRects)
+            }.getOrNull()
+        }
+
     override suspend fun deleteImage(uri: String) {
         withContext(Dispatchers.IO) {
             runCatching {
@@ -232,6 +267,7 @@ class AppImageStore @Inject constructor(
 
     private companion object {
         const val MAX_DECODED_DIMENSION_PX = 2048
+        const val MAX_GRID_WIDTH_PX = 2048
         const val PANEL_GAP_FRACTION = 0.02f
         const val MIN_PANEL_GAP_PX = 8
     }

@@ -27,6 +27,7 @@ class SettingsViewModelTest {
             assertEquals(BalloonFont.ANIME_ACE, settings.defaultFont)
             assertEquals(true, settings.hideFontSelector)
             assertEquals(TextSizeMode.AUTO, settings.textSizeMode)
+            assertEquals(4, settings.layoutColumns)
             cancelAndConsumeRemainingEvents()
         }
     }
@@ -45,12 +46,14 @@ class SettingsViewModelTest {
             viewModel.setDefaultFont(BalloonFont.SERIF)
             viewModel.setHideFontSelector(true)
             viewModel.setTextSizeMode(TextSizeMode.AUTO)
+            viewModel.setLayoutColumns(6)
             advanceUntilIdle()
 
             val settings = expectMostRecentItem().settings
             assertEquals(BalloonFont.SERIF, settings.defaultFont)
             assertEquals(true, settings.hideFontSelector)
             assertEquals(TextSizeMode.AUTO, settings.textSizeMode)
+            assertEquals(6, settings.layoutColumns)
             cancelAndConsumeRemainingEvents()
         }
     }

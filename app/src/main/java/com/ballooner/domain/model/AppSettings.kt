@@ -8,4 +8,5 @@ data class AppSettings(
     val defaultFont: BalloonFont = BalloonFont.ANIME_ACE,
     val hideFontSelector: Boolean = true,
     val textSizeMode: TextSizeMode = TextSizeMode.AUTO,
+    val layoutColumns: Int = 4,
 )

@@ -93,6 +93,27 @@ class ProjectViewModel @Inject constructor(
         }
     }
 
+    fun onInitialImagesPicked(sourceUris: List<String>) {
+        if (sourceUris.isEmpty() || uiState.value.imageUri != null) return
+        viewModelScope.launch {
+            isProcessingImage.value = true
+            try {
+                if (sourceUris.size == 1) {
+                    val local = imageStore.importImage(sourceUris.single()) ?: return@launch
+                    projectRepository.setProjectImage(projectId, local)
+                    panelRepository.replacePanels(projectId, listOf(RectFraction(0f, 0f, 1f, 1f)))
+                } else {
+                    val grid = imageStore.createInitialGrid(sourceUris, settings.value.layoutColumns)
+                        ?: return@launch
+                    projectRepository.setProjectImage(projectId, grid.uri)
+                    panelRepository.replacePanels(projectId, grid.panelRects)
+                }
+            } finally {
+                isProcessingImage.value = false
+            }
+        }
+    }
+
     /**
      * Adds [sourceUri] as a new panel next to the comic's current image, growing the canvas,
      * remapping existing panels and balloons so they keep their place on the (now smaller,

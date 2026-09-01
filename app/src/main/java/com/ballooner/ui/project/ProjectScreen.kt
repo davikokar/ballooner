@@ -160,6 +160,7 @@ fun ProjectRoute(
         onNavigateBack = onNavigateBack,
         onOpenSettings = onOpenSettings,
         onRenameProject = viewModel::setProjectName,
+        onInitialImagesPicked = viewModel::onInitialImagesPicked,
         onImagePicked = viewModel::onImagePicked,
         onAddImage = viewModel::onAddImage,
         onAddBalloon = viewModel::addBalloon,
@@ -181,6 +182,7 @@ fun ProjectScreen(
     onNavigateBack: () -> Unit,
     onOpenSettings: () -> Unit,
     onRenameProject: (String) -> Unit,
+    onInitialImagesPicked: (List<String>) -> Unit,
     onImagePicked: (String) -> Unit,
     onAddImage: (String, ImagePlacement) -> Unit,
     onAddBalloon: (BalloonType, RectFraction?) -> Unit,
@@ -199,6 +201,14 @@ fun ProjectScreen(
     // added alongside it (which then needs a position before it can be composed in).
     var addingImage by remember { mutableStateOf(false) }
     var pendingNewImageUri by remember { mutableStateOf<String?>(null) }
+    val pickInitialMedia = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(),
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) onInitialImagesPicked(uris.map(Uri::toString))
+    }
+    val launchInitialPicker = {
+        pickInitialMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
     // The Photo Picker shows albums/folders of images and can browse other locations.
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -293,7 +303,7 @@ fun ProjectScreen(
     }
     // A freshly created project jumps straight to image selection.
     LaunchedEffect(Unit) {
-        if (autoOpenPicker) launchPicker(false)
+        if (autoOpenPicker) launchInitialPicker()
     }
     // Keep a balloon selected in edit mode so the controls stay visible.
     LaunchedEffect(editMode, uiState.balloons, uiState.selectedBalloonId) {
@@ -348,7 +358,7 @@ fun ProjectScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (!uiState.hasImage) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    ComicButton(text = "Open image", onClick = { launchPicker(false) })
+                    ComicButton(text = "Open images", onClick = launchInitialPicker)
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -2252,6 +2262,7 @@ private fun ProjectScreenNoImagePreview() {
         onNavigateBack = {},
         onOpenSettings = {},
         onRenameProject = {},
+        onInitialImagesPicked = {},
         onImagePicked = {},
         onAddImage = { _, _ -> },
         onAddBalloon = { _, _ -> },

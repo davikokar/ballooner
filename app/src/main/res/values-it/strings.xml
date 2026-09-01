@@ -6,6 +6,9 @@
     <string name="settings_general">Generali</string>
     <string name="settings_change_language">Cambia lingua</string>
     <string name="settings_text">Impostazioni testo</string>
+    <string name="settings_layout">Impostazioni layout</string>
+    <string name="layout_columns">Colonne</string>
+    <string name="layout_columns_description">Numero di colonne usate per la prima selezione di immagini di un nuovo fumetto.</string>
     <string name="settings_app">App</string>
     <string name="settings_share_app">Condividi app</string>
     <string name="share_app_text">Crea fumetti con Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>

@@ -6,6 +6,9 @@
     <string name="settings_general">عام</string>
     <string name="settings_change_language">تغيير اللغة</string>
     <string name="settings_text">إعدادات النص</string>
+    <string name="settings_layout">إعدادات التخطيط</string>
+    <string name="layout_columns">الأعمدة</string>
+    <string name="layout_columns_description">عدد الأعمدة المستخدمة عند تحديد الصور الأولى لقصة مصورة جديدة.</string>
     <string name="settings_app">التطبيق</string>
     <string name="settings_share_app">مشاركة التطبيق</string>
     <string name="share_app_text">أنشئ قصصًا مصورة باستخدام Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>

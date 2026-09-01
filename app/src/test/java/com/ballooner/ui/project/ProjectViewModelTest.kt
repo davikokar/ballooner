@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.ballooner.data.balloon.FakeBalloonRepository
 import com.ballooner.data.image.ComposedImage
 import com.ballooner.data.image.FakeImageStore
+import com.ballooner.data.image.InitialImageGrid
 import com.ballooner.data.image.RearrangedImage
 import com.ballooner.data.panel.FakePanelRepository
 import com.ballooner.data.project.FakeProjectRepository
@@ -70,6 +71,66 @@ class ProjectViewModelTest {
             advanceUntilIdle()
 
             assertEquals(false, expectMostRecentItem().isProcessingImage)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `initial image selection creates a grid using the configured columns`() = runTest {
+        val panels = listOf(
+            RectFraction(0f, 0f, 0.5f, 1f),
+            RectFraction(0.5f, 0f, 0.5f, 1f),
+        )
+        val imageStore = FakeImageStore().apply {
+            initialGridResult = InitialImageGrid("grid-uri", panels)
+        }
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(Project(id = 1, name = "Comic", description = "", createdAt = 1)),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(AppSettings(layoutColumns = 4)),
+        )
+
+        viewModel.uiState.test {
+            viewModel.onInitialImagesPicked(listOf("one", "two"))
+            advanceUntilIdle()
+
+            assertEquals(listOf("one", "two") to 4, imageStore.lastInitialGridRequest)
+            val state = expectMostRecentItem()
+            assertEquals("grid-uri", state.imageUri)
+            assertEquals(panels, state.panels)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `initial image selection does nothing after a comic already has an image`() = runTest {
+        val imageStore = FakeImageStore()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = FakePanelRepository(),
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        viewModel.uiState.test {
+            advanceUntilIdle()
+            assertEquals("existing", expectMostRecentItem().imageUri)
+
+            viewModel.onInitialImagesPicked(listOf("one", "two"))
+            advanceUntilIdle()
+
+            assertNull(imageStore.lastInitialGridRequest)
+            assertEquals("existing", viewModel.uiState.value.imageUri)
             cancelAndConsumeRemainingEvents()
         }
     }

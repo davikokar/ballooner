@@ -69,7 +69,7 @@ import com.ballooner.domain.model.TextSizeMode
 import com.ballooner.ui.project.label
 import com.ballooner.ui.theme.balloonerTopAppBarColors
 
-private enum class SettingsDialog { TEXT, ABOUT, PRIVACY, TERMS }
+private enum class SettingsDialog { TEXT, LAYOUT, ABOUT, PRIVACY, TERMS }
 
 internal val selectableDefaultFonts = BalloonFont.entries.filterNot { it == BalloonFont.DEFAULT }
 
@@ -85,6 +85,7 @@ fun SettingsRoute(
         onDefaultFontChange = viewModel::setDefaultFont,
         onHideFontSelectorChange = viewModel::setHideFontSelector,
         onTextSizeModeChange = viewModel::setTextSizeMode,
+        onLayoutColumnsChange = viewModel::setLayoutColumns,
     )
 }
 
@@ -96,6 +97,7 @@ fun SettingsScreen(
     onDefaultFontChange: (BalloonFont) -> Unit,
     onHideFontSelectorChange: (Boolean) -> Unit,
     onTextSizeModeChange: (TextSizeMode) -> Unit,
+    onLayoutColumnsChange: (Int) -> Unit,
 ) {
     val context = LocalContext.current
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
@@ -128,6 +130,9 @@ fun SettingsScreen(
             }
             SettingsRow(Icons.Default.Edit, stringResource(R.string.settings_text)) {
                 dialog = SettingsDialog.TEXT
+            }
+            SettingsRow(Icons.Default.Settings, stringResource(R.string.settings_layout)) {
+                dialog = SettingsDialog.LAYOUT
             }
             HorizontalDivider()
 
@@ -185,6 +190,11 @@ fun SettingsScreen(
             onTextSizeModeChange = onTextSizeModeChange,
             onDismiss = { dialog = null },
         )
+        SettingsDialog.LAYOUT -> LayoutSettingsDialog(
+            columns = uiState.settings.layoutColumns,
+            onColumnsChange = onLayoutColumnsChange,
+            onDismiss = { dialog = null },
+        )
         SettingsDialog.ABOUT -> InformationDialog(
             title = stringResource(R.string.settings_about),
             message = stringResource(R.string.about_message) + "\n\n" +
@@ -203,6 +213,42 @@ fun SettingsScreen(
         )
         null -> Unit
     }
+}
+
+@Composable
+private fun LayoutSettingsDialog(columns: Int, onColumnsChange: (Int) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_layout)) },
+        text = {
+            SettingControl(
+                title = stringResource(R.string.layout_columns),
+                subtitle = stringResource(R.string.layout_columns_description),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
+                        onClick = { onColumnsChange((columns - 1).coerceAtLeast(1)) },
+                        enabled = columns > 1,
+                    ) { Text("-") }
+                    Text(
+                        text = columns.toString(),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    OutlinedButton(
+                        onClick = { onColumnsChange((columns + 1).coerceAtMost(8)) },
+                        enabled = columns < 8,
+                    ) { Text("+") }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    )
 }
 
 @Composable
@@ -389,5 +435,6 @@ private fun SettingsScreenPreview() {
         onDefaultFontChange = {},
         onHideFontSelectorChange = {},
         onTextSizeModeChange = {},
+        onLayoutColumnsChange = {},
     )
 }

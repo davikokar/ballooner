@@ -25,4 +25,8 @@ class FakeSettingsRepository(initial: AppSettings = AppSettings()) : SettingsRep
     override suspend fun setTextSizeMode(mode: TextSizeMode) {
         settings.update { it.copy(textSizeMode = mode) }
     }
+
+    override suspend fun setLayoutColumns(columns: Int) {
+        settings.update { it.copy(layoutColumns = columns) }
+    }
 }

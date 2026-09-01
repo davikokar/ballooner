@@ -6,6 +6,9 @@
     <string name="settings_general">Geral</string>
     <string name="settings_change_language">Alterar idioma</string>
     <string name="settings_text">Configurações de texto</string>
+    <string name="settings_layout">Configurações de layout</string>
+    <string name="layout_columns">Colunas</string>
+    <string name="layout_columns_description">Número de colunas usadas na primeira seleção de imagens de um novo quadrinho.</string>
     <string name="settings_app">Aplicativo</string>
     <string name="settings_share_app">Compartilhar aplicativo</string>
     <string name="share_app_text">Crie quadrinhos com o Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
