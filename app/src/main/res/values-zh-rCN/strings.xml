@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Ballooner</string>
+    <string name="settings_title">设置</string>
+    <string name="back">返回</string>
+    <string name="close">关闭</string>
+    <string name="settings_general">常规</string>
+    <string name="settings_change_language">更改语言</string>
+    <string name="settings_text">文本设置</string>
+    <string name="settings_layout">布局设置</string>
+    <string name="layout_columns">列数</string>
+    <string name="layout_columns_description">新建漫画时首次选择图片所使用的列数。</string>
+    <string name="settings_app">应用</string>
+    <string name="settings_share_app">分享应用</string>
+    <string name="share_app_text">使用 Ballooner 创作漫画：https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="settings_rate_app">评价应用</string>
+    <string name="settings_customer_support">客户支持</string>
+    <string name="support_email_subject">Ballooner 支持请求</string>
+    <string name="error_no_email_app">未找到电子邮件应用</string>
+    <string name="settings_about">关于</string>
+    <string name="about_message">Ballooner 是一款使用设备中的图片创作短篇漫画的简单应用。</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="settings_community_support">社区与支持</string>
+    <string name="settings_buy_coffee">请我喝杯咖啡</string>
+    <string name="settings_legal">法律信息</string>
+    <string name="settings_privacy">隐私政策</string>
+    <string name="settings_terms">条款</string>
+    <string name="privacy_policy_text">Ballooner 会在您的设备上处理所选图片和漫画文本。图片会复制到应用的私有存储空间以供编辑。本应用不会收集、远程存储或共享个人数据。</string>
+    <string name="terms_text">Ballooner 按现状提供，仅供个人创作使用。您应对添加的图片和文本负责，并确保漫画符合适用法律和第三方权利。</string>
+    <string name="default_text_font">默认文本字体</string>
+    <string name="default_text_font_description">用作新气泡的初始字体。</string>
+    <string name="hide_font_selector">隐藏字体选择器</string>
+    <string name="hide_font_selector_description">隐藏气泡编辑器中的字体选择器。</string>
+    <string name="text_size">文本大小</string>
+    <string name="text_size_description">自动调整文本以填满每个气泡，并隐藏大小滑块。</string>
+    <string name="manual">手动</string>
+    <string name="auto">自动</string>
+</resources>

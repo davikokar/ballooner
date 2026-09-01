@@ -52,6 +52,7 @@ fun BalloonerNavHost(navController: NavHostController = rememberNavController())
                 projectId = projectId,
                 autoOpenPicker = isNew,
                 onNavigateBack = { navController.popBackStack() },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
     }

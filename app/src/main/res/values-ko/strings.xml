@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Ballooner</string>
+    <string name="settings_title">설정</string>
+    <string name="back">뒤로</string>
+    <string name="close">닫기</string>
+    <string name="settings_general">일반</string>
+    <string name="settings_change_language">언어 변경</string>
+    <string name="settings_text">텍스트 설정</string>
+    <string name="settings_layout">레이아웃 설정</string>
+    <string name="layout_columns">열</string>
+    <string name="layout_columns_description">새 만화에서 처음 이미지를 선택할 때 사용할 열 수입니다.</string>
+    <string name="settings_app">앱</string>
+    <string name="settings_share_app">앱 공유</string>
+    <string name="share_app_text">Ballooner로 만화를 만들어 보세요: https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="settings_rate_app">앱 평가</string>
+    <string name="settings_customer_support">고객 지원</string>
+    <string name="support_email_subject">Ballooner 지원 요청</string>
+    <string name="error_no_email_app">이메일 앱을 찾을 수 없습니다</string>
+    <string name="settings_about">앱 정보</string>
+    <string name="about_message">Ballooner는 기기의 이미지로 짧은 만화를 만드는 간단한 앱입니다.</string>
+    <string name="about_version">버전 %1$s</string>
+    <string name="settings_community_support">커뮤니티 및 지원</string>
+    <string name="settings_buy_coffee">커피 한 잔 후원하기</string>
+    <string name="settings_legal">법적 고지</string>
+    <string name="settings_privacy">개인정보 처리방침</string>
+    <string name="settings_terms">이용약관</string>
+    <string name="privacy_policy_text">Ballooner는 선택한 이미지와 만화 텍스트를 기기에서 처리합니다. 편집을 위해 이미지는 앱 전용 저장소에 복사됩니다. 이 앱은 개인 데이터를 수집하거나 원격으로 저장하거나 공유하지 않습니다.</string>
+    <string name="terms_text">Ballooner는 개인적인 창작 용도로 현재 상태 그대로 제공됩니다. 추가하는 이미지와 텍스트 및 만화가 관련 법률과 제3자의 권리를 준수하는지에 대한 책임은 사용자에게 있습니다.</string>
+    <string name="default_text_font">기본 텍스트 글꼴</string>
+    <string name="default_text_font_description">새 말풍선의 시작 글꼴로 사용됩니다.</string>
+    <string name="hide_font_selector">글꼴 선택기 숨기기</string>
+    <string name="hide_font_selector_description">말풍선 편집기에서 글꼴 선택기를 숨깁니다.</string>
+    <string name="text_size">텍스트 크기</string>
+    <string name="text_size_description">각 말풍선에 맞게 텍스트를 자동 조정하고 크기 슬라이더를 숨깁니다.</string>
+    <string name="manual">수동</string>
+    <string name="auto">자동</string>
+</resources>

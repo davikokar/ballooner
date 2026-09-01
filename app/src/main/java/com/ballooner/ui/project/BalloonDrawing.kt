@@ -216,15 +216,62 @@ private fun cloudPath(g: BalloonGeometry, bumpCount: Int): Path {
     return cloud
 }
 
-private fun tailPath(g: BalloonGeometry, tailWidth: Float): Path {
+internal data class CurvedTail(
+    val firstBase: Offset,
+    val firstControl: Offset,
+    val tip: Offset,
+    val secondControl: Offset,
+    val secondBase: Offset,
+)
+
+internal fun Balloon.curvedTail(canvasSize: Size): CurvedTail = curvedTail(geometry(canvasSize), tailWidth)
+
+private fun curvedTail(g: BalloonGeometry, tailWidth: Float): CurvedTail {
     val perp = Offset(-g.tailDir.y, g.tailDir.x)
     val baseHalf = tailWidth * min(g.radiusX, g.radiusY)
     val baseCenter = tailBaseCenter(g)
+    val firstBase = baseCenter + perp * baseHalf
+    val secondBase = baseCenter - perp * baseHalf
+    val firstMidpoint = (firstBase + g.tip) / 2f
+    val secondMidpoint = (secondBase + g.tip) / 2f
+    val curve = baseHalf * 0.25f
+    return CurvedTail(
+        firstBase = firstBase,
+        firstControl = firstMidpoint - perp * curve,
+        tip = g.tip,
+        secondControl = secondMidpoint + perp * curve,
+        secondBase = secondBase,
+    )
+}
+
+private fun tailPath(g: BalloonGeometry, tailWidth: Float): Path {
+    val tail = curvedTail(g, tailWidth)
     return Path().apply {
-        moveTo(baseCenter.x + perp.x * baseHalf, baseCenter.y + perp.y * baseHalf)
-        lineTo(g.tip.x, g.tip.y)
-        lineTo(baseCenter.x - perp.x * baseHalf, baseCenter.y - perp.y * baseHalf)
+        moveTo(tail.firstBase.x, tail.firstBase.y)
+        quadraticTo(tail.firstControl.x, tail.firstControl.y, tail.tip.x, tail.tip.y)
+        quadraticTo(tail.secondControl.x, tail.secondControl.y, tail.secondBase.x, tail.secondBase.y)
         close()
+    }
+}
+
+internal data class ThinkTailBubble(
+    val center: Offset,
+    val radius: Float,
+)
+
+internal fun Balloon.thinkTailBubbles(canvasSize: Size): List<ThinkTailBubble> =
+    thinkTailBubbles(geometry(canvasSize))
+
+private fun thinkTailBubbles(g: BalloonGeometry): List<ThinkTailBubble> {
+    if (g.tailLengthPx <= 0f) return emptyList()
+    val bubbleCount = (g.tailLengthPx / (min(g.radiusX, g.radiusY) * 0.5f))
+        .roundToInt().coerceIn(3, 8)
+    return List(bubbleCount) { index ->
+        val t = index.toFloat() / (bubbleCount - 1)
+        ThinkTailBubble(
+            center = g.edge + (g.tip - g.edge) * t,
+            radius = min(g.radiusX, g.radiusY) * (0.22f * (1f - t) + 0.06f),
+        )
     }
 }
 
@@ -234,14 +281,8 @@ private fun DrawScope.drawThinkTail(
     outlineColor: Color,
     strokeWidth: Float,
 ) {
-    if (g.tailLengthPx <= 0f) return
-    // At least three bubbles; more for a longer tail.
-    val bubbles = (g.tailLengthPx / (min(g.radiusX, g.radiusY) * 0.5f)).roundToInt().coerceIn(3, 8)
-    for (i in 1..bubbles) {
-        val t = i.toFloat() / bubbles
-        val pos = g.edge + (g.tip - g.edge) * t
-        val radius = min(g.radiusX, g.radiusY) * (0.22f * (1f - t) + 0.06f)
-        drawCircle(color = bodyColor, radius = radius, center = pos)
-        drawCircle(color = outlineColor, radius = radius, center = pos, style = Stroke(width = strokeWidth))
+    for (bubble in thinkTailBubbles(g)) {
+        drawCircle(color = bodyColor, radius = bubble.radius, center = bubble.center)
+        drawCircle(color = outlineColor, radius = bubble.radius, center = bubble.center, style = Stroke(width = strokeWidth))
     }
 }

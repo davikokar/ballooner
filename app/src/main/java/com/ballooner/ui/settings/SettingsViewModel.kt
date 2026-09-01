@@ -37,4 +37,8 @@ class SettingsViewModel @Inject constructor(
     fun setTextSizeMode(mode: TextSizeMode) {
         viewModelScope.launch { settingsRepository.setTextSizeMode(mode) }
     }
+
+    fun setLayoutColumns(columns: Int) {
+        viewModelScope.launch { settingsRepository.setLayoutColumns(columns) }
+    }
 }

@@ -4,6 +4,8 @@ import com.ballooner.data.balloon.BalloonRepository
 import com.ballooner.data.balloon.RoomBalloonRepository
 import com.ballooner.data.image.AppImageStore
 import com.ballooner.data.image.ImageStore
+import com.ballooner.data.panel.PanelRepository
+import com.ballooner.data.panel.RoomPanelRepository
 import com.ballooner.data.project.ProjectRepository
 import com.ballooner.data.project.RoomProjectRepository
 import com.ballooner.data.settings.AppSettingsRepository
@@ -25,6 +27,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindBalloonRepository(impl: RoomBalloonRepository): BalloonRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPanelRepository(impl: RoomPanelRepository): PanelRepository
 
     @Binds
     @Singleton

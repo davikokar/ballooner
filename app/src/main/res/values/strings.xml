@@ -1,3 +1,38 @@
 <resources>
     <string name="app_name">Ballooner</string>
+    <string name="settings_title">Settings</string>
+    <string name="back">Back</string>
+    <string name="close">Close</string>
+    <string name="settings_general">General</string>
+    <string name="settings_change_language">Change language</string>
+    <string name="settings_text">Text settings</string>
+    <string name="settings_layout">Layout settings</string>
+    <string name="layout_columns">Columns</string>
+    <string name="layout_columns_description">Number of columns used when selecting the first images for a new comic.</string>
+    <string name="settings_app">App</string>
+    <string name="settings_share_app">Share app</string>
+    <string name="share_app_text">Create comics with Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="settings_rate_app">Rate app</string>
+    <string name="settings_customer_support">Customer support</string>
+    <string name="support_email_address" translatable="false">davidemela.support@gmail.com</string>
+    <string name="support_email_subject">Ballooner support request</string>
+    <string name="error_no_email_app">No email application found</string>
+    <string name="settings_about">About</string>
+    <string name="about_message">Ballooner is a simple app for creating short comics with images from your device.</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="settings_community_support">Community &amp; support</string>
+    <string name="settings_buy_coffee">Buy me a coffee</string>
+    <string name="settings_legal">Legal</string>
+    <string name="settings_privacy">Privacy policy</string>
+    <string name="settings_terms">Terms</string>
+    <string name="privacy_policy_text">Ballooner processes your selected images and comic text on your device. Images are copied to app-private storage for editing. The app does not collect, store remotely, or share personal data.</string>
+    <string name="terms_text">Ballooner is provided as-is for personal creative use. You are responsible for the images and text you add and for ensuring that your comics comply with applicable laws and third-party rights.</string>
+    <string name="default_text_font">Default text font</string>
+    <string name="default_text_font_description">Used as the starting font for new balloons.</string>
+    <string name="hide_font_selector">Hide font selector</string>
+    <string name="hide_font_selector_description">Hides the font picker in the balloon editor.</string>
+    <string name="text_size">Text size</string>
+    <string name="text_size_description">Auto adjusts text to fill each balloon and hides the size slider.</string>
+    <string name="manual">Manual</string>
+    <string name="auto">Auto</string>
 </resources>

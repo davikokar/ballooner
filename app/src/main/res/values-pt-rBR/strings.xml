@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Ballooner</string>
+    <string name="settings_title">Configurações</string>
+    <string name="back">Voltar</string>
+    <string name="close">Fechar</string>
+    <string name="settings_general">Geral</string>
+    <string name="settings_change_language">Alterar idioma</string>
+    <string name="settings_text">Configurações de texto</string>
+    <string name="settings_layout">Configurações de layout</string>
+    <string name="layout_columns">Colunas</string>
+    <string name="layout_columns_description">Número de colunas usadas na primeira seleção de imagens de um novo quadrinho.</string>
+    <string name="settings_app">Aplicativo</string>
+    <string name="settings_share_app">Compartilhar aplicativo</string>
+    <string name="share_app_text">Crie quadrinhos com o Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="settings_rate_app">Avaliar aplicativo</string>
+    <string name="settings_customer_support">Suporte ao cliente</string>
+    <string name="support_email_subject">Solicitação de suporte do Ballooner</string>
+    <string name="error_no_email_app">Nenhum aplicativo de e-mail encontrado</string>
+    <string name="settings_about">Sobre</string>
+    <string name="about_message">O Ballooner é um aplicativo simples para criar quadrinhos curtos com imagens do seu dispositivo.</string>
+    <string name="about_version">Versão %1$s</string>
+    <string name="settings_community_support">Comunidade e suporte</string>
+    <string name="settings_buy_coffee">Pague-me um café</string>
+    <string name="settings_legal">Informações legais</string>
+    <string name="settings_privacy">Política de privacidade</string>
+    <string name="settings_terms">Termos</string>
+    <string name="privacy_policy_text">O Ballooner processa as imagens selecionadas e o texto dos quadrinhos no seu dispositivo. As imagens são copiadas para o armazenamento privado do aplicativo para edição. O aplicativo não coleta, armazena remotamente nem compartilha dados pessoais.</string>
+    <string name="terms_text">O Ballooner é fornecido no estado em que se encontra para uso criativo pessoal. Você é responsável pelas imagens e pelo texto adicionados e por garantir que seus quadrinhos estejam em conformidade com as leis aplicáveis e os direitos de terceiros.</string>
+    <string name="default_text_font">Fonte de texto padrão</string>
+    <string name="default_text_font_description">Usada como fonte inicial para novos balões.</string>
+    <string name="hide_font_selector">Ocultar seletor de fonte</string>
+    <string name="hide_font_selector_description">Oculta o seletor de fonte no editor de balões.</string>
+    <string name="text_size">Tamanho do texto</string>
+    <string name="text_size_description">Ajusta automaticamente o texto para preencher cada balão e oculta o controle de tamanho.</string>
+    <string name="manual">Manual</string>
+    <string name="auto">Automático</string>
+</resources>

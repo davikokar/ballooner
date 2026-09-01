@@ -11,4 +11,5 @@ interface SettingsRepository {
     suspend fun setDefaultFont(font: BalloonFont)
     suspend fun setHideFontSelector(hide: Boolean)
     suspend fun setTextSizeMode(mode: TextSizeMode)
+    suspend fun setLayoutColumns(columns: Int)
 }

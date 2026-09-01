@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Ballooner</string>
+    <string name="settings_title">Ajustes</string>
+    <string name="back">Atrás</string>
+    <string name="close">Cerrar</string>
+    <string name="settings_general">General</string>
+    <string name="settings_change_language">Cambiar idioma</string>
+    <string name="settings_text">Ajustes de texto</string>
+    <string name="settings_layout">Ajustes de diseño</string>
+    <string name="layout_columns">Columnas</string>
+    <string name="layout_columns_description">Número de columnas usadas al seleccionar las primeras imágenes de un cómic nuevo.</string>
+    <string name="settings_app">Aplicación</string>
+    <string name="settings_share_app">Compartir aplicación</string>
+    <string name="share_app_text">Crea cómics con Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="settings_rate_app">Valorar aplicación</string>
+    <string name="settings_customer_support">Atención al cliente</string>
+    <string name="support_email_subject">Solicitud de asistencia de Ballooner</string>
+    <string name="error_no_email_app">No se encontró ninguna aplicación de correo electrónico</string>
+    <string name="settings_about">Acerca de</string>
+    <string name="about_message">Ballooner es una aplicación sencilla para crear cómics cortos con imágenes de tu dispositivo.</string>
+    <string name="about_version">Versión %1$s</string>
+    <string name="settings_community_support">Comunidad y asistencia</string>
+    <string name="settings_buy_coffee">Invítame a un café</string>
+    <string name="settings_legal">Información legal</string>
+    <string name="settings_privacy">Política de privacidad</string>
+    <string name="settings_terms">Términos</string>
+    <string name="privacy_policy_text">Ballooner procesa las imágenes que seleccionas y el texto del cómic en tu dispositivo. Las imágenes se copian al almacenamiento privado de la aplicación para editarlas. La aplicación no recopila, almacena de forma remota ni comparte datos personales.</string>
+    <string name="terms_text">Ballooner se proporciona tal cual para uso creativo personal. Eres responsable de las imágenes y el texto que añades, así como de garantizar que tus cómics cumplan las leyes aplicables y los derechos de terceros.</string>
+    <string name="default_text_font">Fuente de texto predeterminada</string>
+    <string name="default_text_font_description">Se usa como fuente inicial para los bocadillos nuevos.</string>
+    <string name="hide_font_selector">Ocultar selector de fuente</string>
+    <string name="hide_font_selector_description">Oculta el selector de fuente en el editor de bocadillos.</string>
+    <string name="text_size">Tamaño del texto</string>
+    <string name="text_size_description">Ajusta automáticamente el texto para llenar cada bocadillo y oculta el control de tamaño.</string>
+    <string name="manual">Manual</string>
+    <string name="auto">Automático</string>
+</resources>

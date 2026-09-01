@@ -17,4 +17,5 @@ internal fun BalloonFont.label(): String = when (this) {
     BalloonFont.TAHOMA -> "Tahoma"
     BalloonFont.TREBUCHET -> "Trebuchet"
     BalloonFont.VERDANA -> "Verdana"
+    BalloonFont.ANIME_ACE -> "Anime Ace"
 }

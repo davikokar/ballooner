@@ -40,10 +40,16 @@ class AppSettingsRepository @Inject constructor(
         prefs.edit().putString(KEY_TEXT_MODE, mode.name).apply()
     }
 
+    override suspend fun setLayoutColumns(columns: Int) {
+        prefs.edit().putInt(KEY_LAYOUT_COLUMNS, columns.coerceIn(MIN_LAYOUT_COLUMNS, MAX_LAYOUT_COLUMNS)).apply()
+    }
+
     private fun readSettings() = AppSettings(
-        defaultFont = prefs.getString(KEY_FONT, null).toEnum(BalloonFont::valueOf) ?: BalloonFont.DEFAULT,
-        hideFontSelector = prefs.getBoolean(KEY_HIDE_FONT, false),
-        textSizeMode = prefs.getString(KEY_TEXT_MODE, null).toEnum(TextSizeMode::valueOf) ?: TextSizeMode.MANUAL,
+        defaultFont = prefs.getString(KEY_FONT, null).toEnum(BalloonFont::valueOf) ?: BalloonFont.ANIME_ACE,
+        hideFontSelector = prefs.getBoolean(KEY_HIDE_FONT, true),
+        textSizeMode = prefs.getString(KEY_TEXT_MODE, null).toEnum(TextSizeMode::valueOf) ?: TextSizeMode.AUTO,
+        layoutColumns = prefs.getInt(KEY_LAYOUT_COLUMNS, DEFAULT_LAYOUT_COLUMNS)
+            .coerceIn(MIN_LAYOUT_COLUMNS, MAX_LAYOUT_COLUMNS),
     )
 
     private fun <T> String?.toEnum(parse: (String) -> T): T? =
@@ -53,5 +59,9 @@ class AppSettingsRepository @Inject constructor(
         const val KEY_FONT = "default_font"
         const val KEY_HIDE_FONT = "hide_font_selector"
         const val KEY_TEXT_MODE = "text_size_mode"
+        const val KEY_LAYOUT_COLUMNS = "layout_columns"
+        const val DEFAULT_LAYOUT_COLUMNS = 4
+        const val MIN_LAYOUT_COLUMNS = 1
+        const val MAX_LAYOUT_COLUMNS = 8
     }
 }

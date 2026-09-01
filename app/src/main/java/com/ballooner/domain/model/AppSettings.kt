@@ -5,7 +5,8 @@ enum class TextSizeMode { MANUAL, AUTO }
 
 /** App-wide user preferences applied to every project. */
 data class AppSettings(
-    val defaultFont: BalloonFont = BalloonFont.DEFAULT,
-    val hideFontSelector: Boolean = false,
-    val textSizeMode: TextSizeMode = TextSizeMode.MANUAL,
+    val defaultFont: BalloonFont = BalloonFont.ANIME_ACE,
+    val hideFontSelector: Boolean = true,
+    val textSizeMode: TextSizeMode = TextSizeMode.AUTO,
+    val layoutColumns: Int = 4,
 )
