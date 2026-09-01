@@ -80,7 +80,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
@@ -133,6 +132,7 @@ import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.availableImagePlacements
 import com.ballooner.domain.model.defaultImagePlacement
 import com.ballooner.domain.model.edgeImagePlacements
+import com.ballooner.domain.model.magneticallyAlignedPanel
 import com.ballooner.domain.model.panelAt
 import com.ballooner.domain.model.targetRect
 import com.ballooner.ui.theme.AnimeAceFontFamily
@@ -1102,14 +1102,29 @@ private fun Editor(
                                     },
                             ) {
                                 val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
-                                if (size.width > 0f && size.height > 0f) {
-                                    val movingPanel = selectedPanel?.takeIf {
-                                        focusedPanel == null && moveHandleOffset != Offset.Zero
-                                    }
-                                    val previewPanel = movingPanel?.copy(
-                                        left = movingPanel.left + moveHandleOffset.x / size.width,
-                                        top = movingPanel.top + moveHandleOffset.y / size.height,
+                                val movingPanel = selectedPanel?.takeIf {
+                                    focusedPanel == null && moveHandleOffset != Offset.Zero &&
+                                        size.width > 0f && size.height > 0f
+                                }
+                                val desiredPanel = movingPanel?.copy(
+                                    left = movingPanel.left + moveHandleOffset.x / size.width,
+                                    top = movingPanel.top + moveHandleOffset.y / size.height,
+                                )
+                                val previewPanel = if (movingPanel != null && desiredPanel != null) {
+                                    val snapThresholdPx = with(LocalDensity.current) { 28.dp.toPx() } *
+                                        image.width / size.width
+                                    magneticallyAlignedPanel(
+                                        panels = panels,
+                                        moving = movingPanel,
+                                        desired = desiredPanel,
+                                        canvasWidth = image.width,
+                                        canvasHeight = image.height,
+                                        snapThresholdPx = snapThresholdPx,
                                     )
+                                } else {
+                                    null
+                                }
+                                if (size.width > 0f && size.height > 0f) {
                                     val displayPanels = if (movingPanel != null && previewPanel != null) {
                                         panels.map { if (it == movingPanel) previewPanel else it }
                                     } else {
@@ -1120,10 +1135,9 @@ private fun Editor(
                                         drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
                                         if (movingPanel != null && previewPanel != null) {
                                             drawRect(
-                                                color = Color.Transparent,
+                                                color = Color.Black,
                                                 topLeft = Offset(movingPanel.left * size.width, movingPanel.top * size.height),
                                                 size = Size(movingPanel.width * size.width, movingPanel.height * size.height),
-                                                blendMode = BlendMode.Clear,
                                             )
                                             drawImage(
                                                 image = image,
@@ -1218,24 +1232,24 @@ private fun Editor(
 
                                 if (editMode) {
                                     selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
+                                        val displayedMoveOffset = previewPanel?.let {
+                                            Offset(
+                                                (it.left - pending.left) * size.width,
+                                                (it.top - pending.top) * size.height,
+                                            )
+                                        } ?: moveHandleOffset
                                         ImageMoveHandle(
                                             centerPx = Offset(
                                                 (pending.left + pending.width / 2f) * size.width,
                                                 pending.top * size.height,
-                                            ) + moveHandleOffset,
+                                            ) + displayedMoveOffset,
                                             contentScale = 1f,
                                             onDrag = { delta ->
                                                 moveHandleOffset += delta
                                             },
                                             onDragEnd = {
                                                 if (moveHandleOffset != Offset.Zero) {
-                                                    onMoveImage(
-                                                        pending,
-                                                        pending.copy(
-                                                            left = pending.left + moveHandleOffset.x / size.width,
-                                                            top = pending.top + moveHandleOffset.y / size.height,
-                                                        ),
-                                                    )
+                                                    onMoveImage(pending, previewPanel ?: desiredPanel ?: pending)
                                                 }
                                                 moveHandleOffset = Offset.Zero
                                             },
@@ -1244,7 +1258,7 @@ private fun Editor(
                                             centerPx = Offset(
                                                 (pending.left + pending.width) * size.width,
                                                 pending.top * size.height,
-                                            ),
+                                            ) + displayedMoveOffset,
                                             contentScale = 1f,
                                             onTap = { showConfirmDeleteImage = true },
                                         )

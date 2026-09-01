@@ -1,5 +1,8 @@
 package com.ballooner.domain.model
 
+import kotlin.math.pow
+import kotlin.math.roundToInt
+
 /** A new image position relative to one existing panel. */
 data class ImagePlacement(
     val anchor: RectFraction,
@@ -81,3 +84,54 @@ private fun RectFraction.coordinateKey(): List<Int> = listOf(left, top, width, h
 }
 
 private const val COORDINATE_PRECISION = 100_000
+
+fun magneticallyAlignedPanel(
+    panels: List<RectFraction>,
+    moving: RectFraction,
+    desired: RectFraction,
+    canvasWidth: Int,
+    canvasHeight: Int,
+    snapThresholdPx: Float,
+): RectFraction {
+    val gapPx = panels.minOf { panel ->
+        minOf(panel.width * canvasWidth, panel.height * canvasHeight)
+    }.times(PANEL_GAP_FRACTION).roundToInt().coerceAtLeast(MIN_PANEL_GAP_PX)
+    val candidates = panels.asSequence()
+        .filter { it != moving }
+        .flatMap { anchor -> desired.snapCandidates(anchor, gapPx, canvasWidth, canvasHeight) }
+        .filter { candidate -> panels.none { it != moving && candidate.overlaps(it) } }
+        .map { candidate -> candidate to candidate.pixelDistanceSquared(desired, canvasWidth, canvasHeight) }
+        .filter { (_, distance) -> distance <= snapThresholdPx.toDouble().pow(2) }
+    return candidates.minByOrNull { (_, distance) -> distance }?.first ?: desired
+}
+
+private fun RectFraction.snapCandidates(
+    anchor: RectFraction,
+    gapPx: Int,
+    canvasWidth: Int,
+    canvasHeight: Int,
+): Sequence<RectFraction> {
+    val gapX = gapPx.toFloat() / canvasWidth
+    val gapY = gapPx.toFloat() / canvasHeight
+    val alignedTop = nearest(top, anchor.top, anchor.top + (anchor.height - height) / 2f, anchor.top + anchor.height - height)
+    val alignedLeft = nearest(left, anchor.left, anchor.left + (anchor.width - width) / 2f, anchor.left + anchor.width - width)
+    return sequenceOf(
+        copy(left = anchor.left - gapX - width, top = alignedTop),
+        copy(left = anchor.left + anchor.width + gapX, top = alignedTop),
+        copy(left = alignedLeft, top = anchor.top - gapY - height),
+        copy(left = alignedLeft, top = anchor.top + anchor.height + gapY),
+    )
+}
+
+private fun nearest(value: Float, vararg candidates: Float): Float = candidates.minBy { candidate ->
+    kotlin.math.abs(candidate - value)
+}
+
+private fun RectFraction.pixelDistanceSquared(other: RectFraction, canvasWidth: Int, canvasHeight: Int): Double {
+    val dx = (left - other.left) * canvasWidth
+    val dy = (top - other.top) * canvasHeight
+    return dx.toDouble().pow(2) + dy.toDouble().pow(2)
+}
+
+private const val PANEL_GAP_FRACTION = 0.02f
+private const val MIN_PANEL_GAP_PX = 8

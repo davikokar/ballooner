@@ -183,18 +183,23 @@ class AppImageStore @Inject constructor(
             val panelBitmaps = sourceRects.map { rect ->
                 Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width, rect.height)
             }
-            val gapPx = (sourceRects.minOf { minOf(it.width, it.height) } * PANEL_GAP_FRACTION)
-                .roundToInt().coerceAtLeast(MIN_PANEL_GAP_PX)
             val layout = computeRearrangeLayout(
                 panelRects = sourceRects,
                 fromIndex = fromIndex,
                 desiredLeft = (destination.left * bitmap.width).roundToInt(),
                 desiredTop = (destination.top * bitmap.height).roundToInt(),
-                gapPx = gapPx,
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
             val canvas = android.graphics.Canvas(composite)
+            val vacated = layout.vacatedRect
+            canvas.drawRect(
+                vacated.left.toFloat(),
+                vacated.top.toFloat(),
+                (vacated.left + vacated.width).toFloat(),
+                (vacated.top + vacated.height).toFloat(),
+                Paint().apply { color = Color.BLACK },
+            )
             panelBitmaps.forEachIndexed { index, panelBitmap ->
                 val target = layout.panelRects[index]
                 canvas.drawBitmap(panelBitmap, target.left.toFloat(), target.top.toFloat(), null)
@@ -263,7 +268,6 @@ class AppImageStore @Inject constructor(
     private companion object {
         const val MAX_DECODED_DIMENSION_PX = 2048
         const val MAX_GRID_WIDTH_PX = 2048
-        const val PANEL_GAP_FRACTION = 0.02f
         const val MIN_PANEL_GAP_PX = 8
     }
 }
