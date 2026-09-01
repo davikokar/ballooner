@@ -265,7 +265,7 @@ private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Uni
         AlertDialog(
             onDismissRequest = { showConfirm = false },
             title = { Text("Delete comic?") },
-            text = { Text("This permanently removes the comic and its image.") },
+            text = { Text("This permanently removes the comic and its panels.") },
             confirmButton = {
                 TextButton(
                     onClick = {

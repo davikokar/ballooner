@@ -457,7 +457,7 @@ private fun ImagePositionDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add image") },
+        title = { Text("Add panel") },
         text = {
             Column {
                 Text("Drag the new panel next to any existing one, then tap Add.")
@@ -608,7 +608,7 @@ private fun ImagePositionPicker(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New image", tint = InkBlack)
+                Icon(Icons.Default.Add, contentDescription = "New panel", tint = InkBlack)
             }
         }
     }
@@ -634,7 +634,7 @@ private fun ImageProcessingOverlay() {
         ) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(12.dp))
-            Text("Adding image\u2026", color = InkBlack, fontWeight = FontWeight.Bold)
+            Text("Adding panel\u2026", color = InkBlack, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -712,7 +712,7 @@ private fun ProjectOverflowMenu(
         AlertDialog(
             onDismissRequest = { showConfirm = false },
             title = { Text("Delete comic?") },
-            text = { Text("This permanently removes the comic and its image.") },
+            text = { Text("This permanently removes the comic and its panels.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -764,7 +764,7 @@ private fun Toolbar(
             enabled = canRotate,
         )
         ComicButton(
-            text = if (imageFocused) "Show all images" else "Focus image",
+            text = if (imageFocused) "Show all panels" else "Focus panel",
             onClick = onToggleImageFocus,
             icon = BalloonerIcons.FocusImage,
             showLabel = false,
@@ -773,7 +773,7 @@ private fun Toolbar(
         )
         ModeToggle(editMode = editMode, onToggleMode = onToggleMode)
         ComicButton(
-            text = "Add picture",
+            text = "Add panel",
             onClick = onChangeImage,
             icon = BalloonerIcons.ImageAdd,
             showLabel = false,
@@ -1338,8 +1338,8 @@ private fun Editor(
     if (showConfirmDeleteImage) {
         AlertDialog(
             onDismissRequest = { showConfirmDeleteImage = false },
-            title = { Text("Delete image?") },
-            text = { Text("This permanently removes this image and any balloons on it.") },
+            title = { Text("Delete panel?") },
+            text = { Text("This permanently removes this panel and any balloons on it.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1450,14 +1450,14 @@ private fun FocusNavigation(
                     .size(30.dp)
                     .background(Color(0xFFFFD21F), CircleShape)
                     .border(2.dp, InkBlack, CircleShape)
-                    .clickable(onClickLabel = "Show image ${position.name.lowercase()}") {
+                    .clickable(onClickLabel = "Show panel ${position.name.lowercase()}") {
                         onFocusPanel(panel)
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = "Show image ${position.name.lowercase()}",
+                    contentDescription = "Show panel ${position.name.lowercase()}",
                     tint = InkBlack,
                     modifier = Modifier.size(22.dp),
                 )
@@ -1983,7 +1983,7 @@ private fun ImageDeleteHandle(centerPx: Offset, contentScale: Float, onTap: () -
     ) {
         Icon(
             imageVector = Icons.Default.Close,
-            contentDescription = "Delete image",
+            contentDescription = "Delete panel",
             tint = Color.White,
             modifier = Modifier.size(18.dp),
         )
@@ -2024,7 +2024,7 @@ private fun ImageMoveHandle(
     ) {
         Icon(
             imageVector = BalloonerIcons.Move,
-            contentDescription = "Move image",
+            contentDescription = "Move panel",
             tint = InkBlack,
             modifier = Modifier.size(20.dp),
         )
@@ -2044,14 +2044,14 @@ private fun ImageAddEdgeButton(centerPx: Offset, position: ImagePosition, onClic
             .background(MaterialTheme.colorScheme.tertiary, CircleShape)
             .border(2.dp, InkBlack, CircleShape)
             .clickable(
-                onClickLabel = "Add image ${position.name.lowercase()}",
+                onClickLabel = "Add panel ${position.name.lowercase()}",
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Default.Add,
-            contentDescription = "Add image ${position.name.lowercase()}",
+            contentDescription = "Add panel ${position.name.lowercase()}",
             tint = InkBlack,
             modifier = Modifier.size(20.dp),
         )
