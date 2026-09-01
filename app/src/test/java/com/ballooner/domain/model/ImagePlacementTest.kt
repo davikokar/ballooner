@@ -56,4 +56,23 @@ class ImagePlacementTest {
 
         assertEquals(ImagePlacement(panel, ImagePosition.RIGHT), default)
     }
+
+    @Test
+    fun `edge buttons appear only on open right and bottom edges`() {
+        val topLeft = RectFraction(0f, 0f, 0.48f, 0.48f)
+        val topRight = RectFraction(0.52f, 0f, 0.48f, 0.48f)
+        val bottomLeft = RectFraction(0f, 0.52f, 0.48f, 0.48f)
+
+        val placements = edgeImagePlacements(listOf(topLeft, topRight, bottomLeft))
+
+        assertEquals(
+            setOf(
+                ImagePlacement(topRight, ImagePosition.RIGHT),
+                ImagePlacement(topRight, ImagePosition.BOTTOM),
+                ImagePlacement(bottomLeft, ImagePosition.RIGHT),
+                ImagePlacement(bottomLeft, ImagePosition.BOTTOM),
+            ),
+            placements.toSet(),
+        )
+    }
 }

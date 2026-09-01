@@ -61,6 +61,16 @@ fun availableImagePlacements(panels: List<RectFraction>): List<ImagePlacement> {
         .map { candidates -> candidates.minBy { it.position.duplicatePriority } }
 }
 
+fun edgeImagePlacements(panels: List<RectFraction>): List<ImagePlacement> = panels.flatMap { anchor ->
+    listOf(
+        ImagePlacement(anchor, ImagePosition.RIGHT),
+        ImagePlacement(anchor, ImagePosition.BOTTOM),
+    )
+}.filter { placement ->
+    val candidate = placement.targetRect()
+    panels.none { panel -> panel != placement.anchor && candidate.overlaps(panel) }
+}
+
 fun ImagePlacement.targetRect(): RectFraction {
     val targetWidth = anchor.width
     val targetHeight = anchor.height

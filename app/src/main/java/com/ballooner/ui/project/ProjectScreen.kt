@@ -129,6 +129,7 @@ import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.availableImagePlacements
 import com.ballooner.domain.model.defaultImagePlacement
+import com.ballooner.domain.model.edgeImagePlacements
 import com.ballooner.domain.model.gridCell
 import com.ballooner.domain.model.panelAt
 import com.ballooner.domain.model.panelGridCells
@@ -201,6 +202,7 @@ fun ProjectScreen(
     // added alongside it (which then needs a position before it can be composed in).
     var addingImage by remember { mutableStateOf(false) }
     var pendingNewImageUri by remember { mutableStateOf<String?>(null) }
+    var pendingImagePlacement by remember { mutableStateOf<ImagePlacement?>(null) }
     val pickInitialMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(),
     ) { uris: List<Uri> ->
@@ -213,15 +215,25 @@ fun ProjectScreen(
     val pickMedia = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
+        if (uri == null) {
+            pendingImagePlacement = null
+            return@rememberLauncherForActivityResult
+        }
         if (addingImage && uiState.hasImage) {
-            pendingNewImageUri = uri.toString()
+            val placement = pendingImagePlacement
+            if (placement == null) {
+                pendingNewImageUri = uri.toString()
+            } else {
+                onAddImage(uri.toString(), placement)
+                pendingImagePlacement = null
+            }
         } else {
             onImagePicked(uri.toString())
         }
     }
-    val launchPicker = { addImage: Boolean ->
+    val launchPicker = { addImage: Boolean, placement: ImagePlacement? ->
         addingImage = addImage
+        pendingImagePlacement = placement
         pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
     // Displayed image width in px, used to scale text to the exported resolution.
@@ -380,7 +392,7 @@ fun ProjectScreen(
                                 rotation = (rotation + 90f) % 360f
                             }
                         },
-                        onChangeImage = { launchPicker(true) },
+                        onChangeImage = { launchPicker(true, null) },
                         onSave = onSave,
                         onToggleMode = { editMode = it },
                     )
@@ -398,7 +410,8 @@ fun ProjectScreen(
                         onAddBalloon = { type ->
                             onAddBalloon(type, focusedPanel ?: selectedPanel ?: uiState.panels.firstOrNull())
                         },
-                        onOpenImagePicker = { launchPicker(false) },
+                        onOpenImagePicker = { launchPicker(false, null) },
+                        onAddImageAt = { placement -> launchPicker(true, placement) },
                         onLayerWidth = { displayedWidth = it },
                         panels = uiState.panels,
                         selectedPanel = selectedPanel,
@@ -948,6 +961,7 @@ private fun Editor(
     onDeleteSelected: () -> Unit,
     onAddBalloon: (BalloonType) -> Unit,
     onOpenImagePicker: () -> Unit,
+    onAddImageAt: (ImagePlacement) -> Unit,
     onLayerWidth: (Int) -> Unit,
     panels: List<RectFraction>,
     selectedPanel: RectFraction?,
@@ -1197,6 +1211,27 @@ private fun Editor(
                                             contentScale = 1f,
                                             onTap = { showConfirmDeleteImage = true },
                                         )
+                                    }
+                                    if (focusedPanel == null) {
+                                        edgeImagePlacements(panels).forEach { placement ->
+                                            val anchor = placement.anchor
+                                            val center = when (placement.position) {
+                                                ImagePosition.RIGHT -> Offset(
+                                                    (anchor.left + anchor.width) * size.width,
+                                                    (anchor.top + anchor.height / 2f) * size.height,
+                                                )
+                                                ImagePosition.BOTTOM -> Offset(
+                                                    (anchor.left + anchor.width / 2f) * size.width,
+                                                    (anchor.top + anchor.height) * size.height,
+                                                )
+                                                else -> return@forEach
+                                            }
+                                            ImageAddEdgeButton(
+                                                centerPx = center,
+                                                position = placement.position,
+                                                onClick = { onAddImageAt(placement) },
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1990,6 +2025,33 @@ private fun ImageMoveHandle(
         Icon(
             imageVector = BalloonerIcons.Move,
             contentDescription = "Move image",
+            tint = InkBlack,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+/** Adds an image directly beside the panel edge where this button is shown. */
+@Composable
+private fun ImageAddEdgeButton(centerPx: Offset, position: ImagePosition, onClick: () -> Unit) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { 15.dp.toPx() }
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(30.dp)
+            .zIndex(2f)
+            .background(MaterialTheme.colorScheme.tertiary, CircleShape)
+            .border(2.dp, InkBlack, CircleShape)
+            .clickable(
+                onClickLabel = "Add image ${position.name.lowercase()}",
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Add image ${position.name.lowercase()}",
             tint = InkBlack,
             modifier = Modifier.size(20.dp),
         )
