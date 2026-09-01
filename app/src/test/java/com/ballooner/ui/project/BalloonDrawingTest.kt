@@ -153,6 +153,28 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `focused navigation uses coordinates for irregular panel positions`() {
+        val focused = RectFraction(0.4f, 0.4f, 0.2f, 0.2f)
+        val nearRight = RectFraction(0.65f, 0.46f, 0.12f, 0.18f)
+        val farRight = RectFraction(0.85f, 0.1f, 0.1f, 0.1f)
+        val above = RectFraction(0.32f, 0.05f, 0.15f, 0.2f)
+
+        val adjacent = adjacentPanels(listOf(focused, nearRight, farRight, above), focused)
+
+        assertEquals(nearRight, adjacent[ImagePosition.RIGHT])
+        assertEquals(above, adjacent[ImagePosition.TOP])
+    }
+
+    @Test
+    fun `add panel handles hide while a panel is selected`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+
+        assertFalse(showAddPanelHandles(focusedPanel = null, selectedPanel = panel))
+        assertFalse(showAddPanelHandles(focusedPanel = panel, selectedPanel = null))
+        assertTrue(showAddPanelHandles(focusedPanel = null, selectedPanel = null))
+    }
+
+    @Test
     fun `focus navigation offsets center arrows on image edges`() {
         assertEquals((-15).dp, focusNavigationOffset(ImagePosition.LEFT).x)
         assertEquals(15.dp, focusNavigationOffset(ImagePosition.RIGHT).x)

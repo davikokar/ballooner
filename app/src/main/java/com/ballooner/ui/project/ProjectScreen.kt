@@ -133,9 +133,8 @@ import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.availableImagePlacements
 import com.ballooner.domain.model.defaultImagePlacement
 import com.ballooner.domain.model.edgeImagePlacements
-import com.ballooner.domain.model.gridCell
 import com.ballooner.domain.model.panelAt
-import com.ballooner.domain.model.panelGridCells
+import com.ballooner.domain.model.targetRect
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
@@ -501,38 +500,35 @@ private fun ImagePositionPicker(
     val pickerSize = DpSize(280.dp, 220.dp)
     val pickerWidthPx = with(density) { pickerSize.width.toPx() }
     val pickerHeightPx = with(density) { pickerSize.height.toPx() }
-    val panelCells = remember(panels) { panelGridCells(panels) }
-    val targetCells = remember(placements, panelCells) {
-        placements.associateWith { it.gridCell(panelCells) }
-    }
-    val allCells = panelCells.values + targetCells.values
-    val minColumn = allCells.minOfOrNull { it.column } ?: -1
-    val maxColumn = allCells.maxOfOrNull { it.column } ?: 1
-    val minRow = allCells.minOfOrNull { it.row } ?: -1
-    val maxRow = allCells.maxOfOrNull { it.row } ?: 1
-    val columnCount = maxColumn - minColumn + 1
-    val rowCount = maxRow - minRow + 1
+    val targets = remember(placements) { placements.associateWith { it.targetRect() } }
+    val allRects = panels + targets.values
+    val minLeft = allRects.minOfOrNull { it.left } ?: 0f
+    val minTop = allRects.minOfOrNull { it.top } ?: 0f
+    val maxRight = allRects.maxOfOrNull { it.left + it.width } ?: 1f
+    val maxBottom = allRects.maxOfOrNull { it.top + it.height } ?: 1f
     val marginPx = with(density) { 12.dp.toPx() }
-    val gapPx = with(density) { 10.dp.toPx() }
-    val cellPx = minOf(
-        (pickerWidthPx - marginPx * 2 - gapPx * (columnCount - 1)) / columnCount,
-        (pickerHeightPx - marginPx * 2 - gapPx * (rowCount - 1)) / rowCount,
-        with(density) { 56.dp.toPx() },
+    val scale = minOf(
+        (pickerWidthPx - marginPx * 2) / (maxRight - minLeft).coerceAtLeast(0.01f),
+        (pickerHeightPx - marginPx * 2) / (maxBottom - minTop).coerceAtLeast(0.01f),
     )
-    val pitchPx = cellPx + gapPx
-    val centerColumn = (minColumn + maxColumn) / 2f
-    val centerRow = (minRow + maxRow) / 2f
-    fun centerOf(cell: com.ballooner.domain.model.PanelGridCell) = Offset(
-        (cell.column - centerColumn) * pitchPx,
-        (cell.row - centerRow) * pitchPx,
+    fun topLeft(rect: RectFraction) = Offset(
+        marginPx + (rect.left - minLeft) * scale,
+        marginPx + (rect.top - minTop) * scale,
     )
+    fun rectSize(rect: RectFraction) = DpSize(
+        with(density) { (rect.width * scale).toDp() },
+        with(density) { (rect.height * scale).toDp() },
+    )
+    fun centerOf(rect: RectFraction) = topLeft(rect) + Offset(rect.width * scale / 2f, rect.height * scale / 2f)
 
-    val snapTargets = targetCells.mapValues { centerOf(it.value) }
+    val snapTargets = targets.mapValues { centerOf(it.value) }
     var dragOffset by remember { mutableStateOf<Offset?>(null) }
     LaunchedEffect(panels) { dragOffset = null }
-    val displayOffset = dragOffset ?: snapped?.let { snapTargets[it] } ?: Offset.Zero
+    val displayOffset = dragOffset ?: snapped?.let { snapTargets[it] } ?: Offset(pickerWidthPx / 2f, pickerHeightPx / 2f)
     val nearestSnap = snapTargets.entries.minByOrNull { (it.value - displayOffset).getDistance() }?.key
-    val newBlockSize = DpSize(with(density) { cellPx.toDp() }, with(density) { cellPx.toDp() })
+    val displayPlacement = if (dragOffset == null) snapped else nearestSnap
+    val newBlockRect = displayPlacement?.let { targets[it] } ?: panels.firstOrNull()
+    val newBlockSize = newBlockRect?.let(::rectSize) ?: DpSize(48.dp, 48.dp)
 
     Box(
         modifier = Modifier
@@ -543,32 +539,32 @@ private fun ImagePositionPicker(
         contentAlignment = Alignment.Center,
     ) {
         Box(modifier = Modifier.size(pickerSize)) {
-            targetCells.forEach { (placement, _) ->
-                val target = snapTargets.getValue(placement)
+            targets.forEach { (placement, rect) ->
                 val isActive = placement == (if (dragOffset == null) snapped else nearestSnap)
                 Box(
                     modifier = Modifier
                         .offset {
+                            val offset = topLeft(rect)
                             IntOffset(
-                                (pickerWidthPx / 2f + target.x - cellPx / 2f).roundToInt(),
-                                (pickerHeightPx / 2f + target.y - cellPx / 2f).roundToInt(),
+                                offset.x.roundToInt(),
+                                offset.y.roundToInt(),
                             )
                         }
-                        .size(with(density) { cellPx.toDp() })
+                        .size(rectSize(rect))
                         .dashedBorder(2.dp, InkBlack.copy(alpha = if (isActive) 0.8f else 0.35f), RoundedCornerShape(4.dp)),
                 )
             }
-            panelCells.forEach { (_, cell) ->
-                val center = centerOf(cell)
+            panels.forEach { panel ->
                 Box(
                     modifier = Modifier
                         .offset {
+                            val offset = topLeft(panel)
                             IntOffset(
-                                (pickerWidthPx / 2f + center.x - cellPx / 2f).roundToInt(),
-                                (pickerHeightPx / 2f + center.y - cellPx / 2f).roundToInt(),
+                                offset.x.roundToInt(),
+                                offset.y.roundToInt(),
                             )
                         }
-                        .size(with(density) { cellPx.toDp() })
+                        .size(rectSize(panel))
                         .background(Color.White, RoundedCornerShape(4.dp))
                         .border(2.dp, InkBlack, RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center,
@@ -580,9 +576,9 @@ private fun ImagePositionPicker(
                 modifier = Modifier
                     .offset {
                         IntOffset(
-                            (pickerWidthPx / 2f + displayOffset.x - with(density) { newBlockSize.width.toPx() } / 2f)
+                                (displayOffset.x - with(density) { newBlockSize.width.toPx() } / 2f)
                                 .roundToInt(),
-                            (pickerHeightPx / 2f + displayOffset.y - with(density) { newBlockSize.height.toPx() } / 2f)
+                            (displayOffset.y - with(density) { newBlockSize.height.toPx() } / 2f)
                                 .roundToInt(),
                         )
                     }
@@ -1253,7 +1249,7 @@ private fun Editor(
                                             onTap = { showConfirmDeleteImage = true },
                                         )
                                     }
-                                    if (focusedPanel == null) {
+                                    if (showAddPanelHandles(focusedPanel, selectedPanel)) {
                                         edgeImagePlacements(panels).forEach { placement ->
                                             val anchor = placement.anchor
                                             val center = when (placement.position) {
@@ -1403,6 +1399,11 @@ internal fun imageFocusTarget(
     focusedPanel: RectFraction?,
 ): RectFraction? = if (focusedPanel == null) selectedPanel ?: panels.firstOrNull() else null
 
+internal fun showAddPanelHandles(
+    focusedPanel: RectFraction?,
+    selectedPanel: RectFraction?,
+): Boolean = focusedPanel == null && selectedPanel == null
+
 internal fun rotationTarget(
     panels: List<RectFraction>,
     selectedPanel: RectFraction?,
@@ -1442,24 +1443,27 @@ internal fun adjacentPanels(
     panels: List<RectFraction>,
     focusedPanel: RectFraction,
 ): Map<ImagePosition, RectFraction> {
-    val cells = panelGridCells(panels)
-    val focusedCell = cells[focusedPanel] ?: return emptyMap()
+    val focusedCenterX = focusedPanel.left + focusedPanel.width / 2f
+    val focusedCenterY = focusedPanel.top + focusedPanel.height / 2f
     return ImagePosition.entries.mapNotNull { position ->
-        val candidates = cells.filter { (_, cell) ->
+        val nearest = panels.asSequence().filter { it != focusedPanel }.filter { panel ->
+            val centerX = panel.left + panel.width / 2f
+            val centerY = panel.top + panel.height / 2f
             when (position) {
-                ImagePosition.LEFT -> cell.row == focusedCell.row && cell.column < focusedCell.column
-                ImagePosition.RIGHT -> cell.row == focusedCell.row && cell.column > focusedCell.column
-                ImagePosition.TOP -> cell.column == focusedCell.column && cell.row < focusedCell.row
-                ImagePosition.BOTTOM -> cell.column == focusedCell.column && cell.row > focusedCell.row
+                ImagePosition.LEFT -> centerX < focusedCenterX
+                ImagePosition.RIGHT -> centerX > focusedCenterX
+                ImagePosition.TOP -> centerY < focusedCenterY
+                ImagePosition.BOTTOM -> centerY > focusedCenterY
+            }
+        }.minByOrNull { panel ->
+            val dx = panel.left + panel.width / 2f - focusedCenterX
+            val dy = panel.top + panel.height / 2f - focusedCenterY
+            when (position) {
+                ImagePosition.LEFT, ImagePosition.RIGHT -> dx * dx + dy * dy * 2f
+                ImagePosition.TOP, ImagePosition.BOTTOM -> dy * dy + dx * dx * 2f
             }
         }
-        val nearest = when (position) {
-            ImagePosition.LEFT -> candidates.maxByOrNull { it.value.column }
-            ImagePosition.RIGHT -> candidates.minByOrNull { it.value.column }
-            ImagePosition.TOP -> candidates.maxByOrNull { it.value.row }
-            ImagePosition.BOTTOM -> candidates.minByOrNull { it.value.row }
-        }
-        nearest?.key?.let { position to it }
+        nearest?.let { position to it }
     }.toMap()
 }
 
