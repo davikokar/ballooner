@@ -77,6 +77,21 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `non-caption balloons leave three image pixels around text`() {
+        val types = listOf(
+            BalloonType.SPEAK,
+            BalloonType.YELL,
+            BalloonType.WHISPER,
+            BalloonType.THINK,
+        )
+
+        types.forEach { type ->
+            assertEquals(3f, balloonTextInsetPx(type, contentScale = 1f), 0.001f)
+            assertEquals(6f, balloonTextInsetPx(type, contentScale = 2f), 0.001f)
+        }
+    }
+
+    @Test
     fun `quarter turn swaps focused panel layout dimensions`() {
         val panel = RectFraction(left = 0.5f, top = 0f, width = 0.25f, height = 1f)
 

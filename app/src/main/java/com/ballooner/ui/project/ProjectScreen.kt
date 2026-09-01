@@ -1635,19 +1635,17 @@ private fun BalloonText(
     val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f - origin.y
     val widthDp = with(density) { (balloon.width * canvasSize.width).toDp() }
     val heightDp = with(density) { (balloon.height * canvasSize.height).toDp() }
-    val basePadding = when (balloon.type) {
-        BalloonType.YELL -> 24.dp
+    val innerPaddingPx = when (balloon.type) {
         // Captions are a plain rectangle, so the text can sit almost flush with the border.
-        BalloonType.CAPTION -> 2.dp
-        else -> 18.dp
+        BalloonType.CAPTION -> with(density) { scaledBalloonTextDimension(2f, contentScale).dp.toPx() }
+        else -> balloonTextInsetPx(balloon.type, contentScale)
     }
-    val innerPadding = scaledBalloonTextDimension(basePadding.value, contentScale).dp
+    val innerPadding = with(density) { innerPaddingPx.toDp() }
 
     var text by remember(balloon.id) { mutableStateOf(balloon.text) }
 
-    val padPx = with(density) { innerPadding.toPx() }
-    val availableWidth = (balloon.width * canvasSize.width - 2 * padPx).toInt().coerceAtLeast(1)
-    val availableHeight = (balloon.height * canvasSize.height - 2 * padPx).toInt().coerceAtLeast(1)
+    val availableWidth = (balloon.width * canvasSize.width - 2 * innerPaddingPx).toInt().coerceAtLeast(1)
+    val availableHeight = (balloon.height * canvasSize.height - 2 * innerPaddingPx).toInt().coerceAtLeast(1)
     val effectiveFontSize = if (autoSize) {
         rememberAutoFontSize(text, balloon.font, availableWidth, availableHeight, contentScale)
     } else {
@@ -1750,6 +1748,9 @@ internal fun balloonTextScale(currentContentWidth: Float, normalContentWidth: Fl
 
 internal fun scaledBalloonTextDimension(baseDimension: Float, contentScale: Float): Float =
     baseDimension * contentScale.coerceAtLeast(0f)
+
+internal fun balloonTextInsetPx(type: BalloonType, contentScale: Float): Float =
+    if (type == BalloonType.CAPTION) 0f else scaledBalloonTextDimension(3f, contentScale)
 
 @Composable
 private fun Handles(
@@ -2175,10 +2176,17 @@ private fun DrawScope.drawExportText(
     if (balloon.text.isBlank()) return
     val boxW = balloon.width * canvasSize.width
     val boxH = balloon.height * canvasSize.height
-    // Mirrors BalloonText's inner padding so exported text wraps the same way it did on screen.
-    val paddingFraction = if (balloon.type == BalloonType.CAPTION) 0.97f else 0.74f
-    val maxW = (boxW * paddingFraction).toInt().coerceAtLeast(1)
-    val maxH = (boxH * paddingFraction).toInt().coerceAtLeast(1)
+    // Mirrors BalloonText's inset at native export resolution.
+    val maxW: Int
+    val maxH: Int
+    if (balloon.type == BalloonType.CAPTION) {
+        maxW = (boxW * 0.97f).toInt().coerceAtLeast(1)
+        maxH = (boxH * 0.97f).toInt().coerceAtLeast(1)
+    } else {
+        val insetPx = balloonTextInsetPx(balloon.type, scale)
+        maxW = (boxW - 2 * insetPx).toInt().coerceAtLeast(1)
+        maxH = (boxH - 2 * insetPx).toInt().coerceAtLeast(1)
+    }
     val fontSize = if (autoSize) {
         autoFitFontSize(balloon.text, balloon.font, maxW, maxH, textMeasurer)
     } else {
