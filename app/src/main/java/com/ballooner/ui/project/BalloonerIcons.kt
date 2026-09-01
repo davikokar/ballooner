@@ -20,6 +20,14 @@ object BalloonerIcons {
         )
     }
 
+    val ImageAdd: ImageVector by lazy {
+        icon(
+            name = "Add image",
+            pathData = "M15 3H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h9v-2H4V5h11v8h2V5c0-1.1-.9-2-2-2z" +
+                "M5 15h9l-3-4-2.25 3L7 12l-2 3zm14 0v3h-3v2h3v3h2v-3h3v-2h-3v-3h-2z",
+        )
+    }
+
     val Rotate: ImageVector by lazy {
         icon(
             name = "Rotate",

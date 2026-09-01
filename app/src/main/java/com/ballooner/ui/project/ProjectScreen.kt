@@ -672,9 +672,13 @@ private fun Toolbar(
             containerColor = if (imageFocused) MaterialTheme.colorScheme.tertiary else Color.White,
         )
         ModeToggle(editMode = editMode, onToggleMode = onToggleMode)
-        if (editMode) {
-            ComicButton(text = "Change image", onClick = onChangeImage, icon = BalloonerIcons.Image, showLabel = false)
-        }
+        ComicButton(
+            text = "Add picture",
+            onClick = onChangeImage,
+            icon = BalloonerIcons.ImageAdd,
+            showLabel = false,
+            enabled = editMode,
+        )
         ComicButton(
             text = "Save",
             onClick = onSave,
