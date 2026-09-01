@@ -11,7 +11,6 @@ import android.net.Uri
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
-import com.ballooner.domain.model.panelGridCells
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -176,8 +175,7 @@ class AppImageStore @Inject constructor(
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
-        targetIndex: Int,
-        position: ImagePosition,
+        destination: RectFraction,
     ): RearrangedImage? = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = decodeBitmap(uri) ?: return@runCatching null
@@ -185,16 +183,13 @@ class AppImageStore @Inject constructor(
             val panelBitmaps = sourceRects.map { rect ->
                 Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width, rect.height)
             }
-            val cells = panelGridCells(panels)
-            val rowSizes = panels.groupingBy { cells.getValue(it).row }.eachCount().toSortedMap().values.toList()
             val gapPx = (sourceRects.minOf { minOf(it.width, it.height) } * PANEL_GAP_FRACTION)
                 .roundToInt().coerceAtLeast(MIN_PANEL_GAP_PX)
             val layout = computeRearrangeLayout(
-                panelSizes = sourceRects.map { PixelSize(it.width, it.height) },
-                rowSizes = rowSizes,
+                panelRects = sourceRects,
                 fromIndex = fromIndex,
-                targetIndex = targetIndex,
-                position = position,
+                desiredLeft = (destination.left * bitmap.width).roundToInt(),
+                desiredTop = (destination.top * bitmap.height).roundToInt(),
                 gapPx = gapPx,
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)

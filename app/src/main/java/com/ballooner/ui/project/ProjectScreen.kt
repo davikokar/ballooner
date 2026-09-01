@@ -80,6 +80,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
@@ -144,7 +145,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStream
 import kotlin.math.roundToInt
-import kotlin.math.abs
 import kotlin.math.sqrt
 
 @Composable
@@ -194,7 +194,7 @@ fun ProjectScreen(
     onDeleteSelected: () -> Unit,
     onDeleteComic: () -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
-    onMoveImage: (RectFraction, ImagePlacement) -> Unit,
+    onMoveImage: (RectFraction, RectFraction) -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -971,18 +971,16 @@ private fun Editor(
     focusedPanel: RectFraction?,
     onFocusPanel: (RectFraction) -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
-    onMoveImage: (RectFraction, ImagePlacement) -> Unit,
+    onMoveImage: (RectFraction, RectFraction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageState = rememberImageState(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
-    var moveTarget by remember { mutableStateOf<ImagePlacement?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     var comicKitExpanded by remember { mutableStateOf(true) }
     LaunchedEffect(panels) {
         moveHandleOffset = Offset.Zero
-        moveTarget = null
     }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -1103,25 +1101,92 @@ private fun Editor(
                                                 val v = offset.y / size.height
                                                 onSelectPanel(panels.panelAt(u, v))
                                                 moveHandleOffset = Offset.Zero
-                                                moveTarget = null
                                             },
                                         )
                                     },
                             ) {
-                                Canvas(modifier = Modifier.matchParentSize()) {
-                                    drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
-                                    effective.forEach { balloon ->
-                                        val panel = panels.ownerPanel(balloon.centerX, balloon.centerY)
-                                        clipToPanel(panel, size) {
-                                            drawBalloon(balloon, size, bodyColor = Color.White, outlineColor = Color.Black)
-                                        }
-                                    }
-                                }
-
                                 val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
                                 if (size.width > 0f && size.height > 0f) {
+                                    val movingPanel = selectedPanel?.takeIf {
+                                        focusedPanel == null && moveHandleOffset != Offset.Zero
+                                    }
+                                    val previewPanel = movingPanel?.copy(
+                                        left = movingPanel.left + moveHandleOffset.x / size.width,
+                                        top = movingPanel.top + moveHandleOffset.y / size.height,
+                                    )
+                                    val displayPanels = if (movingPanel != null && previewPanel != null) {
+                                        panels.map { if (it == movingPanel) previewPanel else it }
+                                    } else {
+                                        panels
+                                    }
+
+                                    Canvas(modifier = Modifier.matchParentSize()) {
+                                        drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                                        if (movingPanel != null && previewPanel != null) {
+                                            drawRect(
+                                                color = Color.Transparent,
+                                                topLeft = Offset(movingPanel.left * size.width, movingPanel.top * size.height),
+                                                size = Size(movingPanel.width * size.width, movingPanel.height * size.height),
+                                                blendMode = BlendMode.Clear,
+                                            )
+                                            drawImage(
+                                                image = image,
+                                                srcOffset = IntOffset(
+                                                    (movingPanel.left * image.width).roundToInt(),
+                                                    (movingPanel.top * image.height).roundToInt(),
+                                                ),
+                                                srcSize = IntSize(
+                                                    (movingPanel.width * image.width).roundToInt(),
+                                                    (movingPanel.height * image.height).roundToInt(),
+                                                ),
+                                                dstOffset = IntOffset(
+                                                    (previewPanel.left * size.width).roundToInt(),
+                                                    (previewPanel.top * size.height).roundToInt(),
+                                                ),
+                                                dstSize = IntSize(
+                                                    (previewPanel.width * size.width).roundToInt(),
+                                                    (previewPanel.height * size.height).roundToInt(),
+                                                ),
+                                            )
+                                        }
+                                        effective.forEach { balloon ->
+                                            val displayBalloon = if (movingPanel?.contains(
+                                                    balloon.centerX,
+                                                    balloon.centerY,
+                                                ) == true && previewPanel != null
+                                            ) {
+                                                balloon.translatedBetween(movingPanel, previewPanel)
+                                            } else {
+                                                balloon
+                                            }
+                                            val panel = displayPanels.ownerPanel(
+                                                displayBalloon.centerX,
+                                                displayBalloon.centerY,
+                                            )
+                                            clipToPanel(panel, size) {
+                                                drawBalloon(
+                                                    displayBalloon,
+                                                    size,
+                                                    bodyColor = Color.White,
+                                                    outlineColor = Color.Black,
+                                                )
+                                            }
+                                        }
+                                    }
                                     effective.forEach { balloon ->
-                                        val panel = panels.ownerPanel(balloon.centerX, balloon.centerY)
+                                        val displayBalloon = if (movingPanel?.contains(
+                                                balloon.centerX,
+                                                balloon.centerY,
+                                            ) == true && previewPanel != null
+                                        ) {
+                                            balloon.translatedBetween(movingPanel, previewPanel)
+                                        } else {
+                                            balloon
+                                        }
+                                        val panel = displayPanels.ownerPanel(
+                                            displayBalloon.centerX,
+                                            displayBalloon.centerY,
+                                        )
                                         val bounds = panel?.balloonClipBounds(size)
                                         Box(
                                             modifier = if (bounds == null) {
@@ -1137,7 +1202,7 @@ private fun Editor(
                                             },
                                         ) {
                                             BalloonText(
-                                                balloon = balloon,
+                                                balloon = displayBalloon,
                                                 canvasSize = size,
                                                 origin = bounds?.topLeft ?: Offset.Zero,
                                                 editable = editMode,
@@ -1156,28 +1221,6 @@ private fun Editor(
                                 }
 
                                 if (editMode) {
-                                    val moveHighlightColor = MaterialTheme.colorScheme.tertiary
-                                    moveTarget?.let { placement ->
-                                        val target = placement.anchor
-                                        Canvas(modifier = Modifier.matchParentSize()) {
-                                            val left = target.left * size.width
-                                            val top = target.top * size.height
-                                            val right = (target.left + target.width) * size.width
-                                            val bottom = (target.top + target.height) * size.height
-                                            val (start, end) = when (placement.position) {
-                                                ImagePosition.LEFT -> Offset(left, top) to Offset(left, bottom)
-                                                ImagePosition.RIGHT -> Offset(right, top) to Offset(right, bottom)
-                                                ImagePosition.TOP -> Offset(left, top) to Offset(right, top)
-                                                ImagePosition.BOTTOM -> Offset(left, bottom) to Offset(right, bottom)
-                                            }
-                                            drawLine(
-                                                color = moveHighlightColor,
-                                                start = start,
-                                                end = end,
-                                                strokeWidth = 5.dp.toPx(),
-                                            )
-                                        }
-                                    }
                                     selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
                                         ImageMoveHandle(
                                             centerPx = Offset(
@@ -1187,22 +1230,18 @@ private fun Editor(
                                             contentScale = 1f,
                                             onDrag = { delta ->
                                                 moveHandleOffset += delta
-                                                val center = Offset(
-                                                    (pending.left + pending.width / 2f) * size.width,
-                                                    pending.top * size.height,
-                                                ) + moveHandleOffset
-                                                val u = (center.x / size.width).coerceIn(0f, 0.999999f)
-                                                val v = (center.y / size.height).coerceIn(0f, 0.999999f)
-                                                moveTarget = panels.panelAt(u, v)?.let { target ->
-                                                    ImagePlacement(target, target.dropPosition(u, v))
-                                                }
                                             },
                                             onDragEnd = {
-                                                moveTarget?.takeIf { it.anchor != pending }?.let {
-                                                    onMoveImage(pending, it)
+                                                if (moveHandleOffset != Offset.Zero) {
+                                                    onMoveImage(
+                                                        pending,
+                                                        pending.copy(
+                                                            left = pending.left + moveHandleOffset.x / size.width,
+                                                            top = pending.top + moveHandleOffset.y / size.height,
+                                                        ),
+                                                    )
                                                 }
                                                 moveHandleOffset = Offset.Zero
-                                                moveTarget = null
                                             },
                                         )
                                         ImageDeleteHandle(
@@ -1476,15 +1515,10 @@ internal fun focusNavigationOffset(position: ImagePosition): DpOffset = when (po
     ImagePosition.BOTTOM -> DpOffset(0.dp, 15.dp)
 }
 
-private fun RectFraction.dropPosition(x: Float, y: Float): ImagePosition {
-    val horizontal = (x - (left + width / 2f)) / width
-    val vertical = (y - (top + height / 2f)) / height
-    return if (abs(horizontal) > abs(vertical)) {
-        if (horizontal < 0f) ImagePosition.LEFT else ImagePosition.RIGHT
-    } else {
-        if (vertical < 0f) ImagePosition.TOP else ImagePosition.BOTTOM
-    }
-}
+private fun Balloon.translatedBetween(from: RectFraction, to: RectFraction): Balloon = copy(
+    centerX = centerX + to.left - from.left,
+    centerY = centerY + to.top - from.top,
+)
 
 /** The bottom "comic kit" panel: balloon types plus the currently selected balloon's controls. */
 @Composable

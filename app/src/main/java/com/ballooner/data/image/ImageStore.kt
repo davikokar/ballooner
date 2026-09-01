@@ -1,7 +1,6 @@
 package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePlacement
-import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 
 /** Stores comic images in app-private storage and cleans them up. */
@@ -25,13 +24,12 @@ interface ImageStore {
     /** Erases [removed] and crops the image to [retained], returning the new local uri. */
     suspend fun removeRegion(uri: String, removed: RectFraction, retained: RectFraction): String?
 
-    /** Rebuilds the flattened image after moving one panel in reading order. */
+    /** Rebuilds the flattened image after freely moving one panel to [destination]. */
     suspend fun rearrangePanels(
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
-        targetIndex: Int,
-        position: ImagePosition,
+        destination: RectFraction,
     ): RearrangedImage?
 }
 

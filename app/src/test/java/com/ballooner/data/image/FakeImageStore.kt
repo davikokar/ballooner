@@ -1,7 +1,6 @@
 package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePlacement
-import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
 
 /** Records deletions and echoes imports so tests can assert cleanup. */
@@ -49,10 +48,9 @@ class FakeImageStore : ImageStore {
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
-        targetIndex: Int,
-        position: ImagePosition,
+        destination: RectFraction,
     ): RearrangedImage? {
-        lastRearrangeRequest = listOf(uri, panels, fromIndex, targetIndex, position)
+        lastRearrangeRequest = listOf(uri, panels, fromIndex, destination)
         return rearrangeResult
     }
 }

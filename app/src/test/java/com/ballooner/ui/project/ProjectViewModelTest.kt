@@ -397,14 +397,15 @@ class ProjectViewModelTest {
         viewModel.uiState.test {
             while (awaitItem().panels.size < 3) { /* await seeded panels */ }
 
-            viewModel.onMoveImage(third, ImagePlacement(first, ImagePosition.LEFT))
+            val destination = third.copy(left = -0.4f, top = 0f)
+            viewModel.onMoveImage(third, destination)
             advanceUntilIdle()
 
             val state = expectMostRecentItem()
             assertEquals("rearranged-uri", state.imageUri)
             assertEquals(rearrangedRects, state.panels)
             assertEquals(
-                listOf("existing-uri", listOf(first, second, third), 2, 0, ImagePosition.LEFT),
+                listOf("existing-uri", listOf(first, second, third), 2, destination),
                 imageStore.lastRearrangeRequest,
             )
             assertEquals(listOf("existing-uri"), imageStore.deleted)

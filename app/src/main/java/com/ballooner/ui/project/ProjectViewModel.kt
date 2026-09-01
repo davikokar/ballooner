@@ -14,7 +14,6 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.TextSizeMode
-import com.ballooner.domain.model.panelsInReadingOrder
 import com.ballooner.domain.model.remappedFrom
 import com.ballooner.domain.model.retainedCanvasRect
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -194,30 +193,28 @@ class ProjectViewModel @Inject constructor(
         tailLength = tailLength / minOf(rect.width, rect.height),
     )
 
-    /** Inserts [panel] at [target]'s reading-order position and shifts the intervening panels. */
-    fun onMoveImage(panel: RectFraction, placement: ImagePlacement) {
-        if (panel == placement.anchor) return
+    /** Moves [panel] freely, snapping it beside the panel nearest [destination]. */
+    fun onMoveImage(panel: RectFraction, destination: RectFraction) {
+        if (panel == destination) return
         viewModelScope.launch {
             isProcessingImage.value = true
             try {
                 val previous = uiState.value.imageUri ?: return@launch
-                val orderedPanels = panelsInReadingOrder(uiState.value.panels)
-                val fromIndex = orderedPanels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
-                val targetIndex = orderedPanels.indexOf(placement.anchor).takeIf { it >= 0 } ?: return@launch
+                val panels = uiState.value.panels
+                val fromIndex = panels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
                 val rearranged = imageStore.rearrangePanels(
                     previous,
-                    orderedPanels,
+                    panels,
                     fromIndex,
-                    targetIndex,
-                    placement.position,
+                    destination,
                 )
                     ?: return@launch
                 uiState.value.balloons.forEach { balloon ->
-                    val panelIndex = orderedPanels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
+                    val panelIndex = panels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
                     if (panelIndex >= 0) {
                         balloonRepository.upsertBalloon(
                             projectId,
-                            balloon.remappedBetween(orderedPanels[panelIndex], rearranged.panelRects[panelIndex]),
+                            balloon.remappedBetween(panels[panelIndex], rearranged.panelRects[panelIndex]),
                         )
                     }
                 }
