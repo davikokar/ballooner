@@ -1263,7 +1263,6 @@ private fun Editor(
                                                         ),
                                                     )
                                                 }
-                                                moveHandleOffset = Offset.Zero
                                             },
                                         )
                                         ImageDeleteHandle(

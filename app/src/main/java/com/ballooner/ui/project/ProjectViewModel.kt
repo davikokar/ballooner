@@ -197,33 +197,27 @@ class ProjectViewModel @Inject constructor(
     fun onMoveImage(panel: RectFraction, destination: RectFraction) {
         if (panel == destination) return
         viewModelScope.launch {
-            isProcessingImage.value = true
-            try {
-                val previous = uiState.value.imageUri ?: return@launch
-                val panels = uiState.value.panels
-                val fromIndex = panels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
-                val rearranged = imageStore.rearrangePanels(
-                    previous,
-                    panels,
-                    fromIndex,
-                    destination,
-                )
-                    ?: return@launch
-                uiState.value.balloons.forEach { balloon ->
-                    val panelIndex = panels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
-                    if (panelIndex >= 0) {
-                        balloonRepository.upsertBalloon(
-                            projectId,
-                            balloon.remappedBetween(panels[panelIndex], rearranged.panelRects[panelIndex]),
-                        )
-                    }
+            val previous = uiState.value.imageUri ?: return@launch
+            val panels = uiState.value.panels
+            val fromIndex = panels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
+            val rearranged = imageStore.rearrangePanels(
+                previous,
+                panels,
+                fromIndex,
+                destination,
+            ) ?: return@launch
+            uiState.value.balloons.forEach { balloon ->
+                val panelIndex = panels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
+                if (panelIndex >= 0) {
+                    balloonRepository.upsertBalloon(
+                        projectId,
+                        balloon.remappedBetween(panels[panelIndex], rearranged.panelRects[panelIndex]),
+                    )
                 }
-                panelRepository.replacePanels(projectId, rearranged.panelRects)
-                projectRepository.setProjectImage(projectId, rearranged.uri)
-                imageStore.deleteImage(previous)
-            } finally {
-                isProcessingImage.value = false
             }
+            panelRepository.replacePanels(projectId, rearranged.panelRects)
+            projectRepository.setProjectImage(projectId, rearranged.uri)
+            imageStore.deleteImage(previous)
         }
     }
 

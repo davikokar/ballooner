@@ -20,8 +20,10 @@ import com.ballooner.domain.model.Project
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -413,6 +415,40 @@ class ProjectViewModelTest {
             assertEquals(0.24f, state.balloons.single().centerY, 0.0001f)
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    @Test
+    fun `moving a panel does not show the blocking image overlay`() = runTest {
+        val panel = RectFraction(0f, 0f, 0.48f, 1f)
+        val destination = panel.copy(left = 0.52f)
+        val gate = CompletableDeferred<Unit>()
+        val imageStore = FakeImageStore().apply {
+            rearrangeGate = gate
+            rearrangeResult = RearrangedImage("rearranged-uri", listOf(destination))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onMoveImage(panel, destination)
+        runCurrent()
+
+        assertTrue(imageStore.rearrangeStarted)
+        assertEquals(false, viewModel.uiState.value.isProcessingImage)
+        gate.complete(Unit)
+        advanceUntilIdle()
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
+import kotlinx.coroutines.CompletableDeferred
 
 /** Records deletions and echoes imports so tests can assert cleanup. */
 class FakeImageStore : ImageStore {
@@ -15,6 +16,8 @@ class FakeImageStore : ImageStore {
     var removeResult: String? = null
     var lastRemoveRequest: Triple<String, RectFraction, RectFraction>? = null
     var rearrangeResult: RearrangedImage? = null
+    var rearrangeGate: CompletableDeferred<Unit>? = null
+    var rearrangeStarted = false
     var lastRearrangeRequest: List<Any>? = null
     var initialGridResult: InitialImageGrid? = null
     var lastInitialGridRequest: Pair<List<String>, Int>? = null
@@ -51,6 +54,8 @@ class FakeImageStore : ImageStore {
         destination: RectFraction,
     ): RearrangedImage? {
         lastRearrangeRequest = listOf(uri, panels, fromIndex, destination)
+        rearrangeStarted = true
+        rearrangeGate?.await()
         return rearrangeResult
     }
 }
