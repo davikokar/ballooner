@@ -71,6 +71,7 @@
     <string name="font_style">Schriftstil</string>
     <string name="move_balloon">Sprechblase verschieben</string>
     <string name="move_panel">Panel verschieben</string>
+    <string name="resize_panel">Panelgröße ändern</string>
     <string name="no_comics_yet">Noch keine Comics!</string>
     <string name="empty_comics_message">Zeit für deine heldenhafte Reise. Schnapp dir einen Stift und leg los!</string>
     <string name="create_comic">Comic erstellen</string>

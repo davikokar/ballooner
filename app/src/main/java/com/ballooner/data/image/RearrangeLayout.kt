@@ -15,9 +15,16 @@ internal fun computeRearrangeLayout(
     fromIndex: Int,
     desiredLeft: Int,
     desiredTop: Int,
+    desiredWidth: Int? = null,
+    desiredHeight: Int? = null,
 ): RearrangeLayout {
     val moving = panelRects[fromIndex]
-    val destination = moving.copy(left = desiredLeft, top = desiredTop)
+    val destination = moving.copy(
+        left = desiredLeft,
+        top = desiredTop,
+        width = desiredWidth ?: moving.width,
+        height = desiredHeight ?: moving.height,
+    )
     val positioned = panelRects.mapIndexed { index, rect -> if (index == fromIndex) destination else rect }
     val minLeft = positioned.minOf { it.left }.coerceAtMost(0)
     val minTop = positioned.minOf { it.top }.coerceAtMost(0)

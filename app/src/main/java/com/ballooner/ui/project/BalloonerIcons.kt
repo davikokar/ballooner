@@ -60,6 +60,13 @@ object BalloonerIcons {
         )
     }
 
+    val Resize: ImageVector by lazy {
+        icon(
+            name = "Resize",
+            pathData = "M21 15v6h-6v-2h2.59L6.41 7.83V10H4V4h6v2H7.83L19 17.17V15h2z",
+        )
+    }
+
     val Balloon: ImageVector by lazy {
         icon(
             name = "Balloon",

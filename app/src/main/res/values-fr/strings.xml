@@ -71,6 +71,7 @@
     <string name="font_style">Style de police</string>
     <string name="move_balloon">Déplacer la bulle</string>
     <string name="move_panel">Déplacer la case</string>
+    <string name="resize_panel">Redimensionner la case</string>
     <string name="no_comics_yet">Aucune bande dessinée pour le moment !</string>
     <string name="empty_comics_message">Il est temps de commencer votre aventure héroïque. Prenez un crayon et lancez-vous !</string>
     <string name="create_comic">Créer une bande dessinée</string>

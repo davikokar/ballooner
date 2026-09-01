@@ -35,6 +35,25 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `resize drag commits magnetically aligned dimensions`() {
+        val moving = RectFraction(0f, 0f, 0.3f, 0.3f)
+        val rightNeighbor = RectFraction(0.5f, 0f, 0.2f, 0.3f)
+        val bottomNeighbor = RectFraction(0f, 0.6f, 0.3f, 0.2f)
+
+        val destination = magneticResizeDestination(
+            panels = listOf(moving, rightNeighbor, bottomNeighbor),
+            moving = moving,
+            dragOffset = Offset(190f, 290f),
+            displaySize = Size(1000f, 1000f),
+            imageSize = IntSize(1000, 1000),
+            snapThresholdDisplayPx = 20f,
+        )
+
+        assertEquals(0.5f, destination.width, 0.0001f)
+        assertEquals(0.6f, destination.height, 0.0001f)
+    }
+
+    @Test
     fun `balloon clip bounds preserve the panel border`() {
         val canvas = Size(1000f, 800f)
         val panel = RectFraction(left = 0.25f, top = 0.1f, width = 0.5f, height = 0.4f)

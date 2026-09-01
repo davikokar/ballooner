@@ -135,6 +135,7 @@ import com.ballooner.domain.model.availableImagePlacements
 import com.ballooner.domain.model.defaultImagePlacement
 import com.ballooner.domain.model.edgeImagePlacements
 import com.ballooner.domain.model.magneticallyAlignedPanel
+import com.ballooner.domain.model.magneticallyResizedPanel
 import com.ballooner.domain.model.panelAt
 import com.ballooner.domain.model.targetRect
 import com.ballooner.ui.theme.AnimeAceFontFamily
@@ -975,10 +976,12 @@ private fun Editor(
     val imageState = rememberImageState(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
+    var resizeHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     var comicKitExpanded by remember { mutableStateOf(true) }
     LaunchedEffect(panels) {
         moveHandleOffset = Offset.Zero
+        resizeHandleOffset = Offset.Zero
     }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -1094,11 +1097,12 @@ private fun Editor(
                                                 if (hit != null) onSelectBalloon(hit.id)
                                             },
                                             onLongPress = { offset ->
-                                                if (!editMode || panels.size <= 1) return@detectTapGestures
+                                                if (!editMode) return@detectTapGestures
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
                                                 onSelectPanel(panels.panelAt(u, v))
                                                 moveHandleOffset = Offset.Zero
+                                                resizeHandleOffset = Offset.Zero
                                             },
                                         )
                                     },
@@ -1106,15 +1110,21 @@ private fun Editor(
                                 val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
                                 val magneticSnapThresholdPx = with(LocalDensity.current) { 28.dp.toPx() }
                                 val movingPanel = selectedPanel?.takeIf {
-                                    focusedPanel == null && moveHandleOffset != Offset.Zero &&
+                                    focusedPanel == null &&
+                                        (moveHandleOffset != Offset.Zero || resizeHandleOffset != Offset.Zero) &&
                                         size.width > 0f && size.height > 0f
                                 }
-                                val desiredPanel = movingPanel?.copy(
-                                    left = movingPanel.left + moveHandleOffset.x / size.width,
-                                    top = movingPanel.top + moveHandleOffset.y / size.height,
-                                )
-                                val previewPanel = if (movingPanel != null && desiredPanel != null) {
-                                    magneticDragDestination(
+                                val previewPanel = when {
+                                    movingPanel == null -> null
+                                    resizeHandleOffset != Offset.Zero -> magneticResizeDestination(
+                                        panels = panels,
+                                        moving = movingPanel,
+                                        dragOffset = resizeHandleOffset,
+                                        displaySize = size,
+                                        imageSize = IntSize(image.width, image.height),
+                                        snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                    )
+                                    else -> magneticDragDestination(
                                         panels = panels,
                                         moving = movingPanel,
                                         dragOffset = moveHandleOffset,
@@ -1122,8 +1132,6 @@ private fun Editor(
                                         imageSize = IntSize(image.width, image.height),
                                         snapThresholdDisplayPx = magneticSnapThresholdPx,
                                     )
-                                } else {
-                                    null
                                 }
                                 if (size.width > 0f && size.height > 0f) {
                                     val displayPanels = if (movingPanel != null && previewPanel != null) {
@@ -1167,7 +1175,7 @@ private fun Editor(
                                                     balloon.centerY,
                                                 ) == true && previewPanel != null
                                             ) {
-                                                balloon.translatedBetween(movingPanel, previewPanel)
+                                                balloon.remappedBetween(movingPanel, previewPanel)
                                             } else {
                                                 balloon
                                             }
@@ -1191,7 +1199,7 @@ private fun Editor(
                                                 balloon.centerY,
                                             ) == true && previewPanel != null
                                         ) {
-                                            balloon.translatedBetween(movingPanel, previewPanel)
+                                            balloon.remappedBetween(movingPanel, previewPanel)
                                         } else {
                                             balloon
                                         }
@@ -1234,19 +1242,15 @@ private fun Editor(
 
                                 if (editMode) {
                                     selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
-                                        val displayedMoveOffset = previewPanel?.let {
-                                            Offset(
-                                                (it.left - pending.left) * size.width,
-                                                (it.top - pending.top) * size.height,
-                                            )
-                                        } ?: moveHandleOffset
+                                        val displayedPanel = previewPanel ?: pending
                                         ImageMoveHandle(
                                             centerPx = Offset(
-                                                (pending.left + pending.width / 2f) * size.width,
-                                                pending.top * size.height,
-                                            ) + displayedMoveOffset,
+                                                (displayedPanel.left + displayedPanel.width / 2f) * size.width,
+                                                displayedPanel.top * size.height,
+                                            ),
                                             contentScale = 1f,
                                             onDrag = { delta ->
+                                                resizeHandleOffset = Offset.Zero
                                                 moveHandleOffset += delta
                                             },
                                             onDragEnd = { finalDragOffset ->
@@ -1267,11 +1271,37 @@ private fun Editor(
                                         )
                                         ImageDeleteHandle(
                                             centerPx = Offset(
-                                                (pending.left + pending.width) * size.width,
-                                                pending.top * size.height,
-                                            ) + displayedMoveOffset,
+                                                (displayedPanel.left + displayedPanel.width) * size.width,
+                                                displayedPanel.top * size.height,
+                                            ),
                                             contentScale = 1f,
                                             onTap = { showConfirmDeleteImage = true },
+                                        )
+                                        ImageResizeHandle(
+                                            centerPx = Offset(
+                                                (displayedPanel.left + displayedPanel.width) * size.width,
+                                                (displayedPanel.top + displayedPanel.height) * size.height,
+                                            ),
+                                            contentScale = 1f,
+                                            onDrag = { delta ->
+                                                moveHandleOffset = Offset.Zero
+                                                resizeHandleOffset += delta
+                                            },
+                                            onDragEnd = { finalDragOffset ->
+                                                if (finalDragOffset != Offset.Zero) {
+                                                    onMoveImage(
+                                                        pending,
+                                                        magneticResizeDestination(
+                                                            panels = panels,
+                                                            moving = pending,
+                                                            dragOffset = finalDragOffset,
+                                                            displaySize = size,
+                                                            imageSize = IntSize(image.width, image.height),
+                                                            snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                                        ),
+                                                    )
+                                                }
+                                            },
                                         )
                                     }
                                     if (showAddPanelHandles(focusedPanel, selectedPanel)) {
@@ -1544,9 +1574,12 @@ internal fun focusNavigationOffset(position: ImagePosition): DpOffset = when (po
     ImagePosition.BOTTOM -> DpOffset(0.dp, 15.dp)
 }
 
-private fun Balloon.translatedBetween(from: RectFraction, to: RectFraction): Balloon = copy(
-    centerX = centerX + to.left - from.left,
-    centerY = centerY + to.top - from.top,
+private fun Balloon.remappedBetween(from: RectFraction, to: RectFraction): Balloon = copy(
+    centerX = to.left + (centerX - from.left) / from.width * to.width,
+    centerY = to.top + (centerY - from.top) / from.height * to.height,
+    width = width / from.width * to.width,
+    height = height / from.height * to.height,
+    tailLength = tailLength * minOf(to.width / from.width, to.height / from.height),
 )
 
 internal fun magneticDragDestination(
@@ -1562,6 +1595,28 @@ internal fun magneticDragDestination(
         top = moving.top + dragOffset.y / displaySize.height,
     )
     return magneticallyAlignedPanel(
+        panels = panels,
+        moving = moving,
+        desired = desired,
+        canvasWidth = imageSize.width,
+        canvasHeight = imageSize.height,
+        snapThresholdPx = snapThresholdDisplayPx * imageSize.width / displaySize.width,
+    )
+}
+
+internal fun magneticResizeDestination(
+    panels: List<RectFraction>,
+    moving: RectFraction,
+    dragOffset: Offset,
+    displaySize: Size,
+    imageSize: IntSize,
+    snapThresholdDisplayPx: Float,
+): RectFraction {
+    val desired = moving.copy(
+        width = moving.width + dragOffset.x / displaySize.width,
+        height = moving.height + dragOffset.y / displaySize.height,
+    )
+    return magneticallyResizedPanel(
         panels = panels,
         moving = moving,
         desired = desired,
@@ -2123,6 +2178,52 @@ private fun ImageMoveHandle(
         Icon(
             imageVector = BalloonerIcons.Move,
             contentDescription = stringResource(R.string.move_panel),
+            tint = InkBlack,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun ImageResizeHandle(
+    centerPx: Offset,
+    contentScale: Float,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: (Offset) -> Unit,
+) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { 16.dp.toPx() }
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(32.dp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
+            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
+            .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
+            .pointerInput(Unit) {
+                var totalDrag = Offset.Zero
+                detectDragGestures(
+                    onDragStart = { totalDrag = Offset.Zero },
+                    onDragEnd = { currentOnDragEnd(totalDrag) },
+                    onDragCancel = { currentOnDragEnd(totalDrag) },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        val scaledDrag = dragAmount / contentScale
+                        totalDrag += scaledDrag
+                        currentOnDrag(scaledDrag)
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = BalloonerIcons.Resize,
+            contentDescription = stringResource(R.string.resize_panel),
             tint = InkBlack,
             modifier = Modifier.size(20.dp),
         )

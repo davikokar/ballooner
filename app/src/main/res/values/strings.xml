@@ -72,6 +72,7 @@
     <string name="font_style">Font style</string>
     <string name="move_balloon">Move balloon</string>
     <string name="move_panel">Move panel</string>
+    <string name="resize_panel">Resize panel</string>
     <string name="no_comics_yet">No comics yet!</string>
     <string name="empty_comics_message">Time to start your heroic journey. Grab a pen and let\'s go!</string>
     <string name="create_comic">Create comic</string>

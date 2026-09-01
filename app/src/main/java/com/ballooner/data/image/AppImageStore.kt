@@ -188,13 +188,25 @@ class AppImageStore @Inject constructor(
                 fromIndex = fromIndex,
                 desiredLeft = (destination.left * bitmap.width).roundToInt(),
                 desiredTop = (destination.top * bitmap.height).roundToInt(),
+                desiredWidth = (destination.width * bitmap.width).roundToInt().coerceAtLeast(1),
+                desiredHeight = (destination.height * bitmap.height).roundToInt().coerceAtLeast(1),
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
             val canvas = android.graphics.Canvas(composite)
             panelBitmaps.forEachIndexed { index, panelBitmap ->
                 val target = layout.panelRects[index]
-                canvas.drawBitmap(panelBitmap, target.left.toFloat(), target.top.toFloat(), null)
+                canvas.drawBitmap(
+                    panelBitmap,
+                    null,
+                    android.graphics.Rect(
+                        target.left,
+                        target.top,
+                        target.left + target.width,
+                        target.top + target.height,
+                    ),
+                    null,
+                )
             }
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")

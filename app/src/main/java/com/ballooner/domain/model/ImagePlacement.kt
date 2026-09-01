@@ -105,6 +105,35 @@ fun magneticallyAlignedPanel(
     return candidates.minByOrNull { (_, distance) -> distance }?.first ?: desired
 }
 
+fun magneticallyResizedPanel(
+    panels: List<RectFraction>,
+    moving: RectFraction,
+    desired: RectFraction,
+    canvasWidth: Int,
+    canvasHeight: Int,
+    snapThresholdPx: Float,
+): RectFraction {
+    val minimumWidth = MIN_RESIZED_PANEL_PX / canvasWidth.toFloat()
+    val minimumHeight = MIN_RESIZED_PANEL_PX / canvasHeight.toFloat()
+    val desiredRight = moving.left + desired.width.coerceAtLeast(minimumWidth)
+    val desiredBottom = moving.top + desired.height.coerceAtLeast(minimumHeight)
+    val surrounding = panels.filter { it != moving }
+    val rightEdges = surrounding.flatMap { listOf(it.left, it.left + it.width) }
+    val bottomEdges = surrounding.flatMap { listOf(it.top, it.top + it.height) }
+    val snappedRight = rightEdges
+        .filter { edge -> kotlin.math.abs(edge - desiredRight) * canvasWidth <= snapThresholdPx }
+        .minByOrNull { edge -> kotlin.math.abs(edge - desiredRight) }
+        ?: desiredRight
+    val snappedBottom = bottomEdges
+        .filter { edge -> kotlin.math.abs(edge - desiredBottom) * canvasHeight <= snapThresholdPx }
+        .minByOrNull { edge -> kotlin.math.abs(edge - desiredBottom) }
+        ?: desiredBottom
+    return moving.copy(
+        width = (snappedRight - moving.left).coerceAtLeast(minimumWidth),
+        height = (snappedBottom - moving.top).coerceAtLeast(minimumHeight),
+    )
+}
+
 private fun RectFraction.snapCandidates(
     anchor: RectFraction,
     gapPx: Int,
@@ -135,3 +164,4 @@ private fun RectFraction.pixelDistanceSquared(other: RectFraction, canvasWidth: 
 
 private const val PANEL_GAP_FRACTION = 0.02f
 private const val MIN_PANEL_GAP_PX = 8
+private const val MIN_RESIZED_PANEL_PX = 48f

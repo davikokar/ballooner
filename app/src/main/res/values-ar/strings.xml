@@ -71,6 +71,7 @@
     <string name="font_style">نمط الخط</string>
     <string name="move_balloon">تحريك البالون</string>
     <string name="move_panel">تحريك اللوحة</string>
+    <string name="resize_panel">تغيير حجم اللوحة</string>
     <string name="no_comics_yet">لا توجد قصص مصورة بعد!</string>
     <string name="empty_comics_message">حان وقت بدء رحلتك البطولية. أمسك قلمًا وانطلق!</string>
     <string name="create_comic">إنشاء قصة مصورة</string>

@@ -58,4 +58,24 @@ class RearrangeLayoutTest {
 
         assertEquals(PixelRect(105, 80, 100, 100), layout.panelRects[2])
     }
+
+    @Test
+    fun `rearrangement persists resized panel dimensions`() {
+        val layout = computeRearrangeLayout(
+            panelRects = listOf(
+                PixelRect(0, 0, 100, 100),
+                PixelRect(110, 0, 100, 100),
+            ),
+            fromIndex = 0,
+            desiredLeft = 0,
+            desiredTop = 0,
+            desiredWidth = 160,
+            desiredHeight = 140,
+        )
+
+        assertEquals(PixelRect(0, 0, 160, 140), layout.panelRects[0])
+        assertEquals(PixelRect(110, 0, 100, 100), layout.panelRects[1])
+        assertEquals(210, layout.canvasWidth)
+        assertEquals(140, layout.canvasHeight)
+    }
 }

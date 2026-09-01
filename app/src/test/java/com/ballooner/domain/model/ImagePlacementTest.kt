@@ -44,6 +44,43 @@ class ImagePlacementTest {
     }
 
     @Test
+    fun `panel resize magnetically aligns right and bottom edges`() {
+        val moving = RectFraction(0f, 0f, 0.3f, 0.3f)
+        val rightNeighbor = RectFraction(0.5f, 0f, 0.2f, 0.3f)
+        val bottomNeighbor = RectFraction(0f, 0.6f, 0.3f, 0.2f)
+
+        val resized = magneticallyResizedPanel(
+            panels = listOf(moving, rightNeighbor, bottomNeighbor),
+            moving = moving,
+            desired = moving.copy(width = 0.49f, height = 0.59f),
+            canvasWidth = 1000,
+            canvasHeight = 1000,
+            snapThresholdPx = 20f,
+        )
+
+        assertEquals(0.5f, resized.width, 0.0001f)
+        assertEquals(0.6f, resized.height, 0.0001f)
+    }
+
+    @Test
+    fun `panel resize preserves free size away from magnetic edges`() {
+        val moving = RectFraction(0f, 0f, 0.3f, 0.3f)
+        val neighbor = RectFraction(0.7f, 0.7f, 0.2f, 0.2f)
+        val desired = moving.copy(width = 0.45f, height = 0.48f)
+
+        val resized = magneticallyResizedPanel(
+            panels = listOf(moving, neighbor),
+            moving = moving,
+            desired = desired,
+            canvasWidth = 1000,
+            canvasHeight = 1000,
+            snapThresholdPx = 20f,
+        )
+
+        assertEquals(desired, resized)
+    }
+
+    @Test
     fun `two side by side panels expose separate targets above and below each panel`() {
         val left = RectFraction(left = 0f, top = 0f, width = 0.48f, height = 1f)
         val right = RectFraction(left = 0.52f, top = 0f, width = 0.48f, height = 1f)
