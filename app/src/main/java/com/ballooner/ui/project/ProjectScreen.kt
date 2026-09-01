@@ -1,6 +1,8 @@
 package com.ballooner.ui.project
 
+import android.content.ClipData
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -116,6 +118,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.domain.model.Balloon
@@ -135,6 +138,8 @@ import com.ballooner.ui.theme.balloonerTopAppBarColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.OutputStream
 import kotlin.math.roundToInt
 import kotlin.math.abs
 
@@ -143,6 +148,7 @@ fun ProjectRoute(
     projectId: Long,
     autoOpenPicker: Boolean,
     onNavigateBack: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: ProjectViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -151,6 +157,7 @@ fun ProjectRoute(
         autoOpenPicker = autoOpenPicker,
         uiState = uiState,
         onNavigateBack = onNavigateBack,
+        onOpenSettings = onOpenSettings,
         onRenameProject = viewModel::setProjectName,
         onImagePicked = viewModel::onImagePicked,
         onAddImage = viewModel::onAddImage,
@@ -171,6 +178,7 @@ fun ProjectScreen(
     autoOpenPicker: Boolean,
     uiState: ProjectUiState,
     onNavigateBack: () -> Unit,
+    onOpenSettings: () -> Unit,
     onRenameProject: (String) -> Unit,
     onImagePicked: (String) -> Unit,
     onAddImage: (String, ImagePlacement) -> Unit,
@@ -215,7 +223,6 @@ fun ProjectScreen(
             scope.launch {
                 val ok = exportComic(
                     context = context,
-                    outUri = uri,
                     imageUri = imageUri,
                     balloons = uiState.balloons,
                     panels = uiState.panels,
@@ -223,12 +230,56 @@ fun ProjectScreen(
                     autoTextSize = uiState.autoTextSize,
                     textMeasurer = textMeasurer,
                     density = density,
+                    compressFormat = Bitmap.CompressFormat.PNG,
+                    openOutputStream = { context.contentResolver.openOutputStream(uri) },
                 )
                 Toast.makeText(context, if (ok) "Saved image" else "Save failed", Toast.LENGTH_SHORT).show()
             }
         }
     }
     val onSave = { saveLauncher.launch("${projectName.ifBlank { "comic" }}.png") }
+    val onShare = {
+        val imageUri = uiState.imageUri
+        if (imageUri != null) {
+            scope.launch {
+                val shareFile = withContext(Dispatchers.IO) {
+                    File(context.cacheDir, "shared").apply { mkdirs() }
+                        .resolve(shareFileName(projectName))
+                }
+                val ok = exportComic(
+                    context = context,
+                    imageUri = imageUri,
+                    balloons = uiState.balloons,
+                    panels = uiState.panels,
+                    displayedWidth = displayedWidth,
+                    autoTextSize = uiState.autoTextSize,
+                    textMeasurer = textMeasurer,
+                    density = density,
+                    compressFormat = Bitmap.CompressFormat.JPEG,
+                    openOutputStream = { shareFile.outputStream() },
+                )
+                if (ok) {
+                    val shared = runCatching {
+                        val shareUri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            shareFile,
+                        )
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "image/jpeg"
+                            putExtra(Intent.EXTRA_STREAM, shareUri)
+                            clipData = ClipData.newRawUri("Comic", shareUri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share comic"))
+                    }.isSuccess
+                    if (!shared) Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
     // View-only rotation is hoisted so the toolbar and reset affordance share the same state.
@@ -280,7 +331,12 @@ fun ProjectScreen(
                         }
                     },
                     actions = {
-                        ProjectOverflowMenu(onDeleteComic = onDeleteComic)
+                        ProjectOverflowMenu(
+                            canShare = uiState.hasImage,
+                            onDeleteComic = onDeleteComic,
+                            onShareComic = onShare,
+                            onOpenSettings = onOpenSettings,
+                        )
                     },
                 )
                 // Thick ink border under the bar, the signature "hard-edged inking" look.
@@ -593,7 +649,12 @@ private fun EditableTitle(name: String, onRename: (String) -> Unit) {
 }
 
 @Composable
-private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
+private fun ProjectOverflowMenu(
+    canShare: Boolean,
+    onDeleteComic: () -> Unit,
+    onShareComic: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
@@ -605,6 +666,21 @@ private fun ProjectOverflowMenu(onDeleteComic: () -> Unit) {
             onClick = {
                 expanded = false
                 showConfirm = true
+            },
+        )
+        DropdownMenuItem(
+            text = { Text("Share comic") },
+            enabled = canShare,
+            onClick = {
+                expanded = false
+                onShareComic()
+            },
+        )
+        DropdownMenuItem(
+            text = { Text("Settings") },
+            onClick = {
+                expanded = false
+                onOpenSettings()
             },
         )
     }
@@ -1978,10 +2054,9 @@ private suspend fun loadBitmap(context: Context, uri: String): ImageBitmap? =
         }.getOrNull()
     }
 
-/** Renders the image + balloons (with text) to a PNG at native resolution and writes it to [outUri]. */
+/** Renders the image + balloons (with text) at native resolution and writes the encoded result. */
 private suspend fun exportComic(
     context: Context,
-    outUri: Uri,
     imageUri: String,
     balloons: List<Balloon>,
     panels: List<RectFraction>,
@@ -1989,6 +2064,8 @@ private suspend fun exportComic(
     autoTextSize: Boolean,
     textMeasurer: TextMeasurer,
     density: Density,
+    compressFormat: Bitmap.CompressFormat,
+    openOutputStream: () -> OutputStream?,
 ): Boolean {
     val source = loadBitmap(context, imageUri) ?: return false
     val width = source.width
@@ -2013,12 +2090,21 @@ private suspend fun exportComic(
     }
     return withContext(Dispatchers.IO) {
         runCatching {
-            context.contentResolver.openOutputStream(outUri)?.use { stream ->
-                output.asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, stream)
+            openOutputStream()?.use { stream ->
+                output.asAndroidBitmap().compress(compressFormat, 100, stream)
             } ?: return@runCatching false
             true
         }.getOrDefault(false)
     }
+}
+
+internal fun shareFileName(projectName: String): String {
+    val safeName = projectName
+        .trim()
+        .replace(Regex("[^\\p{L}\\p{N}._-]+"), "_")
+        .trim('.', '_')
+        .take(80)
+    return "${safeName.ifBlank { "comic" }}.jpg"
 }
 
 internal fun RectFraction.balloonClipBounds(canvasSize: Size): Rect {
@@ -2091,6 +2177,7 @@ private fun ProjectScreenNoImagePreview() {
         autoOpenPicker = false,
         uiState = ProjectUiState(),
         onNavigateBack = {},
+        onOpenSettings = {},
         onRenameProject = {},
         onImagePicked = {},
         onAddImage = { _, _ -> },
