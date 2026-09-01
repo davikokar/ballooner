@@ -1009,11 +1009,20 @@ private fun Editor(
                         val viewportAspect = if (quarterTurned) 1f / unrotatedAspect else unrotatedAspect
                         val fitWidth = minOf(availableWidth, (availableHeight - shapeSliderSpace) * viewportAspect)
                         val fitHeight = fitWidth / viewportAspect
+                        val normalAspect = image.width.toFloat() / image.height
+                        val normalContentWidth = minOf(
+                            availableWidth,
+                            (availableHeight - shapeSliderSpace) * normalAspect,
+                        ).value
                         val focusLayout = if (focusedPanel != null || rotation != 0f) {
                             viewport.focusLayout(fitWidth.value, fitHeight.value, quarterTurned)
                         } else {
                             null
                         }
+                        val textScale = balloonTextScale(
+                            currentContentWidth = focusLayout?.contentWidth ?: fitWidth.value,
+                            normalContentWidth = normalContentWidth,
+                        )
                         val rotationOrigin = TransformOrigin(
                             pivotFractionX = viewport.left + viewport.width / 2f,
                             pivotFractionY = viewport.top + viewport.height / 2f,
@@ -1106,6 +1115,7 @@ private fun Editor(
                                                 origin = bounds?.topLeft ?: Offset.Zero,
                                                 editable = editMode,
                                                 autoSize = autoTextSize,
+                                                contentScale = textScale,
                                                 onTextChange = { newText ->
                                                     val current = live?.takeIf { it.id == balloon.id } ?: balloon
                                                     val updated = current.copy(text = newText)
@@ -1616,6 +1626,7 @@ private fun BalloonText(
     origin: Offset,
     editable: Boolean,
     autoSize: Boolean,
+    contentScale: Float,
     onTextChange: (String) -> Unit,
     onFocused: () -> Unit,
 ) {
@@ -1624,12 +1635,13 @@ private fun BalloonText(
     val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f - origin.y
     val widthDp = with(density) { (balloon.width * canvasSize.width).toDp() }
     val heightDp = with(density) { (balloon.height * canvasSize.height).toDp() }
-    val innerPadding = when (balloon.type) {
+    val basePadding = when (balloon.type) {
         BalloonType.YELL -> 24.dp
         // Captions are a plain rectangle, so the text can sit almost flush with the border.
         BalloonType.CAPTION -> 2.dp
         else -> 18.dp
     }
+    val innerPadding = scaledBalloonTextDimension(basePadding.value, contentScale).dp
 
     var text by remember(balloon.id) { mutableStateOf(balloon.text) }
 
@@ -1637,9 +1649,9 @@ private fun BalloonText(
     val availableWidth = (balloon.width * canvasSize.width - 2 * padPx).toInt().coerceAtLeast(1)
     val availableHeight = (balloon.height * canvasSize.height - 2 * padPx).toInt().coerceAtLeast(1)
     val effectiveFontSize = if (autoSize) {
-        rememberAutoFontSize(text, balloon.font, availableWidth, availableHeight)
+        rememberAutoFontSize(text, balloon.font, availableWidth, availableHeight, contentScale)
     } else {
-        balloon.fontSize
+        scaledBalloonTextDimension(balloon.fontSize, contentScale)
     }
 
     Box(
@@ -1677,14 +1689,22 @@ private fun rememberAutoFontSize(
     font: BalloonFont,
     availableWidth: Int,
     availableHeight: Int,
+    contentScale: Float,
 ): Float {
     val measurer = rememberTextMeasurer()
-    return remember(text, font, availableWidth, availableHeight) {
+    return remember(text, font, availableWidth, availableHeight, contentScale) {
         if (availableWidth <= 0 || availableHeight <= 0) {
-            AUTO_MIN_FONT_SIZE
+            scaledBalloonTextDimension(AUTO_MIN_FONT_SIZE, contentScale)
         } else {
             // A blank balloon still gets a caret sized to the box via a sample glyph.
-            autoFitFontSize(text.ifBlank { "A" }, font, availableWidth, availableHeight, measurer)
+            autoFitFontSize(
+                text.ifBlank { "A" },
+                font,
+                availableWidth,
+                availableHeight,
+                measurer,
+                contentScale,
+            )
         }
     }
 }
@@ -1695,10 +1715,14 @@ private fun autoFitFontSize(
     maxWidth: Int,
     maxHeight: Int,
     measurer: TextMeasurer,
+    contentScale: Float = 1f,
 ): Float {
-    var best = AUTO_MIN_FONT_SIZE
-    var candidate = AUTO_MIN_FONT_SIZE
-    while (candidate <= AUTO_MAX_FONT_SIZE) {
+    val minFontSize = scaledBalloonTextDimension(AUTO_MIN_FONT_SIZE, contentScale)
+    val maxFontSize = scaledBalloonTextDimension(AUTO_MAX_FONT_SIZE, contentScale)
+    val step = scaledBalloonTextDimension(1f, contentScale)
+    var best = minFontSize
+    var candidate = minFontSize
+    while (candidate <= maxFontSize) {
         val measured = measurer.measure(
             text = text,
             style = TextStyle(
@@ -1710,7 +1734,7 @@ private fun autoFitFontSize(
         )
         if (measured.size.height <= maxHeight && measured.size.width <= maxWidth) {
             best = candidate
-            candidate += 1f
+            candidate += step
         } else {
             break
         }
@@ -1720,6 +1744,12 @@ private fun autoFitFontSize(
 
 private const val AUTO_MIN_FONT_SIZE = 8f
 private const val AUTO_MAX_FONT_SIZE = 96f
+
+internal fun balloonTextScale(currentContentWidth: Float, normalContentWidth: Float): Float =
+    if (currentContentWidth > 0f && normalContentWidth > 0f) currentContentWidth / normalContentWidth else 1f
+
+internal fun scaledBalloonTextDimension(baseDimension: Float, contentScale: Float): Float =
+    baseDimension * contentScale.coerceAtLeast(0f)
 
 @Composable
 private fun Handles(

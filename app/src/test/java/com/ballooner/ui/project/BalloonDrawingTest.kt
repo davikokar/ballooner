@@ -65,6 +65,18 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `balloon text dimensions scale with focused image layer`() {
+        val focusedContentWidth = 800f
+        val normalContentWidth = 400f
+
+        val scale = balloonTextScale(focusedContentWidth, normalContentWidth)
+
+        assertEquals(2f, scale, 0.001f)
+        assertEquals(48f, scaledBalloonTextDimension(24f, scale), 0.001f)
+        assertEquals(36f, scaledBalloonTextDimension(18f, scale), 0.001f)
+    }
+
+    @Test
     fun `quarter turn swaps focused panel layout dimensions`() {
         val panel = RectFraction(left = 0.5f, top = 0f, width = 0.25f, height = 1f)
 
