@@ -1804,15 +1804,15 @@ private fun Handles(
     val center = balloon.bodyCenter(canvasSize)
     val halfX = balloon.width * w / 2f
     val halfY = balloon.height * h / 2f
-    val selectionColor = MaterialTheme.colorScheme.primary
 
     // Move handle (top-center).
     val moveHandleCenter = Offset(center.x, center.y - halfY)
     DragHandle(
         centerPx = visibleHandleCenter(moveHandleCenter, imageBounds),
         sizeDp = 26.dp,
-        color = selectionColor,
+        color = MaterialTheme.colorScheme.tertiary,
         shape = RoundedCornerShape(6.dp),
+        borderColor = InkBlack,
         keyId = balloon.id,
         alpha = handleAlpha(moveHandleCenter, imageBounds),
         contentScale = contentScale,
@@ -1825,7 +1825,7 @@ private fun Handles(
         Icon(
             imageVector = BalloonerIcons.Move,
             contentDescription = "Move balloon",
-            tint = Color.White,
+            tint = InkBlack,
             modifier = Modifier.size(18.dp),
         )
     }
@@ -1841,7 +1841,7 @@ private fun Handles(
         DragHandle(
             centerPx = visibleHandleCenter(corner.pos, imageBounds),
             sizeDp = 22.dp,
-            color = Color(0xFFE8325A),
+            color = MaterialTheme.colorScheme.secondary,
             shape = CircleShape,
             keyId = balloon.id,
             alpha = handleAlpha(corner.pos, imageBounds),
@@ -1963,8 +1963,8 @@ private fun ImageMoveHandle(
                 scaleX = fixedControlScale(contentScale)
                 scaleY = fixedControlScale(contentScale)
             }
-            .background(MaterialTheme.colorScheme.tertiary, CircleShape)
-            .border(2.dp, InkBlack, CircleShape)
+            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
+            .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = onDragEnd,
@@ -1994,6 +1994,7 @@ private fun DragHandle(
     sizeDp: Dp,
     color: Color,
     shape: Shape,
+    borderColor: Color = Color.White,
     keyId: Long,
     alpha: Float,
     contentScale: Float,
@@ -2012,7 +2013,7 @@ private fun DragHandle(
                 scaleX = fixedControlScale(contentScale)
                 scaleY = fixedControlScale(contentScale)
             }
-            .border(2.dp, Color.White, shape)
+            .border(2.dp, borderColor, shape)
             .background(color, shape)
             .pointerInput(keyId) {
                 detectDragGestures(
