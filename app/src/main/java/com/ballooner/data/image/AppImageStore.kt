@@ -79,16 +79,18 @@ class AppImageStore @Inject constructor(
             canvas.drawColor(Color.WHITE)
             canvas.drawBitmap(existingBitmap, layout.existingLeft.toFloat(), layout.existingTop.toFloat(), null)
             canvas.drawBitmap(scaledAdded, layout.addedLeft.toFloat(), layout.addedTop.toFloat(), null)
-            val existingInset = layout.existingBorderPx / 2f
-            canvas.drawRect(
-                borderRect(layout.existingLeft, layout.existingTop, existingBitmap.width, existingBitmap.height, existingInset),
-                borderPaint(layout.existingBorderPx),
-            )
-            val addedInset = layout.addedBorderPx / 2f
-            canvas.drawRect(
-                borderRect(layout.addedLeft, layout.addedTop, layout.scaledAddedWidth, layout.scaledAddedHeight, addedInset),
-                borderPaint(layout.addedBorderPx),
-            )
+            layout.bordersToDraw.forEach { border ->
+                canvas.drawRect(
+                    borderRect(
+                        border.left,
+                        border.top,
+                        border.width,
+                        border.height,
+                        border.strokeWidth / 2f,
+                    ),
+                    borderPaint(border.strokeWidth),
+                )
+            }
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
             dest.outputStream().use { output -> composite.compress(Bitmap.CompressFormat.PNG, 100, output) }

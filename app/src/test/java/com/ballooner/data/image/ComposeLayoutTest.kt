@@ -40,7 +40,7 @@ class ComposeLayoutTest {
     }
 
     @Test
-    fun `draws a border around each panel`() {
+    fun `draws a border only around the newly added panel`() {
         val layout = computeComposeLayout(
             existingWidth = 200,
             existingHeight = 100,
@@ -49,8 +49,18 @@ class ComposeLayoutTest {
             position = ImagePosition.RIGHT,
         )
 
-        assertTrue(layout.existingBorderPx > 0)
-        assertTrue(layout.addedBorderPx > 0)
+        assertEquals(
+            listOf(
+                PanelBorder(
+                    left = layout.addedLeft,
+                    top = layout.addedTop,
+                    width = layout.scaledAddedWidth,
+                    height = layout.scaledAddedHeight,
+                    strokeWidth = borderThicknessPx(layout.scaledAddedWidth, layout.scaledAddedHeight),
+                ),
+            ),
+            layout.bordersToDraw,
+        )
     }
 
     @Test

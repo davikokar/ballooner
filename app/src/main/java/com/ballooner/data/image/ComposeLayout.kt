@@ -5,6 +5,14 @@ import com.ballooner.domain.model.RectFraction
 import kotlin.math.roundToInt
 
 /** The pixel geometry for compositing two images per [ImagePosition]. */
+internal data class PanelBorder(
+    val left: Int,
+    val top: Int,
+    val width: Int,
+    val height: Int,
+    val strokeWidth: Int,
+)
+
 internal data class ComposeLayout(
     val canvasWidth: Int,
     val canvasHeight: Int,
@@ -15,9 +23,8 @@ internal data class ComposeLayout(
     val scaledAddedHeight: Int,
     val addedLeft: Int,
     val addedTop: Int,
-    // Thickness of the border drawn around each panel, matching the balloons' thin outline.
-    val existingBorderPx: Int,
-    val addedBorderPx: Int,
+    // Existing pixels already contain their individual borders; only the new panel needs one.
+    val bordersToDraw: List<PanelBorder>,
     val existingRect: RectFraction,
     val addedRect: RectFraction,
 )
@@ -85,8 +92,15 @@ internal fun computeComposeLayout(
         scaledAddedHeight = scaledAddedHeight,
         addedLeft = addedLeft,
         addedTop = addedTop,
-        existingBorderPx = borderThicknessPx(existingWidth, existingHeight),
-        addedBorderPx = borderThicknessPx(scaledAddedWidth, scaledAddedHeight),
+        bordersToDraw = listOf(
+            PanelBorder(
+                left = addedLeft,
+                top = addedTop,
+                width = scaledAddedWidth,
+                height = scaledAddedHeight,
+                strokeWidth = borderThicknessPx(scaledAddedWidth, scaledAddedHeight),
+            ),
+        ),
         existingRect = RectFraction(
             left = existingLeft.toFloat() / canvasWidth,
             top = existingTop.toFloat() / canvasHeight,
