@@ -142,6 +142,7 @@ import java.io.File
 import java.io.OutputStream
 import kotlin.math.roundToInt
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 @Composable
 fun ProjectRoute(
@@ -1635,17 +1636,20 @@ private fun BalloonText(
     val top = balloon.centerY * canvasSize.height - balloon.height * canvasSize.height / 2f - origin.y
     val widthDp = with(density) { (balloon.width * canvasSize.width).toDp() }
     val heightDp = with(density) { (balloon.height * canvasSize.height).toDp() }
-    val innerPaddingPx = when (balloon.type) {
-        // Captions are a plain rectangle, so the text can sit almost flush with the border.
-        BalloonType.CAPTION -> with(density) { scaledBalloonTextDimension(2f, contentScale).dp.toPx() }
-        else -> balloonTextInsetPx(balloon.type, contentScale)
-    }
-    val innerPadding = with(density) { innerPaddingPx.toDp() }
+    val textArea = balloonTextAreaPx(
+        type = balloon.type,
+        cornerRoundness = balloon.cornerRoundness,
+        boxWidth = balloon.width * canvasSize.width,
+        boxHeight = balloon.height * canvasSize.height,
+        contentScale = contentScale,
+    )
+    val textAreaWidthDp = with(density) { textArea.width.toDp() }
+    val textAreaHeightDp = with(density) { textArea.height.toDp() }
 
     var text by remember(balloon.id) { mutableStateOf(balloon.text) }
 
-    val availableWidth = (balloon.width * canvasSize.width - 2 * innerPaddingPx).toInt().coerceAtLeast(1)
-    val availableHeight = (balloon.height * canvasSize.height - 2 * innerPaddingPx).toInt().coerceAtLeast(1)
+    val availableWidth = textArea.width.toInt().coerceAtLeast(1)
+    val availableHeight = textArea.height.toInt().coerceAtLeast(1)
     val effectiveFontSize = if (autoSize) {
         rememberAutoFontSize(text, balloon.font, availableWidth, availableHeight, contentScale)
     } else {
@@ -1658,25 +1662,31 @@ private fun BalloonText(
             .size(widthDp, heightDp),
         contentAlignment = Alignment.Center,
     ) {
-        BasicTextField(
-            value = text,
-            onValueChange = {
-                if (!editable) return@BasicTextField
-                text = it
-                onTextChange(it)
-            },
-            readOnly = !editable,
-            textStyle = TextStyle(
-                color = Color.Black,
-                fontSize = effectiveFontSize.sp,
-                fontFamily = balloon.font.toFontFamily(),
-                textAlign = TextAlign.Center,
-            ),
+        Box(
             modifier = Modifier
+                .size(textAreaWidthDp, textAreaHeightDp)
+                .clipToBounds(),
+            contentAlignment = Alignment.Center,
+        ) {
+            BasicTextField(
+                value = text,
+                onValueChange = {
+                    if (!editable) return@BasicTextField
+                    text = it
+                    onTextChange(it)
+                },
+                readOnly = !editable,
+                textStyle = TextStyle(
+                    color = Color.Black,
+                    fontSize = effectiveFontSize.sp,
+                    fontFamily = balloon.font.toFontFamily(),
+                    textAlign = TextAlign.Center,
+                ),
+                modifier = Modifier
                 .fillMaxWidth()
-                .padding(innerPadding)
                 .onFocusChanged { if (it.isFocused) onFocused() },
-        )
+            )
+        }
     }
 }
 
@@ -1749,8 +1759,34 @@ internal fun balloonTextScale(currentContentWidth: Float, normalContentWidth: Fl
 internal fun scaledBalloonTextDimension(baseDimension: Float, contentScale: Float): Float =
     baseDimension * contentScale.coerceAtLeast(0f)
 
-internal fun balloonTextInsetPx(type: BalloonType, contentScale: Float): Float =
-    if (type == BalloonType.CAPTION) 0f else scaledBalloonTextDimension(3f, contentScale)
+internal data class BalloonTextArea(val width: Float, val height: Float)
+
+internal fun balloonTextAreaPx(
+    type: BalloonType,
+    cornerRoundness: Float,
+    boxWidth: Float,
+    boxHeight: Float,
+    contentScale: Float,
+): BalloonTextArea {
+    val gap = scaledBalloonTextDimension(if (type == BalloonType.CAPTION) 2f else 3f, contentScale)
+    val (shapeWidth, shapeHeight) = when (type) {
+        BalloonType.YELL -> {
+            val safeFraction = 0.82f / sqrt(2f)
+            boxWidth * safeFraction to boxHeight * safeFraction
+        }
+        BalloonType.THINK -> boxWidth * 0.68f to boxHeight * 0.68f
+        BalloonType.CAPTION -> boxWidth to boxHeight
+        BalloonType.SPEAK, BalloonType.WHISPER -> {
+            val radius = cornerRoundness.coerceIn(0f, 1f) * minOf(boxWidth, boxHeight) / 2f
+            val cornerInset = radius * (1f - 1f / sqrt(2f))
+            boxWidth - 2f * cornerInset to boxHeight - 2f * cornerInset
+        }
+    }
+    return BalloonTextArea(
+        width = (shapeWidth - 2f * gap).coerceAtLeast(1f),
+        height = (shapeHeight - 2f * gap).coerceAtLeast(1f),
+    )
+}
 
 @Composable
 private fun Handles(
@@ -2176,17 +2212,15 @@ private fun DrawScope.drawExportText(
     if (balloon.text.isBlank()) return
     val boxW = balloon.width * canvasSize.width
     val boxH = balloon.height * canvasSize.height
-    // Mirrors BalloonText's inset at native export resolution.
-    val maxW: Int
-    val maxH: Int
-    if (balloon.type == BalloonType.CAPTION) {
-        maxW = (boxW * 0.97f).toInt().coerceAtLeast(1)
-        maxH = (boxH * 0.97f).toInt().coerceAtLeast(1)
-    } else {
-        val insetPx = balloonTextInsetPx(balloon.type, scale)
-        maxW = (boxW - 2 * insetPx).toInt().coerceAtLeast(1)
-        maxH = (boxH - 2 * insetPx).toInt().coerceAtLeast(1)
-    }
+    val textArea = balloonTextAreaPx(
+        type = balloon.type,
+        cornerRoundness = balloon.cornerRoundness,
+        boxWidth = boxW,
+        boxHeight = boxH,
+        contentScale = scale,
+    )
+    val maxW = textArea.width.toInt().coerceAtLeast(1)
+    val maxH = textArea.height.toInt().coerceAtLeast(1)
     val fontSize = if (autoSize) {
         autoFitFontSize(balloon.text, balloon.font, maxW, maxH, textMeasurer)
     } else {

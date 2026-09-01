@@ -77,18 +77,42 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `non-caption balloons leave three image pixels around text`() {
-        val types = listOf(
-            BalloonType.SPEAK,
-            BalloonType.YELL,
-            BalloonType.WHISPER,
-            BalloonType.THINK,
+    fun `balloon text area follows the body shape`() {
+        val squareSpeak = balloonTextAreaPx(
+            type = BalloonType.SPEAK,
+            cornerRoundness = 0f,
+            boxWidth = 200f,
+            boxHeight = 100f,
+            contentScale = 1f,
+        )
+        val roundSpeak = balloonTextAreaPx(
+            type = BalloonType.SPEAK,
+            cornerRoundness = 1f,
+            boxWidth = 200f,
+            boxHeight = 100f,
+            contentScale = 1f,
+        )
+        val yell = balloonTextAreaPx(
+            type = BalloonType.YELL,
+            cornerRoundness = 0f,
+            boxWidth = 200f,
+            boxHeight = 100f,
+            contentScale = 1f,
+        )
+        val think = balloonTextAreaPx(
+            type = BalloonType.THINK,
+            cornerRoundness = 0f,
+            boxWidth = 200f,
+            boxHeight = 100f,
+            contentScale = 1f,
         )
 
-        types.forEach { type ->
-            assertEquals(3f, balloonTextInsetPx(type, contentScale = 1f), 0.001f)
-            assertEquals(6f, balloonTextInsetPx(type, contentScale = 2f), 0.001f)
-        }
+        assertEquals(194f, squareSpeak.width, 0.001f)
+        assertEquals(94f, squareSpeak.height, 0.001f)
+        assertTrue(roundSpeak.width < squareSpeak.width)
+        assertTrue(roundSpeak.height < squareSpeak.height)
+        assertTrue(yell.width < think.width)
+        assertTrue(think.width < roundSpeak.width)
     }
 
     @Test
