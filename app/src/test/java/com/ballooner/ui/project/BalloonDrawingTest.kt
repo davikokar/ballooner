@@ -2,6 +2,7 @@ package com.ballooner.ui.project
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
@@ -14,6 +15,24 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BalloonDrawingTest {
+
+    @Test
+    fun `final drag offset commits the magnetic preview position`() {
+        val anchor = RectFraction(0f, 0f, 0.4f, 0.4f)
+        val moving = RectFraction(0.6f, 0f, 0.4f, 0.4f)
+
+        val destination = magneticDragDestination(
+            panels = listOf(anchor, moving),
+            moving = moving,
+            dragOffset = Offset(-175f, 10f),
+            displaySize = Size(1000f, 1000f),
+            imageSize = IntSize(1000, 1000),
+            snapThresholdDisplayPx = 28f,
+        )
+
+        assertEquals(0.408f, destination.left, 0.0001f)
+        assertEquals(0f, destination.top, 0.0001f)
+    }
 
     @Test
     fun `balloon clip bounds preserve the panel border`() {

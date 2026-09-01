@@ -21,7 +21,6 @@ class RearrangeLayoutTest {
         assertEquals(PixelRect(0, 0, 100, 80), layout.panelRects[0])
         assertEquals(PixelRect(110, 0, 120, 80), layout.panelRects[1])
         assertEquals(PixelRect(225, 12, 90, 60), layout.panelRects[2])
-        assertEquals(PixelRect(0, 90, 90, 60), layout.vacatedRect)
         assertEquals(315, layout.canvasWidth)
         assertEquals(80, layout.canvasHeight)
     }
@@ -40,7 +39,6 @@ class RearrangeLayoutTest {
 
         assertEquals(PixelRect(0, 70, 100, 80), layout.panelRects[0])
         assertEquals(PixelRect(4, 0, 120, 80), layout.panelRects[1])
-        assertEquals(PixelRect(110, 70, 120, 80), layout.vacatedRect)
         assertEquals(124, layout.canvasWidth)
         assertEquals(150, layout.canvasHeight)
     }

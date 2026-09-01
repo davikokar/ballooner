@@ -67,6 +67,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -80,6 +81,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
@@ -1102,6 +1104,7 @@ private fun Editor(
                                     },
                             ) {
                                 val size = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
+                                val magneticSnapThresholdPx = with(LocalDensity.current) { 28.dp.toPx() }
                                 val movingPanel = selectedPanel?.takeIf {
                                     focusedPanel == null && moveHandleOffset != Offset.Zero &&
                                         size.width > 0f && size.height > 0f
@@ -1111,15 +1114,13 @@ private fun Editor(
                                     top = movingPanel.top + moveHandleOffset.y / size.height,
                                 )
                                 val previewPanel = if (movingPanel != null && desiredPanel != null) {
-                                    val snapThresholdPx = with(LocalDensity.current) { 28.dp.toPx() } *
-                                        image.width / size.width
-                                    magneticallyAlignedPanel(
+                                    magneticDragDestination(
                                         panels = panels,
                                         moving = movingPanel,
-                                        desired = desiredPanel,
-                                        canvasWidth = image.width,
-                                        canvasHeight = image.height,
-                                        snapThresholdPx = snapThresholdPx,
+                                        dragOffset = moveHandleOffset,
+                                        displaySize = size,
+                                        imageSize = IntSize(image.width, image.height),
+                                        snapThresholdDisplayPx = magneticSnapThresholdPx,
                                     )
                                 } else {
                                     null
@@ -1135,9 +1136,10 @@ private fun Editor(
                                         drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
                                         if (movingPanel != null && previewPanel != null) {
                                             drawRect(
-                                                color = Color.Black,
+                                                color = Color.Transparent,
                                                 topLeft = Offset(movingPanel.left * size.width, movingPanel.top * size.height),
                                                 size = Size(movingPanel.width * size.width, movingPanel.height * size.height),
+                                                blendMode = BlendMode.Clear,
                                             )
                                             drawImage(
                                                 image = image,
@@ -1247,9 +1249,19 @@ private fun Editor(
                                             onDrag = { delta ->
                                                 moveHandleOffset += delta
                                             },
-                                            onDragEnd = {
-                                                if (moveHandleOffset != Offset.Zero) {
-                                                    onMoveImage(pending, previewPanel ?: desiredPanel ?: pending)
+                                            onDragEnd = { finalDragOffset ->
+                                                if (finalDragOffset != Offset.Zero) {
+                                                    onMoveImage(
+                                                        pending,
+                                                        magneticDragDestination(
+                                                            panels = panels,
+                                                            moving = pending,
+                                                            dragOffset = finalDragOffset,
+                                                            displaySize = size,
+                                                            imageSize = IntSize(image.width, image.height),
+                                                            snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                                        ),
+                                                    )
                                                 }
                                                 moveHandleOffset = Offset.Zero
                                             },
@@ -1537,6 +1549,28 @@ private fun Balloon.translatedBetween(from: RectFraction, to: RectFraction): Bal
     centerX = centerX + to.left - from.left,
     centerY = centerY + to.top - from.top,
 )
+
+internal fun magneticDragDestination(
+    panels: List<RectFraction>,
+    moving: RectFraction,
+    dragOffset: Offset,
+    displaySize: Size,
+    imageSize: IntSize,
+    snapThresholdDisplayPx: Float,
+): RectFraction {
+    val desired = moving.copy(
+        left = moving.left + dragOffset.x / displaySize.width,
+        top = moving.top + dragOffset.y / displaySize.height,
+    )
+    return magneticallyAlignedPanel(
+        panels = panels,
+        moving = moving,
+        desired = desired,
+        canvasWidth = imageSize.width,
+        canvasHeight = imageSize.height,
+        snapThresholdPx = snapThresholdDisplayPx * imageSize.width / displaySize.width,
+    )
+}
 
 /** The bottom "comic kit" panel: balloon types plus the currently selected balloon's controls. */
 @Composable
@@ -2055,10 +2089,12 @@ private fun ImageMoveHandle(
     centerPx: Offset,
     contentScale: Float,
     onDrag: (Offset) -> Unit,
-    onDragEnd: () -> Unit,
+    onDragEnd: (Offset) -> Unit,
 ) {
     val density = LocalDensity.current
     val halfPx = with(density) { 16.dp.toPx() }
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
     Box(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
@@ -2070,12 +2106,16 @@ private fun ImageMoveHandle(
             .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
             .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
             .pointerInput(Unit) {
+                var totalDrag = Offset.Zero
                 detectDragGestures(
-                    onDragEnd = onDragEnd,
-                    onDragCancel = onDragEnd,
+                    onDragStart = { totalDrag = Offset.Zero },
+                    onDragEnd = { currentOnDragEnd(totalDrag) },
+                    onDragCancel = { currentOnDragEnd(totalDrag) },
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        onDrag(dragAmount / contentScale)
+                        val scaledDrag = dragAmount / contentScale
+                        totalDrag += scaledDrag
+                        currentOnDrag(scaledDrag)
                     },
                 )
             },

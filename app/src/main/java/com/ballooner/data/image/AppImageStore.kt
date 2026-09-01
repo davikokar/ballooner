@@ -192,14 +192,6 @@ class AppImageStore @Inject constructor(
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
             val canvas = android.graphics.Canvas(composite)
-            val vacated = layout.vacatedRect
-            canvas.drawRect(
-                vacated.left.toFloat(),
-                vacated.top.toFloat(),
-                (vacated.left + vacated.width).toFloat(),
-                (vacated.top + vacated.height).toFloat(),
-                Paint().apply { color = Color.BLACK },
-            )
             panelBitmaps.forEachIndexed { index, panelBitmap ->
                 val target = layout.panelRects[index]
                 canvas.drawBitmap(panelBitmap, target.left.toFloat(), target.top.toFloat(), null)

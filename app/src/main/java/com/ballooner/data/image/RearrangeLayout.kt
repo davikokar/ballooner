@@ -8,7 +8,6 @@ internal data class RearrangeLayout(
     val canvasWidth: Int,
     val canvasHeight: Int,
     val panelRects: List<PixelRect>,
-    val vacatedRect: PixelRect,
 )
 
 internal fun computeRearrangeLayout(
@@ -27,6 +26,5 @@ internal fun computeRearrangeLayout(
         canvasWidth = shifted.maxOf { it.left + it.width },
         canvasHeight = shifted.maxOf { it.top + it.height },
         panelRects = shifted,
-        vacatedRect = moving.copy(left = moving.left - minLeft, top = moving.top - minTop),
     )
 }
