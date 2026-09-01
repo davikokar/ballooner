@@ -35,6 +35,7 @@ private const val GAP_FRACTION = 0.02f
 private const val MIN_GAP_PX = 8
 private const val BORDER_FRACTION = 0.006f
 private const val MIN_BORDER_PX = 3
+internal const val COMIC_CANVAS_BACKGROUND_COLOR = 0x00000000
 
 /** Border thickness for an image of this size, matching the balloons' thin outline ratio. */
 internal fun borderThicknessPx(width: Int, height: Int): Int =

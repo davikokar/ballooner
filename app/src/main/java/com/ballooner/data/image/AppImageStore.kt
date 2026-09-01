@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.net.Uri
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.ImagePosition
@@ -73,10 +75,8 @@ class AppImageStore @Inject constructor(
                 true,
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
+            composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
             val canvas = android.graphics.Canvas(composite)
-            // Paper-white background shows through the gap between the two panels (and any
-            // letterboxing when the added panel's span makes it larger than the existing one).
-            canvas.drawColor(Color.WHITE)
             canvas.drawBitmap(existingBitmap, layout.existingLeft.toFloat(), layout.existingTop.toFloat(), null)
             canvas.drawBitmap(scaledAdded, layout.addedLeft.toFloat(), layout.addedTop.toFloat(), null)
             layout.bordersToDraw.forEach { border ->
@@ -112,13 +112,16 @@ class AppImageStore @Inject constructor(
             val canvas = android.graphics.Canvas(bitmap)
             val left = removed.left * bitmap.width
             val top = removed.top * bitmap.height
-            val fillPaint = Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
+            val clearPaint = Paint().apply {
+                style = Paint.Style.FILL
+                xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+            }
             canvas.drawRect(
                 left,
                 top,
                 left + removed.width * bitmap.width,
                 top + removed.height * bitmap.height,
-                fillPaint,
+                clearPaint,
             )
             val cropLeft = (retained.left * bitmap.width).roundToInt().coerceIn(0, bitmap.width - 1)
             val cropTop = (retained.top * bitmap.height).roundToInt().coerceIn(0, bitmap.height - 1)
@@ -160,8 +163,8 @@ class AppImageStore @Inject constructor(
                 gapPx = gapPx,
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
+            composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
             val canvas = android.graphics.Canvas(composite)
-            canvas.drawColor(Color.WHITE)
             panelBitmaps.forEachIndexed { index, panelBitmap ->
                 val target = layout.panelRects[index]
                 canvas.drawBitmap(panelBitmap, target.left.toFloat(), target.top.toFloat(), null)

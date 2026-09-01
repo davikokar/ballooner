@@ -9,6 +9,11 @@ import org.junit.Test
 class ComposeLayoutTest {
 
     @Test
+    fun `multi-image canvas background is transparent`() {
+        assertEquals(0x00000000, COMIC_CANVAS_BACKGROUND_COLOR)
+    }
+
+    @Test
     fun `placing an image to the right scales it to the existing height and appends its width`() {
         val layout = computeComposeLayout(
             existingWidth = 200,
