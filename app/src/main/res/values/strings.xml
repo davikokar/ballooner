@@ -35,4 +35,69 @@
     <string name="text_size_description">Auto adjusts text to fill each balloon and hides the size slider.</string>
     <string name="manual">Manual</string>
     <string name="auto">Auto</string>
+    <string name="untitled">Untitled</string>
+    <string name="open_images">Open images</string>
+    <string name="saved_image">Saved image</string>
+    <string name="save_failed">Save failed</string>
+    <string name="share_failed">Share failed</string>
+    <string name="share_comic">Share comic</string>
+    <string name="add_panel">Add panel</string>
+    <string name="add_panel_instructions">Drag the new panel next to any existing one, then tap Add.</string>
+    <string name="add">Add</string>
+    <string name="cancel">Cancel</string>
+    <string name="new_panel">New panel</string>
+    <string name="adding_panel">Adding panel…</string>
+    <string name="title_hint">Title</string>
+    <string name="more_options">More options</string>
+    <string name="delete_comic">Delete comic</string>
+    <string name="delete_comic_title">Delete comic?</string>
+    <string name="delete_comic_message">This permanently removes the comic and its panels.</string>
+    <string name="delete">Delete</string>
+    <string name="rotate">Rotate</string>
+    <string name="show_all_panels">Show all panels</string>
+    <string name="focus_panel">Focus panel</string>
+    <string name="save">Save</string>
+    <string name="edit">Edit</string>
+    <string name="view">View</string>
+    <string name="loading_image">Loading image…</string>
+    <string name="image_load_failed">Couldn\'t load this image.</string>
+    <string name="choose_image">Choose image</string>
+    <string name="delete_panel">Delete panel</string>
+    <string name="delete_panel_title">Delete panel?</string>
+    <string name="delete_panel_message">This permanently removes this panel and any balloons on it.</string>
+    <string name="show_panel_direction">Show panel %1$s</string>
+    <string name="add_panel_direction">Add panel %1$s</string>
+    <string name="collapse_balloon_tools">Collapse balloon tools</string>
+    <string name="expand_balloon_tools">Expand balloon tools</string>
+    <string name="font_style">Font style</string>
+    <string name="move_balloon">Move balloon</string>
+    <string name="move_panel">Move panel</string>
+    <string name="no_comics_yet">No comics yet!</string>
+    <string name="empty_comics_message">Time to start your heroic journey. Grab a pen and let\'s go!</string>
+    <string name="create_comic">Create comic</string>
+    <string name="create_project">Create project</string>
+    <string name="last_edited">Last edited %1$s</string>
+    <string name="balloon_type_speak">Speak</string>
+    <string name="balloon_type_think">Think</string>
+    <string name="balloon_type_whisper">Whisper</string>
+    <string name="balloon_type_yell">Yell</string>
+    <string name="balloon_type_caption">Caption</string>
+    <string name="direction_left">left</string>
+    <string name="direction_right">right</string>
+    <string name="direction_top">above</string>
+    <string name="direction_bottom">below</string>
+    <string name="font_default">Default</string>
+    <string name="font_sans_serif">Sans serif</string>
+    <string name="font_serif">Serif</string>
+    <string name="font_fixed_width">Fixed width</string>
+    <string name="font_cursive">Cursive</string>
+    <string name="font_wide">Wide</string>
+    <string name="font_narrow">Narrow</string>
+    <string name="font_comic_sans_ms" translatable="false">Comic Sans MS</string>
+    <string name="font_garamond" translatable="false">Garamond</string>
+    <string name="font_georgia" translatable="false">Georgia</string>
+    <string name="font_tahoma" translatable="false">Tahoma</string>
+    <string name="font_trebuchet" translatable="false">Trebuchet</string>
+    <string name="font_verdana" translatable="false">Verdana</string>
+    <string name="font_anime_ace" translatable="false">Anime Ace</string>
 </resources>

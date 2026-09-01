@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ballooner.R
 import com.ballooner.domain.model.Project
 import com.ballooner.ui.project.BalloonerIcons
 import com.ballooner.ui.project.googleFontFamily
@@ -133,7 +135,7 @@ private fun ProjectListTopBar(onOpenSettings: () -> Unit) {
         TopAppBar(
             title = {
                 Text(
-                    text = "Ballooner",
+                    text = stringResource(R.string.app_name),
                     color = Color.White,
                     fontFamily = AnimeAceFontFamily,
                     fontSize = 24.sp,
@@ -163,7 +165,7 @@ private fun EmptyState(onCreateProject: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "No comics yet!",
+                text = stringResource(R.string.no_comics_yet),
                 fontFamily = googleFontFamily("Bricolage Grotesque"),
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 26.sp,
@@ -171,14 +173,14 @@ private fun EmptyState(onCreateProject: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Time to start your heroic journey. Grab a pen and let's go!",
+                text = stringResource(R.string.empty_comics_message),
                 fontFamily = googleFontFamily("Hanken Grotesk"),
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(20.dp))
             ComicButton(
-                text = "Create comic",
+                text = stringResource(R.string.create_comic),
                 onClick = onCreateProject,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -225,7 +227,7 @@ private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Uni
             ProjectThumbnail(imageUri = project.imageUri, name = project.name)
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = project.name.ifBlank { "Untitled" }.uppercase(),
+                    text = project.name.ifBlank { stringResource(R.string.untitled) }.uppercase(),
                     fontFamily = AnimeAceFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
@@ -253,7 +255,7 @@ private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Uni
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Delete comic",
+                    contentDescription = stringResource(R.string.delete_comic),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp),
                 )
@@ -264,8 +266,8 @@ private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Uni
     if (showConfirm) {
         AlertDialog(
             onDismissRequest = { showConfirm = false },
-            title = { Text("Delete comic?") },
-            text = { Text("This permanently removes the comic and its panels.") },
+            title = { Text(stringResource(R.string.delete_comic_title)) },
+            text = { Text(stringResource(R.string.delete_comic_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -273,10 +275,10 @@ private fun ProjectRow(project: Project, onOpen: () -> Unit, onDelete: () -> Uni
                         showDeleteButton = false
                         onDelete()
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -394,7 +396,7 @@ private fun ComicFab(onClick: () -> Unit) {
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Create project", tint = InkBlack)
+            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_project), tint = InkBlack)
         }
     }
 }
@@ -436,24 +438,25 @@ private fun rememberThumbnail(uri: String?): ImageBitmap? {
     }.value
 }
 
+@Composable
 private fun lastEditedLabel(timestamp: Long): String {
     val relative = DateUtils.getRelativeTimeSpanString(
         timestamp,
         System.currentTimeMillis(),
         DateUtils.MINUTE_IN_MILLIS,
     )
-    return "Last edited $relative"
+    return stringResource(R.string.last_edited, relative)
 }
 
 @Composable
 private fun OverflowMenu(onOpenSettings: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
-        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         DropdownMenuItem(
-            text = { Text("Settings") },
+            text = { Text(stringResource(R.string.settings_title)) },
             onClick = {
                 expanded = false
                 onOpenSettings()

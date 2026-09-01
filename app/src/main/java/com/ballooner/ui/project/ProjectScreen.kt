@@ -99,6 +99,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -121,6 +122,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ballooner.R
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
@@ -256,7 +258,7 @@ fun ProjectScreen(
                     compressFormat = Bitmap.CompressFormat.PNG,
                     openOutputStream = { context.contentResolver.openOutputStream(uri) },
                 )
-                Toast.makeText(context, if (ok) "Saved image" else "Save failed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, if (ok) R.string.saved_image else R.string.save_failed, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -294,11 +296,11 @@ fun ProjectScreen(
                             clipData = ClipData.newRawUri("Comic", shareUri)
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
-                        context.startActivity(Intent.createChooser(sendIntent, "Share comic"))
+                        context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_comic)))
                     }.isSuccess
-                    if (!shared) Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                    if (!shared) Toast.makeText(context, R.string.share_failed, Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.share_failed, Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -333,7 +335,7 @@ fun ProjectScreen(
                             EditableTitle(name = projectName, onRename = onRenameProject)
                         } else {
                             Text(
-                                text = projectName.ifBlank { "Untitled" },
+                                text = projectName.ifBlank { stringResource(R.string.untitled) },
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -348,7 +350,7 @@ fun ProjectScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.back),
                                 tint = Color.White,
                             )
                         }
@@ -370,7 +372,7 @@ fun ProjectScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (!uiState.hasImage) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    ComicButton(text = "Open images", onClick = launchInitialPicker)
+                    ComicButton(text = stringResource(R.string.open_images), onClick = launchInitialPicker)
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -457,10 +459,10 @@ private fun ImagePositionDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add panel") },
+        title = { Text(stringResource(R.string.add_panel)) },
         text = {
             Column {
-                Text("Drag the new panel next to any existing one, then tap Add.")
+                Text(stringResource(R.string.add_panel_instructions))
                 Spacer(modifier = Modifier.height(12.dp))
                 ImagePositionPicker(
                     panels = panels,
@@ -474,10 +476,10 @@ private fun ImagePositionDialog(
             TextButton(
                 onClick = { snapped?.let(onSelect) },
                 enabled = snapped != null,
-            ) { Text("Add") }
+            ) { Text(stringResource(R.string.add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -608,7 +610,7 @@ private fun ImagePositionPicker(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New panel", tint = InkBlack)
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_panel), tint = InkBlack)
             }
         }
     }
@@ -634,7 +636,7 @@ private fun ImageProcessingOverlay() {
         ) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(12.dp))
-            Text("Adding panel\u2026", color = InkBlack, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.adding_panel), color = InkBlack, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -662,7 +664,7 @@ private fun EditableTitle(name: String, onRename: (String) -> Unit) {
         decorationBox = { inner ->
             if (text.isEmpty()) {
                 Text(
-                    text = "Title",
+                    text = stringResource(R.string.title_hint),
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White.copy(alpha = 0.7f),
                 )
@@ -682,18 +684,18 @@ private fun ProjectOverflowMenu(
     var expanded by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     IconButton(onClick = { expanded = true }) {
-        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         DropdownMenuItem(
-            text = { Text("Delete comic") },
+            text = { Text(stringResource(R.string.delete_comic)) },
             onClick = {
                 expanded = false
                 showConfirm = true
             },
         )
         DropdownMenuItem(
-            text = { Text("Share comic") },
+            text = { Text(stringResource(R.string.share_comic)) },
             enabled = canShare,
             onClick = {
                 expanded = false
@@ -701,7 +703,7 @@ private fun ProjectOverflowMenu(
             },
         )
         DropdownMenuItem(
-            text = { Text("Settings") },
+            text = { Text(stringResource(R.string.settings_title)) },
             onClick = {
                 expanded = false
                 onOpenSettings()
@@ -711,18 +713,18 @@ private fun ProjectOverflowMenu(
     if (showConfirm) {
         AlertDialog(
             onDismissRequest = { showConfirm = false },
-            title = { Text("Delete comic?") },
-            text = { Text("This permanently removes the comic and its panels.") },
+            title = { Text(stringResource(R.string.delete_comic_title)) },
+            text = { Text(stringResource(R.string.delete_comic_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showConfirm = false
                         onDeleteComic()
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -757,14 +759,14 @@ private fun Toolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ComicButton(
-            text = "Rotate",
+            text = stringResource(R.string.rotate),
             onClick = onRotate,
             icon = BalloonerIcons.Rotate,
             showLabel = false,
             enabled = canRotate,
         )
         ComicButton(
-            text = if (imageFocused) "Show all panels" else "Focus panel",
+            text = stringResource(if (imageFocused) R.string.show_all_panels else R.string.focus_panel),
             onClick = onToggleImageFocus,
             icon = BalloonerIcons.FocusImage,
             showLabel = false,
@@ -773,14 +775,14 @@ private fun Toolbar(
         )
         ModeToggle(editMode = editMode, onToggleMode = onToggleMode)
         ComicButton(
-            text = "Add panel",
+            text = stringResource(R.string.add_panel),
             onClick = onChangeImage,
             icon = BalloonerIcons.ImageAdd,
             showLabel = false,
             enabled = editMode,
         )
         ComicButton(
-            text = "Save",
+            text = stringResource(R.string.save),
             onClick = onSave,
             icon = BalloonerIcons.Save,
             showLabel = false,
@@ -799,8 +801,8 @@ private fun ModeToggle(editMode: Boolean, onToggleMode: (Boolean) -> Unit) {
             .border(4.dp, InkBlack, CircleShape)
             .clip(CircleShape),
     ) {
-        ModeToggleSegment(text = "Edit", selected = editMode, onClick = { onToggleMode(true) })
-        ModeToggleSegment(text = "View", selected = !editMode, onClick = { onToggleMode(false) })
+        ModeToggleSegment(text = stringResource(R.string.edit), selected = editMode, onClick = { onToggleMode(true) })
+        ModeToggleSegment(text = stringResource(R.string.view), selected = !editMode, onClick = { onToggleMode(false) })
     }
 }
 
@@ -1012,13 +1014,13 @@ private fun Editor(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                     when (val state = imageState) {
-                        ImageResult.Loading -> Text("Loading image\u2026")
+                        ImageResult.Loading -> Text(stringResource(R.string.loading_image))
                         ImageResult.Failed -> Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text("Couldn't load this image.")
-                            ComicButton(text = "Choose image", onClick = onOpenImagePicker)
+                            Text(stringResource(R.string.image_load_failed))
+                            ComicButton(text = stringResource(R.string.choose_image), onClick = onOpenImagePicker)
                         }
                         is ImageResult.Loaded -> {
                         val image = state.bitmap
@@ -1338,8 +1340,8 @@ private fun Editor(
     if (showConfirmDeleteImage) {
         AlertDialog(
             onDismissRequest = { showConfirmDeleteImage = false },
-            title = { Text("Delete panel?") },
-            text = { Text("This permanently removes this panel and any balloons on it.") },
+            title = { Text(stringResource(R.string.delete_panel_title)) },
+            text = { Text(stringResource(R.string.delete_panel_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1347,10 +1349,10 @@ private fun Editor(
                         onSelectPanel(null)
                         showConfirmDeleteImage = false
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmDeleteImage = false }) { Text("Cancel") }
+                TextButton(onClick = { showConfirmDeleteImage = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -1443,6 +1445,7 @@ private fun FocusNavigation(
                 ImagePosition.BOTTOM -> Icons.Default.KeyboardArrowDown
             }
             val edgeOffset = focusNavigationOffset(position)
+            val description = stringResource(R.string.show_panel_direction, position.label())
             Box(
                 modifier = Modifier
                     .align(alignment)
@@ -1450,14 +1453,14 @@ private fun FocusNavigation(
                     .size(30.dp)
                     .background(Color(0xFFFFD21F), CircleShape)
                     .border(2.dp, InkBlack, CircleShape)
-                    .clickable(onClickLabel = "Show panel ${position.name.lowercase()}") {
+                    .clickable(onClickLabel = description) {
                         onFocusPanel(panel)
                     },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = "Show panel ${position.name.lowercase()}",
+                    contentDescription = description,
                     tint = InkBlack,
                     modifier = Modifier.size(22.dp),
                 )
@@ -1510,14 +1513,18 @@ private fun ComicKit(
                 .background(Color(0xFFFFD21F), RoundedCornerShape(8.dp))
                 .border(3.dp, InkBlack, RoundedCornerShape(8.dp))
                 .clickable(
-                    onClickLabel = if (expanded) "Collapse balloon tools" else "Expand balloon tools",
+                    onClickLabel = stringResource(
+                        if (expanded) R.string.collapse_balloon_tools else R.string.expand_balloon_tools,
+                    ),
                     onClick = onToggleExpanded,
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                contentDescription = if (expanded) "Collapse balloon tools" else "Expand balloon tools",
+                contentDescription = stringResource(
+                    if (expanded) R.string.collapse_balloon_tools else R.string.expand_balloon_tools,
+                ),
                 tint = InkBlack,
                 modifier = Modifier.size(22.dp),
             )
@@ -1584,7 +1591,7 @@ private fun TextControls(
     ) {
         if (showFontSelector) {
             Column(modifier = Modifier.weight(1f)) {
-                ComicFieldLabel("Font style")
+                ComicFieldLabel(stringResource(R.string.font_style))
                 var expanded by remember { mutableStateOf(false) }
                 Box {
                     Row(
@@ -1616,7 +1623,7 @@ private fun TextControls(
         }
         if (showSizeSlider) {
             Column(modifier = Modifier.weight(1f)) {
-                ComicFieldLabel("Text size")
+                ComicFieldLabel(stringResource(R.string.text_size))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1869,7 +1876,7 @@ private fun Handles(
     ) {
         Icon(
             imageVector = BalloonerIcons.Move,
-            contentDescription = "Move balloon",
+            contentDescription = stringResource(R.string.move_balloon),
             tint = InkBlack,
             modifier = Modifier.size(18.dp),
         )
@@ -1983,7 +1990,7 @@ private fun ImageDeleteHandle(centerPx: Offset, contentScale: Float, onTap: () -
     ) {
         Icon(
             imageVector = Icons.Default.Close,
-            contentDescription = "Delete panel",
+            contentDescription = stringResource(R.string.delete_panel),
             tint = Color.White,
             modifier = Modifier.size(18.dp),
         )
@@ -2024,7 +2031,7 @@ private fun ImageMoveHandle(
     ) {
         Icon(
             imageVector = BalloonerIcons.Move,
-            contentDescription = "Move panel",
+            contentDescription = stringResource(R.string.move_panel),
             tint = InkBlack,
             modifier = Modifier.size(20.dp),
         )
@@ -2036,6 +2043,7 @@ private fun ImageMoveHandle(
 private fun ImageAddEdgeButton(centerPx: Offset, position: ImagePosition, onClick: () -> Unit) {
     val density = LocalDensity.current
     val halfPx = with(density) { 15.dp.toPx() }
+    val description = stringResource(R.string.add_panel_direction, position.label())
     Box(
         modifier = Modifier
             .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
@@ -2044,14 +2052,14 @@ private fun ImageAddEdgeButton(centerPx: Offset, position: ImagePosition, onClic
             .background(MaterialTheme.colorScheme.tertiary, CircleShape)
             .border(2.dp, InkBlack, CircleShape)
             .clickable(
-                onClickLabel = "Add panel ${position.name.lowercase()}",
+                onClickLabel = description,
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Default.Add,
-            contentDescription = "Add panel ${position.name.lowercase()}",
+            contentDescription = description,
             tint = InkBlack,
             modifier = Modifier.size(20.dp),
         )
@@ -2142,13 +2150,22 @@ internal fun visibleHandleCenter(center: Offset, imageBounds: Rect?): Offset =
         )
     } ?: center
 
-private fun BalloonType.label(): String = when (this) {
-    BalloonType.SPEAK -> "Speak"
-    BalloonType.THINK -> "Think"
-    BalloonType.WHISPER -> "Whisper"
-    BalloonType.YELL -> "Yell"
-    BalloonType.CAPTION -> "Caption"
-}
+@Composable
+private fun BalloonType.label(): String = stringResource(when (this) {
+    BalloonType.SPEAK -> R.string.balloon_type_speak
+    BalloonType.THINK -> R.string.balloon_type_think
+    BalloonType.WHISPER -> R.string.balloon_type_whisper
+    BalloonType.YELL -> R.string.balloon_type_yell
+    BalloonType.CAPTION -> R.string.balloon_type_caption
+})
+
+@Composable
+private fun ImagePosition.label(): String = stringResource(when (this) {
+    ImagePosition.LEFT -> R.string.direction_left
+    ImagePosition.RIGHT -> R.string.direction_right
+    ImagePosition.TOP -> R.string.direction_top
+    ImagePosition.BOTTOM -> R.string.direction_bottom
+})
 
 private fun BalloonFont.toFontFamily(): FontFamily = when (this) {
     BalloonFont.DEFAULT -> FontFamily.Default
