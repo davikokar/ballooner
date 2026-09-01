@@ -1674,7 +1674,14 @@ private fun Handles(
             onLiveChange(b.copy(centerX = b.centerX + d.x / w, centerY = b.centerY + d.y / h))
         },
         onDragEnd = onCommit,
-    )
+    ) {
+        Icon(
+            imageVector = BalloonerIcons.Move,
+            contentDescription = "Move balloon",
+            tint = Color.White,
+            modifier = Modifier.size(18.dp),
+        )
+    }
 
     // Resize handles (four corners).
     val corners = listOf(
@@ -1824,10 +1831,10 @@ private fun ImageMoveHandle(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Default.MoreVert,
+            imageVector = BalloonerIcons.Move,
             contentDescription = "Move image",
             tint = InkBlack,
-            modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = 90f },
+            modifier = Modifier.size(20.dp),
         )
     }
 }
