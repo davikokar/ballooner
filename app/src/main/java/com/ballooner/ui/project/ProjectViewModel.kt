@@ -221,6 +221,17 @@ class ProjectViewModel @Inject constructor(
         }
     }
 
+    fun onCropImage(panel: RectFraction, source: RectFraction) {
+        if (panel == source) return
+        viewModelScope.launch {
+            val previous = uiState.value.imageUri ?: return@launch
+            if (panel !in uiState.value.panels) return@launch
+            val cropped = imageStore.cropPanel(previous, panel, source) ?: return@launch
+            projectRepository.setProjectImage(projectId, cropped)
+            imageStore.deleteImage(previous)
+        }
+    }
+
     private fun Balloon.remappedBetween(from: RectFraction, to: RectFraction) = copy(
         centerX = to.left + (centerX - from.left) / from.width * to.width,
         centerY = to.top + (centerY - from.top) / from.height * to.height,

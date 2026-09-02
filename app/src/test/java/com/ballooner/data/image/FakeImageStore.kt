@@ -19,6 +19,8 @@ class FakeImageStore : ImageStore {
     var rearrangeGate: CompletableDeferred<Unit>? = null
     var rearrangeStarted = false
     var lastRearrangeRequest: List<Any>? = null
+    var cropResult: String? = null
+    var lastCropRequest: List<Any>? = null
     var initialGridResult: InitialImageGrid? = null
     var lastInitialGridRequest: Pair<List<String>, Int>? = null
 
@@ -57,5 +59,10 @@ class FakeImageStore : ImageStore {
         rearrangeStarted = true
         rearrangeGate?.await()
         return rearrangeResult
+    }
+
+    override suspend fun cropPanel(uri: String, panel: RectFraction, source: RectFraction): String? {
+        lastCropRequest = listOf(uri, panel, source)
+        return cropResult
     }
 }

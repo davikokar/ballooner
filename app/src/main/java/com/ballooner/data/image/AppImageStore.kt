@@ -225,6 +225,61 @@ class AppImageStore @Inject constructor(
         }.getOrNull()
     }
 
+    override suspend fun cropPanel(
+        uri: String,
+        panel: RectFraction,
+        source: RectFraction,
+    ): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val bitmap = decodeBitmap(uri, mutable = true) ?: return@runCatching null
+            val sourceRect = source.toPixelRect(bitmap.width, bitmap.height)
+            val targetRect = panel.toPixelRect(bitmap.width, bitmap.height)
+            val cropped = Bitmap.createBitmap(
+                bitmap,
+                sourceRect.left,
+                sourceRect.top,
+                sourceRect.width,
+                sourceRect.height,
+            )
+            val canvas = android.graphics.Canvas(bitmap)
+            canvas.drawRect(
+                targetRect.left.toFloat(),
+                targetRect.top.toFloat(),
+                (targetRect.left + targetRect.width).toFloat(),
+                (targetRect.top + targetRect.height).toFloat(),
+                Paint().apply {
+                    xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+                },
+            )
+            canvas.drawBitmap(
+                cropped,
+                null,
+                android.graphics.Rect(
+                    targetRect.left,
+                    targetRect.top,
+                    targetRect.left + targetRect.width,
+                    targetRect.top + targetRect.height,
+                ),
+                null,
+            )
+            val borderWidth = borderThicknessPx(targetRect.width, targetRect.height)
+            canvas.drawRect(
+                borderRect(
+                    targetRect.left,
+                    targetRect.top,
+                    targetRect.width,
+                    targetRect.height,
+                    borderWidth / 2f,
+                ),
+                borderPaint(borderWidth),
+            )
+            imagesDir.mkdirs()
+            val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
+            dest.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
+            Uri.fromFile(dest).toString()
+        }.getOrNull()
+    }
+
     private fun RectFraction.toPixelRect(canvasWidth: Int, canvasHeight: Int): PixelRect {
         val pixelLeft = (left * canvasWidth).roundToInt().coerceIn(0, canvasWidth - 1)
         val pixelTop = (top * canvasHeight).roundToInt().coerceIn(0, canvasHeight - 1)

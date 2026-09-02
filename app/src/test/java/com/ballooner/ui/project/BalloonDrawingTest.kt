@@ -16,6 +16,13 @@ import org.junit.Test
 
 class BalloonDrawingTest {
 
+    private fun assertRectEquals(expected: RectFraction, actual: RectFraction) {
+        assertEquals(expected.left, actual.left, 0.0001f)
+        assertEquals(expected.top, actual.top, 0.0001f)
+        assertEquals(expected.width, actual.width, 0.0001f)
+        assertEquals(expected.height, actual.height, 0.0001f)
+    }
+
     @Test
     fun `final drag offset commits the magnetic preview position`() {
         val anchor = RectFraction(0f, 0f, 0.4f, 0.4f)
@@ -51,6 +58,35 @@ class BalloonDrawingTest {
 
         assertEquals(0.5f, destination.width, 0.0001f)
         assertEquals(0.5f, destination.height, 0.0001f)
+    }
+
+    @Test
+    fun `crop handle drag creates a proportional source window`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val source = cropSourceAfterHandleDrag(
+            panel = panel,
+            source = panel,
+            dragOffset = Offset(100f, -100f),
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertRectEquals(RectFraction(0.1f, 0f, 0.4f, 0.4f), source)
+    }
+
+    @Test
+    fun `dragging cropped picture pans source within original panel`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+        val source = RectFraction(0.1f, 0f, 0.4f, 0.4f)
+
+        val panned = panCropSource(
+            panel = panel,
+            source = source,
+            dragOffset = Offset(200f, -200f),
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertRectEquals(RectFraction(0f, 0.1f, 0.4f, 0.4f), panned)
     }
 
     @Test

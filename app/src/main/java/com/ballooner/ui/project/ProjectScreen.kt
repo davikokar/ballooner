@@ -176,6 +176,7 @@ fun ProjectRoute(
         onDeleteComic = { viewModel.deleteProject(onNavigateBack) },
         onDeleteImage = viewModel::onDeleteImage,
         onMoveImage = viewModel::onMoveImage,
+        onCropImage = viewModel::onCropImage,
     )
 }
 
@@ -198,6 +199,7 @@ fun ProjectScreen(
     onDeleteComic: () -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, RectFraction) -> Unit,
+    onCropImage: (RectFraction, RectFraction) -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -429,6 +431,7 @@ fun ProjectScreen(
                         },
                         onDeleteImage = onDeleteImage,
                         onMoveImage = onMoveImage,
+                        onCropImage = onCropImage,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -972,12 +975,16 @@ private fun Editor(
     onFocusPanel: (RectFraction) -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, RectFraction) -> Unit,
+    onCropImage: (RectFraction, RectFraction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageState = rememberImageState(imageUri)
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var resizeHandleOffset by remember { mutableStateOf(Offset.Zero) }
+    var croppingPanel by remember { mutableStateOf<RectFraction?>(null) }
+    var cropSource by remember { mutableStateOf<RectFraction?>(null) }
+    val currentCropSource by rememberUpdatedState(cropSource)
     var tappedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     var comicKitExpanded by remember { mutableStateOf(true) }
@@ -985,6 +992,20 @@ private fun Editor(
         moveHandleOffset = Offset.Zero
         resizeHandleOffset = Offset.Zero
         if (!editMode || tappedPanel !in panels) tappedPanel = null
+        if (croppingPanel !in panels) {
+            croppingPanel = null
+            cropSource = null
+        }
+    }
+    fun finishCrop() {
+        val panel = croppingPanel
+        val source = cropSource
+        if (panel != null && source != null && source != panel) onCropImage(panel, source)
+        croppingPanel = null
+        cropSource = null
+    }
+    LaunchedEffect(editMode) {
+        if (!editMode) finishCrop()
     }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -1096,7 +1117,10 @@ private fun Editor(
                                                 if (!editMode) return@detectTapGestures
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
-                                                tappedPanel = panels.panelAt(u, v)
+                                                val tapped = panels.panelAt(u, v)
+                                                if (croppingPanel == tapped) return@detectTapGestures
+                                                finishCrop()
+                                                tappedPanel = tapped
                                                 onSelectPanel(null)
                                                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                                                 val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
@@ -1106,6 +1130,7 @@ private fun Editor(
                                                 if (!editMode) return@detectTapGestures
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
+                                                finishCrop()
                                                 tappedPanel = null
                                                 onSelectPanel(panels.panelAt(u, v))
                                                 moveHandleOffset = Offset.Zero
@@ -1201,6 +1226,41 @@ private fun Editor(
                                                 ),
                                             )
                                         }
+                                        if (croppingPanel != null && cropSource != null) {
+                                            val panel = croppingPanel!!
+                                            val source = cropSource!!
+                                            drawRect(
+                                                color = Color.Transparent,
+                                                topLeft = Offset(panel.left * size.width, panel.top * size.height),
+                                                size = Size(panel.width * size.width, panel.height * size.height),
+                                                blendMode = BlendMode.Clear,
+                                            )
+                                            drawImage(
+                                                image = image,
+                                                srcOffset = IntOffset(
+                                                    (source.left * image.width).roundToInt(),
+                                                    (source.top * image.height).roundToInt(),
+                                                ),
+                                                srcSize = IntSize(
+                                                    (source.width * image.width).roundToInt(),
+                                                    (source.height * image.height).roundToInt(),
+                                                ),
+                                                dstOffset = IntOffset(
+                                                    (panel.left * size.width).roundToInt(),
+                                                    (panel.top * size.height).roundToInt(),
+                                                ),
+                                                dstSize = IntSize(
+                                                    (panel.width * size.width).roundToInt(),
+                                                    (panel.height * size.height).roundToInt(),
+                                                ),
+                                            )
+                                            drawRect(
+                                                color = InkBlack,
+                                                topLeft = Offset(panel.left * size.width, panel.top * size.height),
+                                                size = Size(panel.width * size.width, panel.height * size.height),
+                                                style = Stroke(width = 2.dp.toPx()),
+                                            )
+                                        }
                                         effective.forEach { balloon ->
                                             val panelIndex = panels.indexOfFirst {
                                                 it.contains(balloon.centerX, balloon.centerY)
@@ -1271,6 +1331,34 @@ private fun Editor(
                                 }
 
                                 if (editMode) {
+                                    if (croppingPanel != null && cropSource != null) {
+                                        val panel = croppingPanel!!
+                                        Box(
+                                            modifier = Modifier
+                                                .offset {
+                                                    IntOffset(
+                                                        (panel.left * size.width).roundToInt(),
+                                                        (panel.top * size.height).roundToInt(),
+                                                    )
+                                                }
+                                                .size(
+                                                    with(LocalDensity.current) { (panel.width * size.width).toDp() },
+                                                    with(LocalDensity.current) { (panel.height * size.height).toDp() },
+                                                )
+                                                .clipToBounds()
+                                                .pointerInput(panel, size) {
+                                                    detectDragGestures { change, dragAmount ->
+                                                        change.consume()
+                                                        cropSource = panCropSource(
+                                                            panel = panel,
+                                                            source = currentCropSource ?: panel,
+                                                            dragOffset = dragAmount,
+                                                            displaySize = size,
+                                                        )
+                                                    }
+                                                },
+                                        )
+                                    }
                                     selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
                                         val displayedPanel = previewPanel ?: pending
                                         ImageMoveHandle(
@@ -1279,6 +1367,14 @@ private fun Editor(
                                                 displayedPanel.top * size.height,
                                             ),
                                             contentScale = 1f,
+                                            onDragStart = {
+                                                if (croppingPanel != null) {
+                                                    finishCrop()
+                                                    false
+                                                } else {
+                                                    true
+                                                }
+                                            },
                                             onDrag = { delta ->
                                                 resizeHandleOffset = Offset.Zero
                                                 moveHandleOffset += delta
@@ -1305,7 +1401,13 @@ private fun Editor(
                                                 displayedPanel.top * size.height,
                                             ),
                                             contentScale = 1f,
-                                            onTap = { showConfirmDeleteImage = true },
+                                            onTap = {
+                                                if (croppingPanel != null) {
+                                                    finishCrop()
+                                                } else {
+                                                    showConfirmDeleteImage = true
+                                                }
+                                            },
                                         )
                                         ImageResizeHandle(
                                             centerPx = Offset(
@@ -1313,6 +1415,14 @@ private fun Editor(
                                                 (displayedPanel.top + displayedPanel.height) * size.height,
                                             ),
                                             contentScale = 1f,
+                                            onDragStart = {
+                                                if (croppingPanel != null) {
+                                                    finishCrop()
+                                                    false
+                                                } else {
+                                                    true
+                                                }
+                                            },
                                             onDrag = { delta ->
                                                 moveHandleOffset = Offset.Zero
                                                 resizeHandleOffset += delta
@@ -1331,6 +1441,26 @@ private fun Editor(
                                                         ),
                                                     )
                                                 }
+                                            },
+                                        )
+                                        ImageCropHandle(
+                                            centerPx = Offset(
+                                                displayedPanel.left * size.width,
+                                                (displayedPanel.top + displayedPanel.height) * size.height,
+                                            ),
+                                            contentScale = 1f,
+                                            onDragStart = {
+                                                croppingPanel = pending
+                                                cropSource = cropSource ?: pending
+                                            },
+                                            onDrag = { delta ->
+                                                croppingPanel = pending
+                                                cropSource = cropSourceAfterHandleDrag(
+                                                    panel = pending,
+                                                    source = cropSource ?: pending,
+                                                    dragOffset = delta,
+                                                    displaySize = size,
+                                                )
                                             },
                                         )
                                     }
@@ -1658,6 +1788,43 @@ internal fun magneticResizeDestination(
         snapThresholdPx = snapThresholdDisplayPx * imageSize.width / displaySize.width,
     )
 }
+
+internal fun cropSourceAfterHandleDrag(
+    panel: RectFraction,
+    source: RectFraction,
+    dragOffset: Offset,
+    displaySize: Size,
+): RectFraction {
+    val horizontalChange = dragOffset.x / (panel.width * displaySize.width)
+    val verticalChange = -dragOffset.y / (panel.height * displaySize.height)
+    val currentFraction = source.width / panel.width
+    val newFraction = (currentFraction - (horizontalChange + verticalChange) / 2f)
+        .coerceIn(MIN_CROP_SOURCE_FRACTION, 1f)
+    val newWidth = panel.width * newFraction
+    val newHeight = panel.height * newFraction
+    return RectFraction(
+        left = (source.left + source.width - newWidth).coerceIn(panel.left, panel.left + panel.width - newWidth),
+        top = source.top.coerceIn(panel.top, panel.top + panel.height - newHeight),
+        width = newWidth,
+        height = newHeight,
+    )
+}
+
+internal fun panCropSource(
+    panel: RectFraction,
+    source: RectFraction,
+    dragOffset: Offset,
+    displaySize: Size,
+): RectFraction {
+    val sourceDx = -dragOffset.x * source.width / (panel.width * displaySize.width)
+    val sourceDy = -dragOffset.y * source.height / (panel.height * displaySize.height)
+    return source.copy(
+        left = (source.left + sourceDx).coerceIn(panel.left, panel.left + panel.width - source.width),
+        top = (source.top + sourceDy).coerceIn(panel.top, panel.top + panel.height - source.height),
+    )
+}
+
+private const val MIN_CROP_SOURCE_FRACTION = 0.2f
 
 /** The bottom "comic kit" panel: balloon types plus the currently selected balloon's controls. */
 @Composable
@@ -2175,11 +2342,13 @@ private fun ImageDeleteHandle(centerPx: Offset, contentScale: Float, onTap: () -
 private fun ImageMoveHandle(
     centerPx: Offset,
     contentScale: Float,
+    onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit,
 ) {
     val density = LocalDensity.current
     val halfPx = with(density) { 16.dp.toPx() }
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
     val currentOnDrag by rememberUpdatedState(onDrag)
     val currentOnDragEnd by rememberUpdatedState(onDragEnd)
     Box(
@@ -2194,12 +2363,17 @@ private fun ImageMoveHandle(
             .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
             .pointerInput(Unit) {
                 var totalDrag = Offset.Zero
+                var dragEnabled = false
                 detectDragGestures(
-                    onDragStart = { totalDrag = Offset.Zero },
-                    onDragEnd = { currentOnDragEnd(totalDrag) },
-                    onDragCancel = { currentOnDragEnd(totalDrag) },
+                    onDragStart = {
+                        totalDrag = Offset.Zero
+                        dragEnabled = currentOnDragStart()
+                    },
+                    onDragEnd = { if (dragEnabled) currentOnDragEnd(totalDrag) },
+                    onDragCancel = { if (dragEnabled) currentOnDragEnd(totalDrag) },
                     onDrag = { change, dragAmount ->
                         change.consume()
+                        if (!dragEnabled) return@detectDragGestures
                         val scaledDrag = dragAmount / contentScale
                         totalDrag += scaledDrag
                         currentOnDrag(scaledDrag)
@@ -2221,11 +2395,13 @@ private fun ImageMoveHandle(
 private fun ImageResizeHandle(
     centerPx: Offset,
     contentScale: Float,
+    onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit,
 ) {
     val density = LocalDensity.current
     val halfPx = with(density) { 16.dp.toPx() }
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
     val currentOnDrag by rememberUpdatedState(onDrag)
     val currentOnDragEnd by rememberUpdatedState(onDragEnd)
     Box(
@@ -2240,12 +2416,17 @@ private fun ImageResizeHandle(
             .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
             .pointerInput(Unit) {
                 var totalDrag = Offset.Zero
+                var dragEnabled = false
                 detectDragGestures(
-                    onDragStart = { totalDrag = Offset.Zero },
-                    onDragEnd = { currentOnDragEnd(totalDrag) },
-                    onDragCancel = { currentOnDragEnd(totalDrag) },
+                    onDragStart = {
+                        totalDrag = Offset.Zero
+                        dragEnabled = currentOnDragStart()
+                    },
+                    onDragEnd = { if (dragEnabled) currentOnDragEnd(totalDrag) },
+                    onDragCancel = { if (dragEnabled) currentOnDragEnd(totalDrag) },
                     onDrag = { change, dragAmount ->
                         change.consume()
+                        if (!dragEnabled) return@detectDragGestures
                         val scaledDrag = dragAmount / contentScale
                         totalDrag += scaledDrag
                         currentOnDrag(scaledDrag)
@@ -2257,6 +2438,47 @@ private fun ImageResizeHandle(
         Icon(
             imageVector = BalloonerIcons.Resize,
             contentDescription = stringResource(R.string.resize_panel),
+            tint = InkBlack,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun ImageCropHandle(
+    centerPx: Offset,
+    contentScale: Float,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { 16.dp.toPx() }
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(32.dp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
+            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
+            .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { currentOnDragStart() },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        currentOnDrag(dragAmount / contentScale)
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = BalloonerIcons.Crop,
+            contentDescription = stringResource(R.string.crop_panel),
             tint = InkBlack,
             modifier = Modifier.size(20.dp),
         )
@@ -2576,5 +2798,6 @@ private fun ProjectScreenNoImagePreview() {
         onDeleteComic = {},
         onDeleteImage = {},
         onMoveImage = { _, _ -> },
+        onCropImage = { _, _ -> },
     )
 }

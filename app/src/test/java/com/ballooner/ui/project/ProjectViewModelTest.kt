@@ -452,6 +452,36 @@ class ProjectViewModelTest {
     }
 
     @Test
+    fun `cropping a panel replaces the image and preserves panel rectangles`() = runTest {
+        val panel = RectFraction(0f, 0f, 0.5f, 1f)
+        val source = RectFraction(0.1f, 0.2f, 0.35f, 0.7f)
+        val imageStore = FakeImageStore().apply { cropResult = "cropped-uri" }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onCropImage(panel, source)
+        advanceUntilIdle()
+
+        assertEquals("cropped-uri", viewModel.uiState.value.imageUri)
+        assertEquals(listOf(panel), viewModel.uiState.value.panels)
+        assertEquals(listOf("existing-uri", panel, source), imageStore.lastCropRequest)
+        assertEquals(listOf("existing-uri"), imageStore.deleted)
+    }
+
+    @Test
     fun `adds a balloon of the requested type and selects it`() = runTest {
         val viewModel = viewModel()
 
