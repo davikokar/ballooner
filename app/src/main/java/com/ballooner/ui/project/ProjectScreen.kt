@@ -978,11 +978,13 @@ private fun Editor(
     var layerSize by remember { mutableStateOf(IntSize.Zero) }
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var resizeHandleOffset by remember { mutableStateOf(Offset.Zero) }
+    var tappedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     var comicKitExpanded by remember { mutableStateOf(true) }
-    LaunchedEffect(panels) {
+    LaunchedEffect(panels, editMode) {
         moveHandleOffset = Offset.Zero
         resizeHandleOffset = Offset.Zero
+        if (!editMode || tappedPanel !in panels) tappedPanel = null
     }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -1094,7 +1096,8 @@ private fun Editor(
                                                 if (!editMode) return@detectTapGestures
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
-                                                onSelectPanel(panels.panelAt(u, v))
+                                                tappedPanel = panels.panelAt(u, v)
+                                                onSelectPanel(null)
                                                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                                                 val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
                                                 if (hit != null) onSelectBalloon(hit.id)
@@ -1103,6 +1106,7 @@ private fun Editor(
                                                 if (!editMode) return@detectTapGestures
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
+                                                tappedPanel = null
                                                 onSelectPanel(panels.panelAt(u, v))
                                                 moveHandleOffset = Offset.Zero
                                                 resizeHandleOffset = Offset.Zero
@@ -1330,8 +1334,7 @@ private fun Editor(
                                             },
                                         )
                                     }
-                                    if (showAddPanelHandles(focusedPanel, selectedPanel)) {
-                                        edgeImagePlacements(panels).forEach { placement ->
+                                    addPanelPlacements(panels, focusedPanel, tappedPanel).forEach { placement ->
                                             val anchor = placement.anchor
                                             val center = when (placement.position) {
                                                 ImagePosition.RIGHT -> Offset(
@@ -1350,7 +1353,6 @@ private fun Editor(
                                                 onClick = { onAddImageAt(placement) },
                                             )
                                         }
-                                    }
                                 }
                             }
                             }
@@ -1480,10 +1482,15 @@ internal fun imageFocusTarget(
     focusedPanel: RectFraction?,
 ): RectFraction? = if (focusedPanel == null) selectedPanel ?: panels.firstOrNull() else null
 
-internal fun showAddPanelHandles(
+internal fun addPanelPlacements(
+    panels: List<RectFraction>,
     focusedPanel: RectFraction?,
-    selectedPanel: RectFraction?,
-): Boolean = focusedPanel == null && selectedPanel != null
+    tappedPanel: RectFraction?,
+): List<ImagePlacement> = if (focusedPanel == null && tappedPanel != null) {
+    edgeImagePlacements(panels).filter { it.anchor == tappedPanel }
+} else {
+    emptyList()
+}
 
 internal fun rotationTarget(
     panels: List<RectFraction>,

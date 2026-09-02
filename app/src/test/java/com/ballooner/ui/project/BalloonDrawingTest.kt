@@ -204,12 +204,17 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `add panel handles show only after a panel is selected`() {
-        val panel = RectFraction(0f, 0f, 1f, 1f)
+    fun `add panel handles appear only for the tapped panel`() {
+        val left = RectFraction(0f, 0f, 0.45f, 1f)
+        val right = RectFraction(0.55f, 0f, 0.45f, 1f)
+        val panels = listOf(left, right)
 
-        assertTrue(showAddPanelHandles(focusedPanel = null, selectedPanel = panel))
-        assertFalse(showAddPanelHandles(focusedPanel = panel, selectedPanel = null))
-        assertFalse(showAddPanelHandles(focusedPanel = null, selectedPanel = null))
+        val placements = addPanelPlacements(panels, focusedPanel = null, tappedPanel = left)
+
+        assertTrue(placements.isNotEmpty())
+        assertTrue(placements.all { it.anchor == left })
+        assertTrue(addPanelPlacements(panels, focusedPanel = null, tappedPanel = null).isEmpty())
+        assertTrue(addPanelPlacements(panels, focusedPanel = left, tappedPanel = left).isEmpty())
     }
 
     @Test
