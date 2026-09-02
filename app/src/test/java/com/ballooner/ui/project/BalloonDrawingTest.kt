@@ -204,12 +204,12 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `add panel handles hide while a panel is selected`() {
+    fun `add panel handles show only after a panel is selected`() {
         val panel = RectFraction(0f, 0f, 1f, 1f)
 
-        assertFalse(showAddPanelHandles(focusedPanel = null, selectedPanel = panel))
+        assertTrue(showAddPanelHandles(focusedPanel = null, selectedPanel = panel))
         assertFalse(showAddPanelHandles(focusedPanel = panel, selectedPanel = null))
-        assertTrue(showAddPanelHandles(focusedPanel = null, selectedPanel = null))
+        assertFalse(showAddPanelHandles(focusedPanel = null, selectedPanel = null))
     }
 
     @Test

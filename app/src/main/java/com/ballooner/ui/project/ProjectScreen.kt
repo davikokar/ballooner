@@ -1091,8 +1091,10 @@ private fun Editor(
                                     .pointerInput(balloons, panels, editMode) {
                                         detectTapGestures(
                                             onTap = { offset ->
-                                                onSelectPanel(null)
                                                 if (!editMode) return@detectTapGestures
+                                                val u = offset.x / size.width
+                                                val v = offset.y / size.height
+                                                onSelectPanel(panels.panelAt(u, v))
                                                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                                                 val hit = effective.lastOrNull { it.containsPoint(offset, canvas) }
                                                 if (hit != null) onSelectBalloon(hit.id)
@@ -1481,7 +1483,7 @@ internal fun imageFocusTarget(
 internal fun showAddPanelHandles(
     focusedPanel: RectFraction?,
     selectedPanel: RectFraction?,
-): Boolean = focusedPanel == null && selectedPanel == null
+): Boolean = focusedPanel == null && selectedPanel != null
 
 internal fun rotationTarget(
     panels: List<RectFraction>,
