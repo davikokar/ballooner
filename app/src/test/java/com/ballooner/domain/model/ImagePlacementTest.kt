@@ -44,7 +44,7 @@ class ImagePlacementTest {
     }
 
     @Test
-    fun `panel resize magnetically aligns right and bottom edges`() {
+    fun `panel resize magnetically aligns an edge while preserving proportions`() {
         val moving = RectFraction(0f, 0f, 0.3f, 0.3f)
         val rightNeighbor = RectFraction(0.5f, 0f, 0.2f, 0.3f)
         val bottomNeighbor = RectFraction(0f, 0.6f, 0.3f, 0.2f)
@@ -52,18 +52,18 @@ class ImagePlacementTest {
         val resized = magneticallyResizedPanel(
             panels = listOf(moving, rightNeighbor, bottomNeighbor),
             moving = moving,
-            desired = moving.copy(width = 0.49f, height = 0.59f),
+            desired = moving.copy(width = 0.49f, height = 0.49f),
             canvasWidth = 1000,
             canvasHeight = 1000,
             snapThresholdPx = 20f,
         )
 
         assertEquals(0.5f, resized.width, 0.0001f)
-        assertEquals(0.6f, resized.height, 0.0001f)
+        assertEquals(0.5f, resized.height, 0.0001f)
     }
 
     @Test
-    fun `panel resize preserves free size away from magnetic edges`() {
+    fun `panel resize preserves proportions away from magnetic edges`() {
         val moving = RectFraction(0f, 0f, 0.3f, 0.3f)
         val neighbor = RectFraction(0.7f, 0.7f, 0.2f, 0.2f)
         val desired = moving.copy(width = 0.45f, height = 0.48f)
@@ -77,7 +77,26 @@ class ImagePlacementTest {
             snapThresholdPx = 20f,
         )
 
-        assertEquals(desired, resized)
+        assertEquals(0.465f, resized.width, 0.0001f)
+        assertEquals(0.465f, resized.height, 0.0001f)
+    }
+
+    @Test
+    fun `panel resize preserves pixel aspect ratio on a non-square canvas`() {
+        val moving = RectFraction(0f, 0f, 0.25f, 0.4f)
+
+        val resized = magneticallyResizedPanel(
+            panels = listOf(moving),
+            moving = moving,
+            desired = moving.copy(width = 0.4f, height = 0.5f),
+            canvasWidth = 1200,
+            canvasHeight = 800,
+            snapThresholdPx = 20f,
+        )
+
+        val originalPixelAspectRatio = moving.width * 1200 / (moving.height * 800)
+        val resizedPixelAspectRatio = resized.width * 1200 / (resized.height * 800)
+        assertEquals(originalPixelAspectRatio, resizedPixelAspectRatio, 0.0001f)
     }
 
     @Test

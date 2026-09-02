@@ -113,24 +113,44 @@ fun magneticallyResizedPanel(
     canvasHeight: Int,
     snapThresholdPx: Float,
 ): RectFraction {
-    val minimumWidth = MIN_RESIZED_PANEL_PX / canvasWidth.toFloat()
-    val minimumHeight = MIN_RESIZED_PANEL_PX / canvasHeight.toFloat()
-    val desiredRight = moving.left + desired.width.coerceAtLeast(minimumWidth)
-    val desiredBottom = moving.top + desired.height.coerceAtLeast(minimumHeight)
+    val originalWidthPx = moving.width * canvasWidth
+    val originalHeightPx = moving.height * canvasHeight
+    val desiredWidthPx = desired.width * canvasWidth
+    val desiredHeightPx = desired.height * canvasHeight
+    val minimumScale = maxOf(
+        MIN_RESIZED_PANEL_PX / originalWidthPx,
+        MIN_RESIZED_PANEL_PX / originalHeightPx,
+    )
+    val desiredScale = (
+        desiredWidthPx * originalWidthPx + desiredHeightPx * originalHeightPx
+    ) / (
+        originalWidthPx * originalWidthPx + originalHeightPx * originalHeightPx
+    )
+    val proportionalScale = desiredScale.coerceAtLeast(minimumScale)
+    val desiredRight = moving.left + moving.width * proportionalScale
+    val desiredBottom = moving.top + moving.height * proportionalScale
     val surrounding = panels.filter { it != moving }
     val rightEdges = surrounding.flatMap { listOf(it.left, it.left + it.width) }
     val bottomEdges = surrounding.flatMap { listOf(it.top, it.top + it.height) }
-    val snappedRight = rightEdges
+    val rightScales = rightEdges
         .filter { edge -> kotlin.math.abs(edge - desiredRight) * canvasWidth <= snapThresholdPx }
-        .minByOrNull { edge -> kotlin.math.abs(edge - desiredRight) }
-        ?: desiredRight
-    val snappedBottom = bottomEdges
+        .map { edge ->
+            val scale = (edge - moving.left) / moving.width
+            scale to kotlin.math.abs(edge - desiredRight) * canvasWidth
+        }
+        .filter { (scale) -> scale >= minimumScale }
+    val bottomScales = bottomEdges
         .filter { edge -> kotlin.math.abs(edge - desiredBottom) * canvasHeight <= snapThresholdPx }
-        .minByOrNull { edge -> kotlin.math.abs(edge - desiredBottom) }
-        ?: desiredBottom
+        .map { edge ->
+            val scale = (edge - moving.top) / moving.height
+            scale to kotlin.math.abs(edge - desiredBottom) * canvasHeight
+        }
+        .filter { (scale) -> scale >= minimumScale }
+    val scale = (rightScales + bottomScales).minByOrNull { (_, distance) -> distance }?.first
+        ?: proportionalScale
     return moving.copy(
-        width = (snappedRight - moving.left).coerceAtLeast(minimumWidth),
-        height = (snappedBottom - moving.top).coerceAtLeast(minimumHeight),
+        width = moving.width * scale,
+        height = moving.height * scale,
     )
 }
 
