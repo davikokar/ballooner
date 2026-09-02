@@ -100,6 +100,25 @@ class ImagePlacementTest {
     }
 
     @Test
+    fun `panel resize repositions every neighbor it would cover`() {
+        val moving = RectFraction(0f, 0f, 0.4f, 0.4f)
+        val right = RectFraction(0.45f, 0f, 0.4f, 0.4f)
+        val bottom = RectFraction(0f, 0.45f, 0.4f, 0.4f)
+        val diagonal = RectFraction(0.45f, 0.45f, 0.4f, 0.4f)
+
+        val repositioned = repositionPanelsAfterResize(
+            panels = listOf(moving, right, bottom, diagonal),
+            moving = moving,
+            resized = moving.copy(width = 0.6f, height = 0.6f),
+        )
+
+        assertEquals(RectFraction(0f, 0f, 0.6f, 0.6f), repositioned[0])
+        assertEquals(RectFraction(0.65f, 0f, 0.4f, 0.4f), repositioned[1])
+        assertEquals(RectFraction(0f, 0.65f, 0.4f, 0.4f), repositioned[2])
+        assertEquals(RectFraction(0.65f, 0.65f, 0.4f, 0.4f), repositioned[3])
+    }
+
+    @Test
     fun `two side by side panels expose separate targets above and below each panel`() {
         val left = RectFraction(left = 0f, top = 0f, width = 0.48f, height = 1f)
         val right = RectFraction(left = 0.52f, top = 0f, width = 0.48f, height = 1f)

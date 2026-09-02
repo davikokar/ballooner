@@ -154,6 +154,39 @@ fun magneticallyResizedPanel(
     )
 }
 
+fun repositionPanelsAfterResize(
+    panels: List<RectFraction>,
+    moving: RectFraction,
+    resized: RectFraction,
+): List<RectFraction> {
+    val widthGrowth = (resized.width - moving.width).coerceAtLeast(0f)
+    val heightGrowth = (resized.height - moving.height).coerceAtLeast(0f)
+    return panels.map { panel ->
+        if (panel == moving) {
+            resized
+        } else {
+            panel.copy(
+                left = panel.left + widthGrowth.takeIf {
+                    panel.left >= moving.right && panel.overlapsVertically(resized)
+                }.orZero(),
+                top = panel.top + heightGrowth.takeIf {
+                    panel.top >= moving.bottom && panel.overlapsHorizontally(resized)
+                }.orZero(),
+            )
+        }
+    }
+}
+
+private val RectFraction.right: Float get() = left + width
+
+private val RectFraction.bottom: Float get() = top + height
+
+private fun RectFraction.overlapsHorizontally(other: RectFraction): Boolean = left < other.right && right > other.left
+
+private fun RectFraction.overlapsVertically(other: RectFraction): Boolean = top < other.bottom && bottom > other.top
+
+private fun Float?.orZero(): Float = this ?: 0f
+
 private fun RectFraction.snapCandidates(
     anchor: RectFraction,
     gapPx: Int,

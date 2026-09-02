@@ -137,6 +137,7 @@ import com.ballooner.domain.model.edgeImagePlacements
 import com.ballooner.domain.model.magneticallyAlignedPanel
 import com.ballooner.domain.model.magneticallyResizedPanel
 import com.ballooner.domain.model.panelAt
+import com.ballooner.domain.model.repositionPanelsAfterResize
 import com.ballooner.domain.model.targetRect
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
@@ -1134,15 +1135,40 @@ private fun Editor(
                                     )
                                 }
                                 if (size.width > 0f && size.height > 0f) {
-                                    val displayPanels = if (movingPanel != null && previewPanel != null) {
-                                        panels.map { if (it == movingPanel) previewPanel else it }
-                                    } else {
-                                        panels
+                                    val resizingPanel = movingPanel != null && resizeHandleOffset != Offset.Zero
+                                    val displayPanels = when {
+                                        movingPanel == null || previewPanel == null -> panels
+                                        resizingPanel -> repositionPanelsAfterResize(panels, movingPanel, previewPanel)
+                                        else -> panels.map { if (it == movingPanel) previewPanel else it }
                                     }
 
                                     Canvas(modifier = Modifier.matchParentSize()) {
-                                        drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
-                                        if (movingPanel != null && previewPanel != null) {
+                                        if (resizingPanel) {
+                                            panels.zip(displayPanels).forEach { (source, target) ->
+                                                drawImage(
+                                                    image = image,
+                                                    srcOffset = IntOffset(
+                                                        (source.left * image.width).roundToInt(),
+                                                        (source.top * image.height).roundToInt(),
+                                                    ),
+                                                    srcSize = IntSize(
+                                                        (source.width * image.width).roundToInt(),
+                                                        (source.height * image.height).roundToInt(),
+                                                    ),
+                                                    dstOffset = IntOffset(
+                                                        (target.left * size.width).roundToInt(),
+                                                        (target.top * size.height).roundToInt(),
+                                                    ),
+                                                    dstSize = IntSize(
+                                                        (target.width * size.width).roundToInt(),
+                                                        (target.height * size.height).roundToInt(),
+                                                    ),
+                                                )
+                                            }
+                                        } else {
+                                            drawImage(image = image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+                                        }
+                                        if (!resizingPanel && movingPanel != null && previewPanel != null) {
                                             drawRect(
                                                 color = Color.Transparent,
                                                 topLeft = Offset(movingPanel.left * size.width, movingPanel.top * size.height),
@@ -1170,12 +1196,11 @@ private fun Editor(
                                             )
                                         }
                                         effective.forEach { balloon ->
-                                            val displayBalloon = if (movingPanel?.contains(
-                                                    balloon.centerX,
-                                                    balloon.centerY,
-                                                ) == true && previewPanel != null
-                                            ) {
-                                                balloon.remappedBetween(movingPanel, previewPanel)
+                                            val panelIndex = panels.indexOfFirst {
+                                                it.contains(balloon.centerX, balloon.centerY)
+                                            }
+                                            val displayBalloon = if (panelIndex >= 0) {
+                                                balloon.remappedBetween(panels[panelIndex], displayPanels[panelIndex])
                                             } else {
                                                 balloon
                                             }
@@ -1194,12 +1219,11 @@ private fun Editor(
                                         }
                                     }
                                     effective.forEach { balloon ->
-                                        val displayBalloon = if (movingPanel?.contains(
-                                                balloon.centerX,
-                                                balloon.centerY,
-                                            ) == true && previewPanel != null
-                                        ) {
-                                            balloon.remappedBetween(movingPanel, previewPanel)
+                                        val panelIndex = panels.indexOfFirst {
+                                            it.contains(balloon.centerX, balloon.centerY)
+                                        }
+                                        val displayBalloon = if (panelIndex >= 0) {
+                                            balloon.remappedBetween(panels[panelIndex], displayPanels[panelIndex])
                                         } else {
                                             balloon
                                         }

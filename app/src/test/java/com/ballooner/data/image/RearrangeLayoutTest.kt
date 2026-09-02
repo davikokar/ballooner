@@ -60,7 +60,7 @@ class RearrangeLayoutTest {
     }
 
     @Test
-    fun `rearrangement persists resized panel dimensions`() {
+    fun `resizing a panel repositions its neighbor without covering it`() {
         val layout = computeRearrangeLayout(
             panelRects = listOf(
                 PixelRect(0, 0, 100, 100),
@@ -74,8 +74,8 @@ class RearrangeLayoutTest {
         )
 
         assertEquals(PixelRect(0, 0, 160, 140), layout.panelRects[0])
-        assertEquals(PixelRect(110, 0, 100, 100), layout.panelRects[1])
-        assertEquals(210, layout.canvasWidth)
+        assertEquals(PixelRect(170, 0, 100, 100), layout.panelRects[1])
+        assertEquals(270, layout.canvasWidth)
         assertEquals(140, layout.canvasHeight)
     }
 }
