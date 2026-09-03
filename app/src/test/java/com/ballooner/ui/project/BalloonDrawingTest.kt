@@ -75,6 +75,17 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `crop handle moves inward with crop scale`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+        val source = RectFraction(0.05f, 0.05f, 0.4f, 0.4f)
+
+        val center = cropHandleCenter(panel, source, Size(1000f, 800f))
+
+        assertEquals(100f, center.x, 0.001f)
+        assertEquals(320f, center.y, 0.001f)
+    }
+
+    @Test
     fun `dragging cropped picture pans source within original panel`() {
         val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
         val source = RectFraction(0.1f, 0f, 0.4f, 0.4f)

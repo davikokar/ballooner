@@ -1444,9 +1444,10 @@ private fun Editor(
                                             },
                                         )
                                         ImageCropHandle(
-                                            centerPx = Offset(
-                                                displayedPanel.left * size.width,
-                                                (displayedPanel.top + displayedPanel.height) * size.height,
+                                            centerPx = cropHandleCenter(
+                                                panel = displayedPanel,
+                                                source = cropSource.takeIf { croppingPanel == pending } ?: pending,
+                                                displaySize = size,
                                             ),
                                             contentScale = 1f,
                                             onDragStart = {
@@ -1809,6 +1810,15 @@ internal fun cropSourceAfterHandleDrag(
         height = newHeight,
     )
 }
+
+internal fun cropHandleCenter(
+    panel: RectFraction,
+    source: RectFraction,
+    displaySize: Size,
+): Offset = Offset(
+    x = (panel.left + panel.width - source.width) * displaySize.width,
+    y = (panel.top + source.height) * displaySize.height,
+)
 
 internal fun panCropSource(
     panel: RectFraction,
