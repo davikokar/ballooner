@@ -984,6 +984,7 @@ private fun Editor(
     var resizeHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var croppingPanel by remember { mutableStateOf<RectFraction?>(null) }
     var cropFrame by remember { mutableStateOf<RectFraction?>(null) }
+    var cropDesiredFrame by remember { mutableStateOf<RectFraction?>(null) }
     var cropImageOffset by remember { mutableStateOf(Offset.Zero) }
     val currentCropImageOffset by rememberUpdatedState(cropImageOffset)
     var tappedPanel by remember { mutableStateOf<RectFraction?>(null) }
@@ -996,6 +997,7 @@ private fun Editor(
         if (croppingPanel !in panels) {
             croppingPanel = null
             cropFrame = null
+            cropDesiredFrame = null
             cropImageOffset = Offset.Zero
         }
     }
@@ -1011,6 +1013,7 @@ private fun Editor(
         }
         croppingPanel = null
         cropFrame = null
+        cropDesiredFrame = null
         cropImageOffset = Offset.Zero
     }
     LaunchedEffect(editMode) {
@@ -1472,6 +1475,7 @@ private fun Editor(
                                             onDragStart = {
                                                 if (croppingPanel != pending) {
                                                     cropFrame = pending
+                                                    cropDesiredFrame = pending
                                                     cropImageOffset = Offset.Zero
                                                 }
                                                 croppingPanel = pending
@@ -1480,14 +1484,22 @@ private fun Editor(
                                                 croppingPanel = pending
                                                 val newFrame = cropFrameAfterHandleDrag(
                                                     panel = pending,
-                                                    frame = cropFrame ?: pending,
+                                                    frame = cropDesiredFrame ?: pending,
                                                     dragOffset = delta,
                                                     displaySize = size,
                                                 )
-                                                cropFrame = newFrame
+                                                cropDesiredFrame = newFrame
+                                                val snappedFrame = magneticallyAlignedCropFrame(
+                                                    panels = panels,
+                                                    cropping = pending,
+                                                    desired = newFrame,
+                                                    displaySize = size,
+                                                    snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                                )
+                                                cropFrame = snappedFrame
                                                 cropImageOffset = panCroppedImage(
                                                     panel = pending,
-                                                    frame = newFrame,
+                                                    frame = snappedFrame,
                                                     imageOffset = cropImageOffset,
                                                     dragOffset = Offset.Zero,
                                                     displaySize = size,
@@ -1839,6 +1851,41 @@ internal fun cropFrameAfterHandleDrag(
         top = frame.top,
         width = right - left,
         height = newBottom - frame.top,
+    )
+}
+
+internal fun magneticallyAlignedCropFrame(
+    panels: List<RectFraction>,
+    cropping: RectFraction,
+    desired: RectFraction,
+    displaySize: Size,
+    snapThresholdDisplayPx: Float,
+): RectFraction {
+    val surrounding = panels.filter { it != cropping }
+    val right = desired.left + desired.width
+    val minimumWidth = cropping.width * MIN_CROP_FRAME_FRACTION
+    val minimumHeight = cropping.height * MIN_CROP_FRAME_FRACTION
+    val left = surrounding
+        .flatMap { listOf(it.left, it.left + it.width) }
+        .filter { it in cropping.left..(right - minimumWidth) }
+        .map { edge -> edge to kotlin.math.abs(edge - desired.left) * displaySize.width }
+        .filter { (_, distance) -> distance <= snapThresholdDisplayPx }
+        .minByOrNull { (_, distance) -> distance }
+        ?.first
+        ?: desired.left
+    val desiredBottom = desired.top + desired.height
+    val bottom = surrounding
+        .flatMap { listOf(it.top, it.top + it.height) }
+        .filter { it in (desired.top + minimumHeight)..(cropping.top + cropping.height) }
+        .map { edge -> edge to kotlin.math.abs(edge - desiredBottom) * displaySize.height }
+        .filter { (_, distance) -> distance <= snapThresholdDisplayPx }
+        .minByOrNull { (_, distance) -> distance }
+        ?.first
+        ?: desiredBottom
+    return desired.copy(
+        left = left,
+        width = right - left,
+        height = bottom - desired.top,
     )
 }
 

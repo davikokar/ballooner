@@ -75,6 +75,24 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `crop frame sticks to nearby surrounding panel edges`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+        val verticalAnchor = RectFraction(0.2f, 0.6f, 0.15f, 0.2f)
+        val horizontalAnchor = RectFraction(0.6f, 0.25f, 0.2f, 0.15f)
+        val desired = RectFraction(0.21f, 0f, 0.29f, 0.39f)
+
+        val snapped = magneticallyAlignedCropFrame(
+            panels = listOf(panel, verticalAnchor, horizontalAnchor),
+            cropping = panel,
+            desired = desired,
+            displaySize = Size(1000f, 1000f),
+            snapThresholdDisplayPx = 20f,
+        )
+
+        assertRectEquals(RectFraction(0.2f, 0f, 0.3f, 0.4f), snapped)
+    }
+
+    @Test
     fun `crop handle follows the moving canvas corner`() {
         val frame = RectFraction(0.1f, 0f, 0.4f, 0.45f)
 
