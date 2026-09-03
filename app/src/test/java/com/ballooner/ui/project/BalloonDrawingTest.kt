@@ -143,6 +143,17 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `zoom preview source region stays inside bitmap after rounding`() {
+        val panel = RectFraction(0.5005f, 0f, 0.5005f, 1f)
+
+        val (offset, size) = bitmapRegion(panel, IntSize(1000, 800))
+
+        assertEquals(501, offset.x)
+        assertEquals(499, size.width)
+        assertEquals(1000, offset.x + size.width)
+    }
+
+    @Test
     fun `balloon editing is disabled while a panel is selected for image editing`() {
         val panel = RectFraction(0f, 0f, 1f, 1f)
 

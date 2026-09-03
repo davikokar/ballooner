@@ -1296,6 +1296,10 @@ private fun Editor(
                                         if (croppingPanel != null && cropFrame != null) {
                                             val panel = croppingPanel!!
                                             val frame = cropFrame!!
+                                            val (panelSourceOffset, panelSourceSize) = bitmapRegion(
+                                                panel,
+                                                IntSize(image.width, image.height),
+                                            )
                                             drawRect(
                                                 color = Color.Transparent,
                                                 topLeft = Offset(panel.left * size.width, panel.top * size.height),
@@ -1310,14 +1314,8 @@ private fun Editor(
                                             ) {
                                                 drawImage(
                                                     image = image,
-                                                    srcOffset = IntOffset(
-                                                        (panel.left * image.width).roundToInt(),
-                                                        (panel.top * image.height).roundToInt(),
-                                                    ),
-                                                    srcSize = IntSize(
-                                                        (panel.width * image.width).roundToInt(),
-                                                        (panel.height * image.height).roundToInt(),
-                                                    ),
+                                                    srcOffset = panelSourceOffset,
+                                                    srcSize = panelSourceSize,
                                                     dstOffset = IntOffset(
                                                         ((panel.left + cropImageOffset.x) * size.width).roundToInt(),
                                                         ((panel.top + cropImageOffset.y) * size.height).roundToInt(),
@@ -1341,6 +1339,10 @@ private fun Editor(
                                             transformedPanel != null && transformedBounds != null &&
                                             transformedBounds != transformedPanel && croppingPanel == null
                                         ) {
+                                            val (panelSourceOffset, panelSourceSize) = bitmapRegion(
+                                                transformedPanel,
+                                                IntSize(image.width, image.height),
+                                            )
                                             drawRect(
                                                 color = Color.Transparent,
                                                 topLeft = Offset(
@@ -1361,14 +1363,8 @@ private fun Editor(
                                             ) {
                                                 drawImage(
                                                     image = image,
-                                                    srcOffset = IntOffset(
-                                                        (transformedPanel.left * image.width).roundToInt(),
-                                                        (transformedPanel.top * image.height).roundToInt(),
-                                                    ),
-                                                    srcSize = IntSize(
-                                                        (transformedPanel.width * image.width).roundToInt(),
-                                                        (transformedPanel.height * image.height).roundToInt(),
-                                                    ),
+                                                    srcOffset = panelSourceOffset,
+                                                    srcSize = panelSourceSize,
                                                     dstOffset = IntOffset(
                                                         (transformedBounds.left * size.width).roundToInt(),
                                                         (transformedBounds.top * size.height).roundToInt(),
@@ -2092,6 +2088,16 @@ internal fun transformedPanelImageBounds(
         width = targetWidth,
         height = targetHeight,
     )
+}
+
+internal fun bitmapRegion(rect: RectFraction, bitmapSize: IntSize): Pair<IntOffset, IntSize> {
+    val left = (rect.left * bitmapSize.width).roundToInt().coerceIn(0, bitmapSize.width - 1)
+    val top = (rect.top * bitmapSize.height).roundToInt().coerceIn(0, bitmapSize.height - 1)
+    val right = ((rect.left + rect.width) * bitmapSize.width).roundToInt()
+        .coerceIn(left + 1, bitmapSize.width)
+    val bottom = ((rect.top + rect.height) * bitmapSize.height).roundToInt()
+        .coerceIn(top + 1, bitmapSize.height)
+    return IntOffset(left, top) to IntSize(right - left, bottom - top)
 }
 
 private const val MIN_CROP_FRAME_FRACTION = 0.2f
