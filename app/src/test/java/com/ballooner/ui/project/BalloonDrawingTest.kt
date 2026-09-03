@@ -120,6 +120,38 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `panel image zooms around center and pans while covering frame`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val zoomed = transformedPanelImageBounds(
+            panel = panel,
+            imageBounds = panel,
+            pan = Offset.Zero,
+            zoom = 2f,
+            displaySize = Size(1000f, 1000f),
+        )
+        val panned = transformedPanelImageBounds(
+            panel = panel,
+            imageBounds = zoomed,
+            pan = Offset(100f, -400f),
+            zoom = 1f,
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertRectEquals(RectFraction(-0.25f, -0.25f, 1f, 1f), zoomed)
+        assertRectEquals(RectFraction(-0.15f, -0.5f, 1f, 1f), panned)
+    }
+
+    @Test
+    fun `balloon editing is disabled while a panel is selected for image editing`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+
+        assertFalse(canEditBalloons(editMode = true, selectedPanel = panel))
+        assertTrue(canEditBalloons(editMode = true, selectedPanel = null))
+        assertFalse(canEditBalloons(editMode = false, selectedPanel = null))
+    }
+
+    @Test
     fun `balloon clip bounds preserve the panel border`() {
         val canvas = Size(1000f, 800f)
         val panel = RectFraction(left = 0.25f, top = 0.1f, width = 0.5f, height = 0.4f)

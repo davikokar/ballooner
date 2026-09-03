@@ -16,6 +16,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
@@ -335,8 +336,11 @@ fun ProjectScreen(
         if (autoOpenPicker) launchInitialPicker()
     }
     // Keep a balloon selected in edit mode so the controls stay visible.
-    LaunchedEffect(editMode, uiState.balloons, uiState.selectedBalloonId) {
-        if (editMode && uiState.selectedBalloonId == null && uiState.balloons.isNotEmpty()) {
+    LaunchedEffect(editMode, selectedPanel, uiState.balloons, uiState.selectedBalloonId) {
+        if (
+            editMode && selectedPanel == null &&
+            uiState.selectedBalloonId == null && uiState.balloons.isNotEmpty()
+        ) {
             onSelectBalloon(uiState.balloons.last().id)
         }
     }
@@ -1018,6 +1022,8 @@ private fun Editor(
     var cropDesiredFrame by remember { mutableStateOf<RectFraction?>(null) }
     var cropImageOffset by remember { mutableStateOf(Offset.Zero) }
     val currentCropImageOffset by rememberUpdatedState(cropImageOffset)
+    var panelImageBounds by remember(selectedPanel) { mutableStateOf(selectedPanel) }
+    val currentPanelImageBounds by rememberUpdatedState(panelImageBounds)
     var tappedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     var comicKitExpanded by remember { mutableStateOf(true) }
@@ -1047,8 +1053,21 @@ private fun Editor(
         cropDesiredFrame = null
         cropImageOffset = Offset.Zero
     }
+    fun finishPanelImageTransform(): Boolean {
+        val panel = selectedPanel
+        val imageBounds = panelImageBounds
+        val changed = panel != null && imageBounds != null && imageBounds != panel
+        if (changed) {
+            onCropImage(panel, panel, imageBounds)
+        }
+        panelImageBounds = panel
+        return changed
+    }
     LaunchedEffect(editMode) {
-        if (!editMode) finishCrop()
+        if (!editMode) {
+            finishCrop()
+            finishPanelImageTransform()
+        }
     }
     // Working copy of the selected balloon. Seeded when the selection changes and
     // kept across gestures so size / position / tail / text edits accumulate
@@ -1163,6 +1182,7 @@ private fun Editor(
                                                 val tapped = panels.panelAt(u, v)
                                                 if (croppingPanel == tapped) return@detectTapGestures
                                                 finishCrop()
+                                                finishPanelImageTransform()
                                                 tappedPanel = tapped
                                                 onSelectPanel(null)
                                                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
@@ -1174,8 +1194,10 @@ private fun Editor(
                                                 val u = offset.x / size.width
                                                 val v = offset.y / size.height
                                                 finishCrop()
+                                                finishPanelImageTransform()
                                                 tappedPanel = null
                                                 onSelectPanel(panels.panelAt(u, v))
+                                                onSelectBalloon(null)
                                                 moveHandleOffset = Offset.Zero
                                                 resizeHandleOffset = Offset.Zero
                                             },
@@ -1313,6 +1335,63 @@ private fun Editor(
                                                 style = Stroke(width = 2.dp.toPx()),
                                             )
                                         }
+                                        val transformedPanel = selectedPanel
+                                        val transformedBounds = panelImageBounds
+                                        if (
+                                            transformedPanel != null && transformedBounds != null &&
+                                            transformedBounds != transformedPanel && croppingPanel == null
+                                        ) {
+                                            drawRect(
+                                                color = Color.Transparent,
+                                                topLeft = Offset(
+                                                    transformedPanel.left * size.width,
+                                                    transformedPanel.top * size.height,
+                                                ),
+                                                size = Size(
+                                                    transformedPanel.width * size.width,
+                                                    transformedPanel.height * size.height,
+                                                ),
+                                                blendMode = BlendMode.Clear,
+                                            )
+                                            clipRect(
+                                                left = transformedPanel.left * size.width,
+                                                top = transformedPanel.top * size.height,
+                                                right = (transformedPanel.left + transformedPanel.width) * size.width,
+                                                bottom = (transformedPanel.top + transformedPanel.height) * size.height,
+                                            ) {
+                                                drawImage(
+                                                    image = image,
+                                                    srcOffset = IntOffset(
+                                                        (transformedPanel.left * image.width).roundToInt(),
+                                                        (transformedPanel.top * image.height).roundToInt(),
+                                                    ),
+                                                    srcSize = IntSize(
+                                                        (transformedPanel.width * image.width).roundToInt(),
+                                                        (transformedPanel.height * image.height).roundToInt(),
+                                                    ),
+                                                    dstOffset = IntOffset(
+                                                        (transformedBounds.left * size.width).roundToInt(),
+                                                        (transformedBounds.top * size.height).roundToInt(),
+                                                    ),
+                                                    dstSize = IntSize(
+                                                        (transformedBounds.width * size.width).roundToInt(),
+                                                        (transformedBounds.height * size.height).roundToInt(),
+                                                    ),
+                                                )
+                                            }
+                                            drawRect(
+                                                color = InkBlack,
+                                                topLeft = Offset(
+                                                    transformedPanel.left * size.width,
+                                                    transformedPanel.top * size.height,
+                                                ),
+                                                size = Size(
+                                                    transformedPanel.width * size.width,
+                                                    transformedPanel.height * size.height,
+                                                ),
+                                                style = Stroke(width = 2.dp.toPx()),
+                                            )
+                                        }
                                         effective.forEach { balloon ->
                                             val panelIndex = panels.indexOfFirst {
                                                 it.contains(balloon.centerX, balloon.centerY)
@@ -1367,7 +1446,7 @@ private fun Editor(
                                                 balloon = displayBalloon,
                                                 canvasSize = size,
                                                 origin = bounds?.topLeft ?: Offset.Zero,
-                                                editable = editMode,
+                                                editable = canEditBalloons(editMode, selectedPanel),
                                                 autoSize = autoTextSize,
                                                 contentScale = textScale,
                                                 onTextChange = { newText ->
@@ -1383,6 +1462,35 @@ private fun Editor(
                                 }
 
                                 if (editMode) {
+                                    selectedPanel?.takeIf {
+                                        focusedPanel == null && croppingPanel == null
+                                    }?.let { panel ->
+                                        Box(
+                                            modifier = Modifier
+                                                .offset {
+                                                    IntOffset(
+                                                        (panel.left * size.width).roundToInt(),
+                                                        (panel.top * size.height).roundToInt(),
+                                                    )
+                                                }
+                                                .size(
+                                                    with(LocalDensity.current) { (panel.width * size.width).toDp() },
+                                                    with(LocalDensity.current) { (panel.height * size.height).toDp() },
+                                                )
+                                                .clipToBounds()
+                                                .pointerInput(panel, size) {
+                                                    detectTransformGestures { _, pan, zoom, _ ->
+                                                        panelImageBounds = transformedPanelImageBounds(
+                                                            panel = panel,
+                                                            imageBounds = currentPanelImageBounds ?: panel,
+                                                            pan = pan,
+                                                            zoom = zoom,
+                                                            displaySize = size,
+                                                        )
+                                                    }
+                                                },
+                                        )
+                                    }
                                     if (croppingPanel != null && cropFrame != null) {
                                         val panel = croppingPanel!!
                                         val frame = cropFrame!!
@@ -1425,6 +1533,8 @@ private fun Editor(
                                                 if (croppingPanel != null) {
                                                     finishCrop()
                                                     false
+                                                } else if (finishPanelImageTransform()) {
+                                                    false
                                                 } else {
                                                     true
                                                 }
@@ -1458,6 +1568,8 @@ private fun Editor(
                                             onTap = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
+                                                } else if (finishPanelImageTransform()) {
+                                                    Unit
                                                 } else {
                                                     showConfirmDeleteImage = true
                                                 }
@@ -1472,6 +1584,8 @@ private fun Editor(
                                             onDragStart = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
+                                                    false
+                                                } else if (finishPanelImageTransform()) {
                                                     false
                                                 } else {
                                                     true
@@ -1504,12 +1618,17 @@ private fun Editor(
                                             ),
                                             contentScale = 1f,
                                             onDragStart = {
-                                                if (croppingPanel != pending) {
-                                                    cropFrame = pending
-                                                    cropDesiredFrame = pending
-                                                    cropImageOffset = Offset.Zero
+                                                if (finishPanelImageTransform()) {
+                                                    false
+                                                } else {
+                                                    if (croppingPanel != pending) {
+                                                        cropFrame = pending
+                                                        cropDesiredFrame = pending
+                                                        cropImageOffset = Offset.Zero
+                                                    }
+                                                    croppingPanel = pending
+                                                    true
                                                 }
-                                                croppingPanel = pending
                                             },
                                             onDrag = { delta ->
                                                 croppingPanel = pending
@@ -1561,7 +1680,10 @@ private fun Editor(
                             }
                             }
                             }
-                            if (editMode && selected != null && layerSize.width > 0 && layerSize.height > 0) {
+                            if (
+                                canEditBalloons(editMode, selectedPanel) && selected != null &&
+                                layerSize.width > 0 && layerSize.height > 0
+                            ) {
                                 val handleCanvasSize = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
                                 Box(
                                     modifier = Modifier
@@ -1698,6 +1820,9 @@ internal fun addPanelPlacements(
 } else {
     emptyList()
 }
+
+internal fun canEditBalloons(editMode: Boolean, selectedPanel: RectFraction?): Boolean =
+    editMode && selectedPanel == null
 
 internal fun rotationTarget(
     panels: List<RectFraction>,
@@ -1948,7 +2073,30 @@ internal fun panCroppedImage(
     )
 )
 
+internal fun transformedPanelImageBounds(
+    panel: RectFraction,
+    imageBounds: RectFraction,
+    pan: Offset,
+    zoom: Float,
+    displaySize: Size,
+): RectFraction {
+    val currentScale = imageBounds.width / panel.width
+    val targetScale = (currentScale * zoom).coerceIn(MIN_PANEL_IMAGE_SCALE, MAX_PANEL_IMAGE_SCALE)
+    val targetWidth = panel.width * targetScale
+    val targetHeight = panel.height * targetScale
+    val centerX = imageBounds.left + imageBounds.width / 2f + pan.x / displaySize.width
+    val centerY = imageBounds.top + imageBounds.height / 2f + pan.y / displaySize.height
+    return RectFraction(
+        left = (centerX - targetWidth / 2f).coerceIn(panel.left + panel.width - targetWidth, panel.left),
+        top = (centerY - targetHeight / 2f).coerceIn(panel.top + panel.height - targetHeight, panel.top),
+        width = targetWidth,
+        height = targetHeight,
+    )
+}
+
 private const val MIN_CROP_FRAME_FRACTION = 0.2f
+private const val MIN_PANEL_IMAGE_SCALE = 1f
+private const val MAX_PANEL_IMAGE_SCALE = 5f
 
 /** The bottom "comic kit" panel: balloon types plus the currently selected balloon's controls. */
 @Composable
@@ -2607,7 +2755,7 @@ private fun ImageResizeHandle(
 private fun ImageCropHandle(
     centerPx: Offset,
     contentScale: Float,
-    onDragStart: () -> Unit,
+    onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -2625,10 +2773,12 @@ private fun ImageCropHandle(
             .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
             .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
             .pointerInput(Unit) {
+                var dragEnabled = false
                 detectDragGestures(
-                    onDragStart = { currentOnDragStart() },
+                    onDragStart = { dragEnabled = currentOnDragStart() },
                     onDrag = { change, dragAmount ->
                         change.consume()
+                        if (!dragEnabled) return@detectDragGestures
                         currentOnDrag(dragAmount / contentScale)
                     },
                 )
