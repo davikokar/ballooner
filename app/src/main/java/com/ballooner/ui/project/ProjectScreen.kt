@@ -2076,6 +2076,14 @@ internal fun transformedPanelImageBounds(
     zoom: Float,
     displaySize: Size,
 ): RectFraction {
+    if (
+        !pan.x.isFinite() || !pan.y.isFinite() || !zoom.isFinite() ||
+        displaySize.width <= 0f || displaySize.height <= 0f ||
+        !imageBounds.left.isFinite() || !imageBounds.top.isFinite() ||
+        !imageBounds.width.isFinite() || !imageBounds.height.isFinite()
+    ) {
+        return imageBounds
+    }
     val currentScale = imageBounds.width / panel.width
     val targetScale = (currentScale * zoom).coerceIn(MIN_PANEL_IMAGE_SCALE, MAX_PANEL_IMAGE_SCALE)
     val targetWidth = panel.width * targetScale

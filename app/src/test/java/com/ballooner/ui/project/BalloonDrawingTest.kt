@@ -154,6 +154,21 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `non finite pinch input preserves valid panel image bounds`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val result = transformedPanelImageBounds(
+            panel = panel,
+            imageBounds = panel,
+            pan = Offset(Float.NaN, 0f),
+            zoom = Float.NaN,
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertEquals(panel, result)
+    }
+
+    @Test
     fun `balloon editing is disabled while a panel is selected for image editing`() {
         val panel = RectFraction(0f, 0f, 1f, 1f)
 
