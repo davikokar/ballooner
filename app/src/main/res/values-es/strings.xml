@@ -73,6 +73,7 @@
     <string name="move_panel">Mover viñeta</string>
     <string name="resize_panel">Cambiar tamaño de viñeta</string>
     <string name="crop_panel">Recortar viñeta</string>
+    <string name="undo">Deshacer</string>
     <string name="no_comics_yet">¡Aún no hay cómics!</string>
     <string name="empty_comics_message">Es hora de comenzar tu aventura heroica. ¡Toma un lápiz y adelante!</string>
     <string name="create_comic">Crear cómic</string>

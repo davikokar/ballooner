@@ -74,6 +74,13 @@ object BalloonerIcons {
         )
     }
 
+    val Undo: ImageVector by lazy {
+        icon(
+            name = "Undo",
+            pathData = "M7.5 6H14c3.31 0 6 2.69 6 6s-2.69 6-6 6H8v-2h6c2.21 0 4-1.79 4-4s-1.79-4-4-4H7.5L11 11.5 9.59 12.91 3.67 7l5.92-5.91L11 2.5 7.5 6z",
+        )
+    }
+
     val Balloon: ImageVector by lazy {
         icon(
             name = "Balloon",

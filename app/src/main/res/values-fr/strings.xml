@@ -73,6 +73,7 @@
     <string name="move_panel">Déplacer la case</string>
     <string name="resize_panel">Redimensionner la case</string>
     <string name="crop_panel">Recadrer la case</string>
+    <string name="undo">Annuler</string>
     <string name="no_comics_yet">Aucune bande dessinée pour le moment !</string>
     <string name="empty_comics_message">Il est temps de commencer votre aventure héroïque. Prenez un crayon et lancez-vous !</string>
     <string name="create_comic">Créer une bande dessinée</string>

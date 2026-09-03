@@ -12,6 +12,7 @@ data class ProjectUiState(
     val autoTextSize: Boolean = false,
     // True while an image import/compose is running in the background.
     val isProcessingImage: Boolean = false,
+    val canUndo: Boolean = false,
     // Each existing image panel's rect within the current merged image.
     val panels: List<RectFraction> = emptyList(),
 ) {

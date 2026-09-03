@@ -73,6 +73,7 @@
     <string name="move_panel">Sposta vignetta</string>
     <string name="resize_panel">Ridimensiona vignetta</string>
     <string name="crop_panel">Ritaglia vignetta</string>
+    <string name="undo">Annulla</string>
     <string name="no_comics_yet">Ancora nessun fumetto!</string>
     <string name="empty_comics_message">È ora di iniziare la tua avventura eroica. Prendi una matita e parti!</string>
     <string name="create_comic">Crea fumetto</string>

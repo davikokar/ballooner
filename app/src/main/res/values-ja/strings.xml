@@ -73,6 +73,7 @@
     <string name="move_panel">コマを移動</string>
     <string name="resize_panel">コマのサイズを変更</string>
     <string name="crop_panel">コマをトリミング</string>
+    <string name="undo">元に戻す</string>
     <string name="no_comics_yet">コミックはまだありません！</string>
     <string name="empty_comics_message">ヒーローの旅を始めましょう。ペンを手に取って出発です！</string>
     <string name="create_comic">コミックを作成</string>

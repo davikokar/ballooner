@@ -73,6 +73,7 @@
     <string name="move_panel">移动分镜</string>
     <string name="resize_panel">调整分镜大小</string>
     <string name="crop_panel">裁剪分镜</string>
+    <string name="undo">撤销</string>
     <string name="no_comics_yet">还没有漫画！</string>
     <string name="empty_comics_message">是时候开始你的英雄之旅了。拿起画笔，出发吧！</string>
     <string name="create_comic">创作漫画</string>

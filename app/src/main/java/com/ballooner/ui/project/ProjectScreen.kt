@@ -16,6 +16,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,6 +100,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -176,7 +179,10 @@ fun ProjectRoute(
         onDeleteComic = { viewModel.deleteProject(onNavigateBack) },
         onDeleteImage = viewModel::onDeleteImage,
         onMoveImage = viewModel::onMoveImage,
+        onResizeImage = viewModel::onResizeImage,
         onCropImage = viewModel::onCropImage,
+        onUndo = viewModel::undoLastImageEdit,
+        onDiscardUndo = viewModel::discardUndo,
     )
 }
 
@@ -199,7 +205,10 @@ fun ProjectScreen(
     onDeleteComic: () -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, RectFraction) -> Unit,
+    onResizeImage: (RectFraction, RectFraction) -> Unit,
     onCropImage: (RectFraction, RectFraction, RectFraction) -> Unit,
+    onUndo: () -> Unit,
+    onDiscardUndo: () -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -316,6 +325,7 @@ fun ProjectScreen(
     var rotation by remember { mutableStateOf(0f) }
     var selectedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var focusedPanel by remember { mutableStateOf<RectFraction?>(null) }
+    var undoPressInProgress by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.panels) {
         if (selectedPanel !in uiState.panels) selectedPanel = null
         if (focusedPanel !in uiState.panels) focusedPanel = null
@@ -332,6 +342,19 @@ fun ProjectScreen(
     }
 
     Scaffold(
+        modifier = Modifier.pointerInput(uiState.canUndo) {
+            if (uiState.canUndo) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Final)
+                        if (event.changes.any { it.pressed && !it.previousPressed }) {
+                            if (!undoPressInProgress) onDiscardUndo()
+                            undoPressInProgress = false
+                        }
+                    }
+                }
+            }
+        },
         topBar = {
             Column {
                 TopAppBar(
@@ -431,7 +454,11 @@ fun ProjectScreen(
                         },
                         onDeleteImage = onDeleteImage,
                         onMoveImage = onMoveImage,
+                        onResizeImage = onResizeImage,
                         onCropImage = onCropImage,
+                        canUndo = uiState.canUndo,
+                        onUndoPressStarted = { undoPressInProgress = true },
+                        onUndo = onUndo,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -975,7 +1002,11 @@ private fun Editor(
     onFocusPanel: (RectFraction) -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, RectFraction) -> Unit,
+    onResizeImage: (RectFraction, RectFraction) -> Unit,
     onCropImage: (RectFraction, RectFraction, RectFraction) -> Unit,
+    canUndo: Boolean,
+    onUndoPressStarted: () -> Unit,
+    onUndo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageState = rememberImageState(imageUri)
@@ -1452,7 +1483,7 @@ private fun Editor(
                                             },
                                             onDragEnd = { finalDragOffset ->
                                                 if (finalDragOffset != Offset.Zero) {
-                                                    onMoveImage(
+                                                    onResizeImage(
                                                         pending,
                                                         magneticResizeDestination(
                                                             panels = panels,
@@ -1609,6 +1640,9 @@ private fun Editor(
                     ComicKit(
                         expanded = comicKitExpanded,
                         onToggleExpanded = { comicKitExpanded = !comicKitExpanded },
+                        canUndo = canUndo,
+                        onUndoPressStarted = onUndoPressStarted,
+                        onUndo = onUndo,
                         selected = selected,
                         hideFontSelector = hideFontSelector,
                         autoTextSize = autoTextSize,
@@ -1921,6 +1955,9 @@ private const val MIN_CROP_FRAME_FRACTION = 0.2f
 private fun ComicKit(
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
+    canUndo: Boolean,
+    onUndoPressStarted: () -> Unit,
+    onUndo: () -> Unit,
     selected: Balloon?,
     hideFontSelector: Boolean,
     autoTextSize: Boolean,
@@ -1939,25 +1976,57 @@ private fun ComicKit(
         Box(
             modifier = Modifier
                 .offset(y = (-12).dp)
-                .size(width = 52.dp, height = 28.dp)
-                .background(Color(0xFFFFD21F), RoundedCornerShape(8.dp))
-                .border(3.dp, InkBlack, RoundedCornerShape(8.dp))
-                .clickable(
-                    onClickLabel = stringResource(
+                .fillMaxWidth()
+                .height(28.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(width = 52.dp, height = 28.dp)
+                    .background(Color(0xFFFFD21F), RoundedCornerShape(8.dp))
+                    .border(3.dp, InkBlack, RoundedCornerShape(8.dp))
+                    .clickable(
+                        onClickLabel = stringResource(
+                            if (expanded) R.string.collapse_balloon_tools else R.string.expand_balloon_tools,
+                        ),
+                        onClick = onToggleExpanded,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                    contentDescription = stringResource(
                         if (expanded) R.string.collapse_balloon_tools else R.string.expand_balloon_tools,
                     ),
-                    onClick = onToggleExpanded,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                contentDescription = stringResource(
-                    if (expanded) R.string.collapse_balloon_tools else R.string.expand_balloon_tools,
-                ),
-                tint = InkBlack,
-                modifier = Modifier.size(22.dp),
-            )
+                    tint = InkBlack,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            if (canUndo) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 16.dp)
+                        .size(width = 40.dp, height = 28.dp)
+                        .background(Color(0xFFFFD21F), RoundedCornerShape(8.dp))
+                        .border(3.dp, InkBlack, RoundedCornerShape(8.dp))
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                onUndoPressStarted()
+                            }
+                        }
+                        .clickable(onClickLabel = stringResource(R.string.undo), onClick = onUndo),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = BalloonerIcons.Undo,
+                        contentDescription = stringResource(R.string.undo),
+                        tint = InkBlack,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
         }
         if (expanded) {
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
@@ -2888,6 +2957,9 @@ private fun ProjectScreenNoImagePreview() {
         onDeleteComic = {},
         onDeleteImage = {},
         onMoveImage = { _, _ -> },
+        onResizeImage = { _, _ -> },
         onCropImage = { _, _, _ -> },
+        onUndo = {},
+        onDiscardUndo = {},
     )
 }

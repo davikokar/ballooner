@@ -452,7 +452,7 @@ class ProjectViewModelTest {
     }
 
     @Test
-    fun `cropping a panel persists its canvas and keeps image content size`() = runTest {
+    fun `cropping can be undone to restore the previous image and panels`() = runTest {
         val panel = RectFraction(0f, 0f, 0.5f, 1f)
         val frame = RectFraction(0.1f, 0f, 0.4f, 0.8f)
         val imageBounds = RectFraction(0.05f, -0.1f, 0.5f, 1f)
@@ -479,6 +479,54 @@ class ProjectViewModelTest {
         assertEquals("cropped-uri", viewModel.uiState.value.imageUri)
         assertEquals(listOf(frame), viewModel.uiState.value.panels)
         assertEquals(listOf("existing-uri", panel, frame, imageBounds), imageStore.lastCropRequest)
+        assertTrue(viewModel.uiState.value.canUndo)
+        assertTrue(imageStore.deleted.isEmpty())
+
+        viewModel.undoLastImageEdit()
+        advanceUntilIdle()
+
+        val restored = viewModel.uiState.first {
+            it.imageUri == "existing-uri" && it.panels == listOf(panel) && !it.canUndo
+        }
+        assertEquals("existing-uri", restored.imageUri)
+        assertEquals(listOf(panel), restored.panels)
+        assertEquals(listOf("cropped-uri"), imageStore.deleted)
+    }
+
+    @Test
+    fun `resizing a panel makes undo available`() = runTest {
+        val panel = RectFraction(0f, 0f, 0.5f, 1f)
+        val resized = RectFraction(0f, 0f, 0.7f, 1.4f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("resized-uri", listOf(resized))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onResizeImage(panel, resized)
+        advanceUntilIdle()
+
+        assertEquals("resized-uri", viewModel.uiState.value.imageUri)
+        assertTrue(viewModel.uiState.value.canUndo)
+        assertTrue(imageStore.deleted.isEmpty())
+
+        viewModel.discardUndo()
+        advanceUntilIdle()
+
+        viewModel.uiState.first { !it.canUndo }
         assertEquals(listOf("existing-uri"), imageStore.deleted)
     }
 

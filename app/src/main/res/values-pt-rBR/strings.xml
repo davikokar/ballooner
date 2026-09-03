@@ -73,6 +73,7 @@
     <string name="move_panel">Mover quadro</string>
     <string name="resize_panel">Redimensionar quadro</string>
     <string name="crop_panel">Recortar quadro</string>
+    <string name="undo">Desfazer</string>
     <string name="no_comics_yet">Ainda não há quadrinhos!</string>
     <string name="empty_comics_message">É hora de começar sua jornada heroica. Pegue um lápis e vamos lá!</string>
     <string name="create_comic">Criar quadrinho</string>
