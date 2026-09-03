@@ -1022,8 +1022,8 @@ private fun Editor(
     var cropDesiredFrame by remember { mutableStateOf<RectFraction?>(null) }
     var cropImageOffset by remember { mutableStateOf(Offset.Zero) }
     val currentCropImageOffset by rememberUpdatedState(cropImageOffset)
-    var panelImageBounds by remember(selectedPanel) { mutableStateOf(selectedPanel) }
-    val currentPanelImageBounds by rememberUpdatedState(panelImageBounds)
+    var panelImageEdit by remember { mutableStateOf<PanelImageEdit?>(null) }
+    val currentPanelImageEdit by rememberUpdatedState(panelImageEdit)
     var tappedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     var comicKitExpanded by remember { mutableStateOf(true) }
@@ -1037,6 +1037,7 @@ private fun Editor(
             cropDesiredFrame = null
             cropImageOffset = Offset.Zero
         }
+        if (panelImageEdit?.panel !in panels) panelImageEdit = null
     }
     fun finishCrop() {
         val panel = croppingPanel
@@ -1054,14 +1055,18 @@ private fun Editor(
         cropImageOffset = Offset.Zero
     }
     fun finishPanelImageTransform(): Boolean {
-        val panel = selectedPanel
-        val imageBounds = panelImageBounds
-        val changed = panel != null && imageBounds != null && imageBounds != panel
+        val edit = panelImageEdit ?: return false
+        val changed = edit.imageBounds != edit.panel
         if (changed) {
-            onCropImage(panel, panel, imageBounds)
+            onCropImage(edit.panel, edit.panel, edit.imageBounds)
         }
-        panelImageBounds = panel
+        panelImageEdit = null
         return changed
+    }
+    LaunchedEffect(selectedPanel) {
+        if (panelImageEdit != null && panelImageEdit?.panel != selectedPanel) {
+            finishPanelImageTransform()
+        }
     }
     LaunchedEffect(editMode) {
         if (!editMode) {
@@ -1173,7 +1178,7 @@ private fun Editor(
                                         layerSize = it
                                         onLayerWidth(it.width)
                                     }
-                                    .pointerInput(balloons, panels, editMode) {
+                                    .pointerInput(balloons, panels, editMode, selectedPanel) {
                                         detectTapGestures(
                                             onTap = { offset ->
                                                 if (!editMode) return@detectTapGestures
@@ -1196,7 +1201,9 @@ private fun Editor(
                                                 finishCrop()
                                                 finishPanelImageTransform()
                                                 tappedPanel = null
-                                                onSelectPanel(panels.panelAt(u, v))
+                                                val pressedPanel = panels.panelAt(u, v)
+                                                panelImageEdit = pressedPanel?.let { PanelImageEdit(it, it) }
+                                                onSelectPanel(pressedPanel)
                                                 onSelectBalloon(null)
                                                 moveHandleOffset = Offset.Zero
                                                 resizeHandleOffset = Offset.Zero
@@ -1333,8 +1340,9 @@ private fun Editor(
                                                 style = Stroke(width = 2.dp.toPx()),
                                             )
                                         }
-                                        val transformedPanel = selectedPanel
-                                        val transformedBounds = panelImageBounds
+                                        val imageEdit = panelImageEdit
+                                        val transformedPanel = imageEdit?.panel
+                                        val transformedBounds = imageEdit?.imageBounds
                                         if (
                                             transformedPanel != null && transformedBounds != null &&
                                             transformedBounds != transformedPanel && croppingPanel == null
@@ -1476,13 +1484,16 @@ private fun Editor(
                                                 .clipToBounds()
                                                 .pointerInput(panel, size) {
                                                     detectTransformGestures { _, pan, zoom, _ ->
-                                                        panelImageBounds = transformedPanelImageBounds(
+                                                        val edit = currentPanelImageEdit
+                                                            ?.takeIf { it.panel == panel }
+                                                            ?: PanelImageEdit(panel, panel)
+                                                        panelImageEdit = edit.copy(imageBounds = transformedPanelImageBounds(
                                                             panel = panel,
-                                                            imageBounds = currentPanelImageBounds ?: panel,
+                                                            imageBounds = edit.imageBounds,
                                                             pan = pan,
                                                             zoom = zoom,
                                                             displaySize = size,
-                                                        )
+                                                        ))
                                                     }
                                                 },
                                         )
@@ -2097,6 +2108,11 @@ internal fun transformedPanelImageBounds(
         height = targetHeight,
     )
 }
+
+private data class PanelImageEdit(
+    val panel: RectFraction,
+    val imageBounds: RectFraction,
+)
 
 internal fun bitmapRegion(rect: RectFraction, bitmapSize: IntSize): Pair<IntOffset, IntSize> {
     val left = (rect.left * bitmapSize.width).roundToInt().coerceIn(0, bitmapSize.width - 1)

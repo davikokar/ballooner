@@ -235,12 +235,12 @@ class AppImageStore @Inject constructor(
             val bitmap = decodeBitmap(uri, mutable = true) ?: return@runCatching null
             val panelRect = panel.toPixelRect(bitmap.width, bitmap.height)
             val frameRect = frame.toPixelRect(bitmap.width, bitmap.height)
-            val panelBitmap = Bitmap.createBitmap(
+            val panelBitmap = Bitmap.createBitmap(panelRect.width, panelRect.height, Bitmap.Config.ARGB_8888)
+            android.graphics.Canvas(panelBitmap).drawBitmap(
                 bitmap,
-                panelRect.left,
-                panelRect.top,
-                panelRect.width,
-                panelRect.height,
+                -panelRect.left.toFloat(),
+                -panelRect.top.toFloat(),
+                null,
             )
             val canvas = android.graphics.Canvas(bitmap)
             canvas.drawRect(
