@@ -199,7 +199,7 @@ fun ProjectScreen(
     onDeleteComic: () -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, RectFraction) -> Unit,
-    onCropImage: (RectFraction, RectFraction) -> Unit,
+    onCropImage: (RectFraction, RectFraction, RectFraction) -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -975,7 +975,7 @@ private fun Editor(
     onFocusPanel: (RectFraction) -> Unit,
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, RectFraction) -> Unit,
-    onCropImage: (RectFraction, RectFraction) -> Unit,
+    onCropImage: (RectFraction, RectFraction, RectFraction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imageState = rememberImageState(imageUri)
@@ -983,8 +983,9 @@ private fun Editor(
     var moveHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var resizeHandleOffset by remember { mutableStateOf(Offset.Zero) }
     var croppingPanel by remember { mutableStateOf<RectFraction?>(null) }
-    var cropSource by remember { mutableStateOf<RectFraction?>(null) }
-    val currentCropSource by rememberUpdatedState(cropSource)
+    var cropFrame by remember { mutableStateOf<RectFraction?>(null) }
+    var cropImageOffset by remember { mutableStateOf(Offset.Zero) }
+    val currentCropImageOffset by rememberUpdatedState(cropImageOffset)
     var tappedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var showConfirmDeleteImage by remember { mutableStateOf(false) }
     var comicKitExpanded by remember { mutableStateOf(true) }
@@ -994,15 +995,23 @@ private fun Editor(
         if (!editMode || tappedPanel !in panels) tappedPanel = null
         if (croppingPanel !in panels) {
             croppingPanel = null
-            cropSource = null
+            cropFrame = null
+            cropImageOffset = Offset.Zero
         }
     }
     fun finishCrop() {
         val panel = croppingPanel
-        val source = cropSource
-        if (panel != null && source != null && source != panel) onCropImage(panel, source)
+        val frame = cropFrame
+        if (panel != null && frame != null && (frame != panel || cropImageOffset != Offset.Zero)) {
+            onCropImage(
+                panel,
+                frame,
+                panel.copy(left = panel.left + cropImageOffset.x, top = panel.top + cropImageOffset.y),
+            )
+        }
         croppingPanel = null
-        cropSource = null
+        cropFrame = null
+        cropImageOffset = Offset.Zero
     }
     LaunchedEffect(editMode) {
         if (!editMode) finishCrop()
@@ -1168,6 +1177,8 @@ private fun Editor(
                                 if (size.width > 0f && size.height > 0f) {
                                     val resizingPanel = movingPanel != null && resizeHandleOffset != Offset.Zero
                                     val displayPanels = when {
+                                        croppingPanel != null && cropFrame != null ->
+                                            panels.map { if (it == croppingPanel) cropFrame!! else it }
                                         movingPanel == null || previewPanel == null -> panels
                                         resizingPanel -> repositionPanelsAfterResize(panels, movingPanel, previewPanel)
                                         else -> panels.map { if (it == movingPanel) previewPanel else it }
@@ -1226,38 +1237,45 @@ private fun Editor(
                                                 ),
                                             )
                                         }
-                                        if (croppingPanel != null && cropSource != null) {
+                                        if (croppingPanel != null && cropFrame != null) {
                                             val panel = croppingPanel!!
-                                            val source = cropSource!!
+                                            val frame = cropFrame!!
                                             drawRect(
                                                 color = Color.Transparent,
                                                 topLeft = Offset(panel.left * size.width, panel.top * size.height),
                                                 size = Size(panel.width * size.width, panel.height * size.height),
                                                 blendMode = BlendMode.Clear,
                                             )
-                                            drawImage(
-                                                image = image,
-                                                srcOffset = IntOffset(
-                                                    (source.left * image.width).roundToInt(),
-                                                    (source.top * image.height).roundToInt(),
-                                                ),
-                                                srcSize = IntSize(
-                                                    (source.width * image.width).roundToInt(),
-                                                    (source.height * image.height).roundToInt(),
-                                                ),
-                                                dstOffset = IntOffset(
-                                                    (panel.left * size.width).roundToInt(),
-                                                    (panel.top * size.height).roundToInt(),
-                                                ),
-                                                dstSize = IntSize(
-                                                    (panel.width * size.width).roundToInt(),
-                                                    (panel.height * size.height).roundToInt(),
-                                                ),
-                                            )
+                                            clipRect(
+                                                left = frame.left * size.width,
+                                                top = frame.top * size.height,
+                                                right = (frame.left + frame.width) * size.width,
+                                                bottom = (frame.top + frame.height) * size.height,
+                                            ) {
+                                                drawImage(
+                                                    image = image,
+                                                    srcOffset = IntOffset(
+                                                        (panel.left * image.width).roundToInt(),
+                                                        (panel.top * image.height).roundToInt(),
+                                                    ),
+                                                    srcSize = IntSize(
+                                                        (panel.width * image.width).roundToInt(),
+                                                        (panel.height * image.height).roundToInt(),
+                                                    ),
+                                                    dstOffset = IntOffset(
+                                                        ((panel.left + cropImageOffset.x) * size.width).roundToInt(),
+                                                        ((panel.top + cropImageOffset.y) * size.height).roundToInt(),
+                                                    ),
+                                                    dstSize = IntSize(
+                                                        (panel.width * size.width).roundToInt(),
+                                                        (panel.height * size.height).roundToInt(),
+                                                    ),
+                                                )
+                                            }
                                             drawRect(
                                                 color = InkBlack,
-                                                topLeft = Offset(panel.left * size.width, panel.top * size.height),
-                                                size = Size(panel.width * size.width, panel.height * size.height),
+                                                topLeft = Offset(frame.left * size.width, frame.top * size.height),
+                                                size = Size(frame.width * size.width, frame.height * size.height),
                                                 style = Stroke(width = 2.dp.toPx()),
                                             )
                                         }
@@ -1331,27 +1349,29 @@ private fun Editor(
                                 }
 
                                 if (editMode) {
-                                    if (croppingPanel != null && cropSource != null) {
+                                    if (croppingPanel != null && cropFrame != null) {
                                         val panel = croppingPanel!!
+                                        val frame = cropFrame!!
                                         Box(
                                             modifier = Modifier
                                                 .offset {
                                                     IntOffset(
-                                                        (panel.left * size.width).roundToInt(),
-                                                        (panel.top * size.height).roundToInt(),
+                                                        (frame.left * size.width).roundToInt(),
+                                                        (frame.top * size.height).roundToInt(),
                                                     )
                                                 }
                                                 .size(
-                                                    with(LocalDensity.current) { (panel.width * size.width).toDp() },
-                                                    with(LocalDensity.current) { (panel.height * size.height).toDp() },
+                                                    with(LocalDensity.current) { (frame.width * size.width).toDp() },
+                                                    with(LocalDensity.current) { (frame.height * size.height).toDp() },
                                                 )
                                                 .clipToBounds()
                                                 .pointerInput(panel, size) {
                                                     detectDragGestures { change, dragAmount ->
                                                         change.consume()
-                                                        cropSource = panCropSource(
+                                                        cropImageOffset = panCroppedImage(
                                                             panel = panel,
-                                                            source = currentCropSource ?: panel,
+                                                            frame = frame,
+                                                            imageOffset = currentCropImageOffset,
                                                             dragOffset = dragAmount,
                                                             displaySize = size,
                                                         )
@@ -1445,21 +1465,31 @@ private fun Editor(
                                         )
                                         ImageCropHandle(
                                             centerPx = cropHandleCenter(
-                                                panel = displayedPanel,
-                                                source = cropSource.takeIf { croppingPanel == pending } ?: pending,
+                                                frame = cropFrame.takeIf { croppingPanel == pending } ?: pending,
                                                 displaySize = size,
                                             ),
                                             contentScale = 1f,
                                             onDragStart = {
+                                                if (croppingPanel != pending) {
+                                                    cropFrame = pending
+                                                    cropImageOffset = Offset.Zero
+                                                }
                                                 croppingPanel = pending
-                                                cropSource = cropSource ?: pending
                                             },
                                             onDrag = { delta ->
                                                 croppingPanel = pending
-                                                cropSource = cropSourceAfterHandleDrag(
+                                                val newFrame = cropFrameAfterHandleDrag(
                                                     panel = pending,
-                                                    source = cropSource ?: pending,
+                                                    frame = cropFrame ?: pending,
                                                     dragOffset = delta,
+                                                    displaySize = size,
+                                                )
+                                                cropFrame = newFrame
+                                                cropImageOffset = panCroppedImage(
+                                                    panel = pending,
+                                                    frame = newFrame,
+                                                    imageOffset = cropImageOffset,
+                                                    dragOffset = Offset.Zero,
                                                     displaySize = size,
                                                 )
                                             },
@@ -1790,51 +1820,54 @@ internal fun magneticResizeDestination(
     )
 }
 
-internal fun cropSourceAfterHandleDrag(
+internal fun cropFrameAfterHandleDrag(
     panel: RectFraction,
-    source: RectFraction,
+    frame: RectFraction,
     dragOffset: Offset,
     displaySize: Size,
 ): RectFraction {
-    val horizontalChange = dragOffset.x / (panel.width * displaySize.width)
-    val verticalChange = -dragOffset.y / (panel.height * displaySize.height)
-    val currentFraction = source.width / panel.width
-    val newFraction = (currentFraction - (horizontalChange + verticalChange) / 2f)
-        .coerceIn(MIN_CROP_SOURCE_FRACTION, 1f)
-    val newWidth = panel.width * newFraction
-    val newHeight = panel.height * newFraction
+    val right = frame.left + frame.width
+    val bottom = frame.top + frame.height
+    val minimumWidth = panel.width * MIN_CROP_FRAME_FRACTION
+    val minimumHeight = panel.height * MIN_CROP_FRAME_FRACTION
+    val left = (frame.left + dragOffset.x / displaySize.width)
+        .coerceIn(panel.left, right - minimumWidth)
+    val newBottom = (bottom + dragOffset.y / displaySize.height)
+        .coerceIn(frame.top + minimumHeight, panel.top + panel.height)
     return RectFraction(
-        left = (source.left + source.width - newWidth).coerceIn(panel.left, panel.left + panel.width - newWidth),
-        top = source.top.coerceIn(panel.top, panel.top + panel.height - newHeight),
-        width = newWidth,
-        height = newHeight,
+        left = left,
+        top = frame.top,
+        width = right - left,
+        height = newBottom - frame.top,
     )
 }
 
 internal fun cropHandleCenter(
-    panel: RectFraction,
-    source: RectFraction,
+    frame: RectFraction,
     displaySize: Size,
 ): Offset = Offset(
-    x = (panel.left + panel.width - source.width) * displaySize.width,
-    y = (panel.top + source.height) * displaySize.height,
+    x = frame.left * displaySize.width,
+    y = (frame.top + frame.height) * displaySize.height,
 )
 
-internal fun panCropSource(
+internal fun panCroppedImage(
     panel: RectFraction,
-    source: RectFraction,
+    frame: RectFraction,
+    imageOffset: Offset,
     dragOffset: Offset,
     displaySize: Size,
-): RectFraction {
-    val sourceDx = -dragOffset.x * source.width / (panel.width * displaySize.width)
-    val sourceDy = -dragOffset.y * source.height / (panel.height * displaySize.height)
-    return source.copy(
-        left = (source.left + sourceDx).coerceIn(panel.left, panel.left + panel.width - source.width),
-        top = (source.top + sourceDy).coerceIn(panel.top, panel.top + panel.height - source.height),
+): Offset = Offset(
+    x = (imageOffset.x + dragOffset.x / displaySize.width).coerceIn(
+        frame.left + frame.width - panel.left - panel.width,
+        frame.left - panel.left,
+    ),
+    y = (imageOffset.y + dragOffset.y / displaySize.height).coerceIn(
+        frame.top + frame.height - panel.top - panel.height,
+        frame.top - panel.top,
     )
-}
+)
 
-private const val MIN_CROP_SOURCE_FRACTION = 0.2f
+private const val MIN_CROP_FRAME_FRACTION = 0.2f
 
 /** The bottom "comic kit" panel: balloon types plus the currently selected balloon's controls. */
 @Composable
@@ -2808,6 +2841,6 @@ private fun ProjectScreenNoImagePreview() {
         onDeleteComic = {},
         onDeleteImage = {},
         onMoveImage = { _, _ -> },
-        onCropImage = { _, _ -> },
+        onCropImage = { _, _, _ -> },
     )
 }

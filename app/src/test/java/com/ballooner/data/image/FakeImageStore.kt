@@ -61,8 +61,13 @@ class FakeImageStore : ImageStore {
         return rearrangeResult
     }
 
-    override suspend fun cropPanel(uri: String, panel: RectFraction, source: RectFraction): String? {
-        lastCropRequest = listOf(uri, panel, source)
+    override suspend fun cropPanel(
+        uri: String,
+        panel: RectFraction,
+        frame: RectFraction,
+        imageBounds: RectFraction,
+    ): String? {
+        lastCropRequest = listOf(uri, panel, frame, imageBounds)
         return cropResult
     }
 }

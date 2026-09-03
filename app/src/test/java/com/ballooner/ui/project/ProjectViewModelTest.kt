@@ -452,9 +452,10 @@ class ProjectViewModelTest {
     }
 
     @Test
-    fun `cropping a panel replaces the image and preserves panel rectangles`() = runTest {
+    fun `cropping a panel persists its canvas and keeps image content size`() = runTest {
         val panel = RectFraction(0f, 0f, 0.5f, 1f)
-        val source = RectFraction(0.1f, 0.2f, 0.35f, 0.7f)
+        val frame = RectFraction(0.1f, 0f, 0.4f, 0.8f)
+        val imageBounds = RectFraction(0.05f, -0.1f, 0.5f, 1f)
         val imageStore = FakeImageStore().apply { cropResult = "cropped-uri" }
         val panelRepository = FakePanelRepository()
         val viewModel = ProjectViewModel(
@@ -472,12 +473,12 @@ class ProjectViewModelTest {
         panelRepository.replacePanels(1L, listOf(panel))
         viewModel.uiState.first { it.panels == listOf(panel) }
 
-        viewModel.onCropImage(panel, source)
+        viewModel.onCropImage(panel, frame, imageBounds)
         advanceUntilIdle()
 
         assertEquals("cropped-uri", viewModel.uiState.value.imageUri)
-        assertEquals(listOf(panel), viewModel.uiState.value.panels)
-        assertEquals(listOf("existing-uri", panel, source), imageStore.lastCropRequest)
+        assertEquals(listOf(frame), viewModel.uiState.value.panels)
+        assertEquals(listOf("existing-uri", panel, frame, imageBounds), imageStore.lastCropRequest)
         assertEquals(listOf("existing-uri"), imageStore.deleted)
     }
 

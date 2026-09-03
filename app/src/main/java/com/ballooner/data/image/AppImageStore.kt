@@ -228,47 +228,56 @@ class AppImageStore @Inject constructor(
     override suspend fun cropPanel(
         uri: String,
         panel: RectFraction,
-        source: RectFraction,
+        frame: RectFraction,
+        imageBounds: RectFraction,
     ): String? = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = decodeBitmap(uri, mutable = true) ?: return@runCatching null
-            val sourceRect = source.toPixelRect(bitmap.width, bitmap.height)
-            val targetRect = panel.toPixelRect(bitmap.width, bitmap.height)
-            val cropped = Bitmap.createBitmap(
+            val panelRect = panel.toPixelRect(bitmap.width, bitmap.height)
+            val frameRect = frame.toPixelRect(bitmap.width, bitmap.height)
+            val panelBitmap = Bitmap.createBitmap(
                 bitmap,
-                sourceRect.left,
-                sourceRect.top,
-                sourceRect.width,
-                sourceRect.height,
+                panelRect.left,
+                panelRect.top,
+                panelRect.width,
+                panelRect.height,
             )
             val canvas = android.graphics.Canvas(bitmap)
             canvas.drawRect(
-                targetRect.left.toFloat(),
-                targetRect.top.toFloat(),
-                (targetRect.left + targetRect.width).toFloat(),
-                (targetRect.top + targetRect.height).toFloat(),
+                panelRect.left.toFloat(),
+                panelRect.top.toFloat(),
+                (panelRect.left + panelRect.width).toFloat(),
+                (panelRect.top + panelRect.height).toFloat(),
                 Paint().apply {
                     xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
                 },
             )
+            val checkpoint = canvas.save()
+            canvas.clipRect(
+                frameRect.left,
+                frameRect.top,
+                frameRect.left + frameRect.width,
+                frameRect.top + frameRect.height,
+            )
             canvas.drawBitmap(
-                cropped,
+                panelBitmap,
                 null,
                 android.graphics.Rect(
-                    targetRect.left,
-                    targetRect.top,
-                    targetRect.left + targetRect.width,
-                    targetRect.top + targetRect.height,
+                    (imageBounds.left * bitmap.width).roundToInt(),
+                    (imageBounds.top * bitmap.height).roundToInt(),
+                    ((imageBounds.left + imageBounds.width) * bitmap.width).roundToInt(),
+                    ((imageBounds.top + imageBounds.height) * bitmap.height).roundToInt(),
                 ),
                 null,
             )
-            val borderWidth = borderThicknessPx(targetRect.width, targetRect.height)
+            canvas.restoreToCount(checkpoint)
+            val borderWidth = borderThicknessPx(frameRect.width, frameRect.height)
             canvas.drawRect(
                 borderRect(
-                    targetRect.left,
-                    targetRect.top,
-                    targetRect.width,
-                    targetRect.height,
+                    frameRect.left,
+                    frameRect.top,
+                    frameRect.width,
+                    frameRect.height,
                     borderWidth / 2f,
                 ),
                 borderPaint(borderWidth),

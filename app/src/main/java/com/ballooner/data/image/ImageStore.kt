@@ -32,8 +32,13 @@ interface ImageStore {
         destination: RectFraction,
     ): RearrangedImage?
 
-    /** Replaces [panel] with [source] scaled to fill the same panel rectangle. */
-    suspend fun cropPanel(uri: String, panel: RectFraction, source: RectFraction): String?
+    /** Replaces [panel] with a clipped [frame], drawing its pixels at unchanged-size [imageBounds]. */
+    suspend fun cropPanel(
+        uri: String,
+        panel: RectFraction,
+        frame: RectFraction,
+        imageBounds: RectFraction,
+    ): String?
 }
 
 /** The result of [ImageStore.composeImages]. */

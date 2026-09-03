@@ -221,12 +221,14 @@ class ProjectViewModel @Inject constructor(
         }
     }
 
-    fun onCropImage(panel: RectFraction, source: RectFraction) {
-        if (panel == source) return
+    fun onCropImage(panel: RectFraction, frame: RectFraction, imageBounds: RectFraction) {
+        if (panel == frame && panel == imageBounds) return
         viewModelScope.launch {
             val previous = uiState.value.imageUri ?: return@launch
-            if (panel !in uiState.value.panels) return@launch
-            val cropped = imageStore.cropPanel(previous, panel, source) ?: return@launch
+            val panels = uiState.value.panels
+            if (panel !in panels) return@launch
+            val cropped = imageStore.cropPanel(previous, panel, frame, imageBounds) ?: return@launch
+            panelRepository.replacePanels(projectId, panels.map { if (it == panel) frame else it })
             projectRepository.setProjectImage(projectId, cropped)
             imageStore.deleteImage(previous)
         }

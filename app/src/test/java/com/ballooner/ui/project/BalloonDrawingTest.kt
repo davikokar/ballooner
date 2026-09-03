@@ -61,43 +61,44 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `crop handle drag creates a proportional source window`() {
+    fun `crop handle moves left and bottom borders independently`() {
         val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
 
-        val source = cropSourceAfterHandleDrag(
+        val frame = cropFrameAfterHandleDrag(
             panel = panel,
-            source = panel,
-            dragOffset = Offset(100f, -100f),
+            frame = panel,
+            dragOffset = Offset(100f, -50f),
             displaySize = Size(1000f, 1000f),
         )
 
-        assertRectEquals(RectFraction(0.1f, 0f, 0.4f, 0.4f), source)
+        assertRectEquals(RectFraction(0.1f, 0f, 0.4f, 0.45f), frame)
     }
 
     @Test
-    fun `crop handle moves inward with crop scale`() {
-        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
-        val source = RectFraction(0.05f, 0.05f, 0.4f, 0.4f)
+    fun `crop handle follows the moving canvas corner`() {
+        val frame = RectFraction(0.1f, 0f, 0.4f, 0.45f)
 
-        val center = cropHandleCenter(panel, source, Size(1000f, 800f))
+        val center = cropHandleCenter(frame, Size(1000f, 800f))
 
         assertEquals(100f, center.x, 0.001f)
-        assertEquals(320f, center.y, 0.001f)
+        assertEquals(360f, center.y, 0.001f)
     }
 
     @Test
-    fun `dragging cropped picture pans source within original panel`() {
+    fun `dragging cropped picture moves fixed-scale image within crop frame`() {
         val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
-        val source = RectFraction(0.1f, 0f, 0.4f, 0.4f)
+        val frame = RectFraction(0.1f, 0f, 0.4f, 0.45f)
 
-        val panned = panCropSource(
+        val offset = panCroppedImage(
             panel = panel,
-            source = source,
+            frame = frame,
+            imageOffset = Offset.Zero,
             dragOffset = Offset(200f, -200f),
             displaySize = Size(1000f, 1000f),
         )
 
-        assertRectEquals(RectFraction(0f, 0.1f, 0.4f, 0.4f), panned)
+        assertEquals(0.1f, offset.x, 0.0001f)
+        assertEquals(-0.05f, offset.y, 0.0001f)
     }
 
     @Test
