@@ -290,14 +290,28 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `rotation targets the only focused or selected image`() {
-        val first = RectFraction(0f, 0f, 0.5f, 1f)
-        val second = RectFraction(0.5f, 0f, 0.5f, 1f)
+    fun `panel rotate handle requires edit mode with the sole panel selected and not focused`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
 
-        assertEquals(first, rotationTarget(listOf(first), selectedPanel = null, focusedPanel = null))
-        assertNull(rotationTarget(listOf(first, second), selectedPanel = null, focusedPanel = null))
-        assertEquals(second, rotationTarget(listOf(first, second), selectedPanel = second, focusedPanel = null))
-        assertEquals(first, rotationTarget(listOf(first, second), selectedPanel = second, focusedPanel = first))
+        assertTrue(
+            rotationHandleEligible(
+                editMode = true,
+                panels = listOf(panel),
+                selectedPanel = panel,
+                focusedPanel = null,
+            ),
+        )
+    }
+
+    @Test
+    fun `panel rotate handle rejects ineligible selection states`() {
+        val selected = RectFraction(0f, 0f, 0.5f, 1f)
+        val other = RectFraction(0.5f, 0f, 0.5f, 1f)
+
+        assertFalse(rotationHandleEligible(true, listOf(selected), selectedPanel = null, focusedPanel = null))
+        assertFalse(rotationHandleEligible(true, listOf(selected, other), selected, focusedPanel = null))
+        assertFalse(rotationHandleEligible(true, listOf(selected), selected, focusedPanel = selected))
+        assertFalse(rotationHandleEligible(false, listOf(selected), selected, focusedPanel = null))
     }
 
     @Test

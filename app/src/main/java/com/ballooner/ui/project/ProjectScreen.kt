@@ -410,21 +410,11 @@ fun ProjectScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     Toolbar(
                         editMode = editMode,
-                        canRotate = rotationTarget(uiState.panels, selectedPanel, focusedPanel) != null,
                         canFocusImage = uiState.panels.size > 1,
                         imageFocused = focusedPanel != null,
                         onToggleImageFocus = {
                             focusedPanel = imageFocusTarget(uiState.panels, selectedPanel, focusedPanel)
                             rotation = 0f
-                        },
-                        onRotate = {
-                            rotationTarget(uiState.panels, selectedPanel, focusedPanel)?.let { target ->
-                                if (uiState.panels.size > 1) {
-                                    focusedPanel = target
-                                    selectedPanel = null
-                                }
-                                rotation = (rotation + 90f) % 360f
-                            }
                         },
                         onChangeImage = { launchPicker(true, null) },
                         onSave = onSave,
@@ -438,6 +428,7 @@ fun ProjectScreen(
                         hideFontSelector = uiState.hideFontSelector,
                         autoTextSize = uiState.autoTextSize,
                         rotation = rotation,
+                        onRotate = { rotation = (rotation + 90f) % 360f },
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
@@ -767,11 +758,9 @@ private fun ProjectOverflowMenu(
 @Composable
 private fun Toolbar(
     editMode: Boolean,
-    canRotate: Boolean,
     canFocusImage: Boolean,
     imageFocused: Boolean,
     onToggleImageFocus: () -> Unit,
-    onRotate: () -> Unit,
     onChangeImage: () -> Unit,
     onSave: () -> Unit,
     onToggleMode: (Boolean) -> Unit,
@@ -792,13 +781,6 @@ private fun Toolbar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ComicButton(
-            text = stringResource(R.string.rotate),
-            onClick = onRotate,
-            icon = BalloonerIcons.Rotate,
-            showLabel = false,
-            enabled = canRotate,
-        )
         ComicButton(
             text = stringResource(if (imageFocused) R.string.show_all_panels else R.string.focus_panel),
             onClick = onToggleImageFocus,
@@ -992,6 +974,7 @@ private fun Editor(
     hideFontSelector: Boolean,
     autoTextSize: Boolean,
     rotation: Float,
+    onRotate: () -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
@@ -1530,6 +1513,16 @@ private fun Editor(
                                     }
                                     selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
                                         val displayedPanel = previewPanel ?: pending
+                                        if (rotationHandleEligible(editMode, panels, selectedPanel, focusedPanel)) {
+                                            ImageRotateHandle(
+                                                centerPx = Offset(
+                                                    displayedPanel.left * size.width,
+                                                    displayedPanel.top * size.height,
+                                                ),
+                                                contentScale = 1f,
+                                                onTap = onRotate,
+                                            )
+                                        }
                                         ImageMoveHandle(
                                             centerPx = Offset(
                                                 (displayedPanel.left + displayedPanel.width / 2f) * size.width,
@@ -1831,11 +1824,14 @@ internal fun addPanelPlacements(
 internal fun canEditBalloons(editMode: Boolean, selectedPanel: RectFraction?): Boolean =
     editMode && selectedPanel == null
 
-internal fun rotationTarget(
+internal fun rotationHandleEligible(
+    editMode: Boolean,
     panels: List<RectFraction>,
     selectedPanel: RectFraction?,
     focusedPanel: RectFraction?,
-): RectFraction? = focusedPanel ?: selectedPanel ?: panels.singleOrNull()
+): Boolean = editMode &&
+    focusedPanel == null &&
+    panels.singleOrNull() == selectedPanel
 
 internal fun List<RectFraction>.ownerPanel(x: Float, y: Float): RectFraction? =
     panelAt(x, y) ?: minByOrNull { panel ->
@@ -2644,6 +2640,34 @@ private fun Handles(
         onTap = onDelete,
     ) {
         Text(text = "\u00D7", color = Color.White)
+    }
+}
+
+/** Rotate handle for the sole image panel, positioned at its top-left corner. */
+@Composable
+private fun ImageRotateHandle(centerPx: Offset, contentScale: Float, onTap: () -> Unit) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { 16.dp.toPx() }
+    val rotateLabel = stringResource(R.string.rotate)
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(32.dp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
+            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
+            .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
+            .clickable(onClickLabel = rotateLabel, onClick = onTap),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = BalloonerIcons.Rotate,
+            contentDescription = null,
+            tint = InkBlack,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
