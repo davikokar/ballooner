@@ -1141,7 +1141,8 @@ private fun Editor(
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .then(if (focusedPanel != null || rotation != 0f) Modifier.clipToBounds() else Modifier),
+                                    // Clip only in focus mode: the unfocused rotated layer fits this frame exactly, so clipping would only cut off handle overhang.
+                                    .then(if (focusedPanel != null) Modifier.clipToBounds() else Modifier),
                             ) {
                             Box(
                                 modifier = Modifier
@@ -1619,7 +1620,7 @@ private fun Editor(
                                             },
                                             onDrag = { delta ->
                                                 moveHandleOffset = Offset.Zero
-                                                resizeHandleOffset += delta
+                                                resizeHandleOffset += panelResizeGrowth(delta, rotation)
                                             },
                                             onDragEnd = { finalDragOffset ->
                                                 if (finalDragOffset != Offset.Zero) {
@@ -1628,7 +1629,7 @@ private fun Editor(
                                                         magneticResizeDestination(
                                                             panels = panels,
                                                             moving = pending,
-                                                            dragOffset = finalDragOffset,
+                                                            dragOffset = panelResizeGrowth(finalDragOffset, rotation),
                                                             displaySize = size,
                                                             imageSize = IntSize(image.width, image.height),
                                                             snapThresholdDisplayPx = magneticSnapThresholdPx,
@@ -1665,6 +1666,7 @@ private fun Editor(
                                                     frame = cropDesiredFrame ?: pending,
                                                     dragOffset = delta,
                                                     displaySize = size,
+                                                    rotationDegrees = rotation,
                                                 )
                                                 cropDesiredFrame = newFrame
                                                 val snappedFrame = magneticallyAlignedCropFrame(
@@ -1673,6 +1675,7 @@ private fun Editor(
                                                     desired = newFrame,
                                                     displaySize = size,
                                                     snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                                    rotationDegrees = rotation,
                                                 )
                                                 cropFrame = snappedFrame
                                                 cropImageOffset = panCroppedImage(
@@ -2033,22 +2036,48 @@ internal fun cropFrameAfterHandleDrag(
     frame: RectFraction,
     dragOffset: Offset,
     displaySize: Size,
+    rotationDegrees: Float = 0f,
 ): RectFraction {
-    val right = frame.left + frame.width
-    val bottom = frame.top + frame.height
+    val corner = panelAnchorUv(HandleAnchor.BOTTOM_LEFT, rotationDegrees)
+    var left = frame.left
+    var top = frame.top
+    var right = frame.left + frame.width
+    var bottom = frame.top + frame.height
     val minimumWidth = panel.width * MIN_CROP_FRAME_FRACTION
     val minimumHeight = panel.height * MIN_CROP_FRAME_FRACTION
-    val left = (frame.left + dragOffset.x / displaySize.width)
-        .coerceIn(panel.left, right - minimumWidth)
-    val newBottom = (bottom + dragOffset.y / displaySize.height)
-        .coerceIn(frame.top + minimumHeight, panel.top + panel.height)
+    val dx = dragOffset.x / displaySize.width
+    val dy = dragOffset.y / displaySize.height
+    if (corner.x == 0f) {
+        left = (left + dx).coerceIn(panel.left, right - minimumWidth)
+    } else {
+        right = (right + dx).coerceIn(left + minimumWidth, panel.left + panel.width)
+    }
+    if (corner.y == 0f) {
+        top = (top + dy).coerceIn(panel.top, bottom - minimumHeight)
+    } else {
+        bottom = (bottom + dy).coerceIn(top + minimumHeight, panel.top + panel.height)
+    }
     return RectFraction(
         left = left,
-        top = frame.top,
+        top = top,
         width = right - left,
-        height = newBottom - frame.top,
+        height = bottom - top,
     )
 }
+
+/** Nearest surrounding-panel edge within the snap threshold, or [desired] when nothing is close. */
+internal fun List<Float>.snappedCropEdge(
+    desired: Float,
+    minimum: Float,
+    maximum: Float,
+    displayExtent: Float,
+    snapThresholdDisplayPx: Float,
+): Float = filter { it in minimum..maximum }
+    .map { edge -> edge to kotlin.math.abs(edge - desired) * displayExtent }
+    .filter { (_, distance) -> distance <= snapThresholdDisplayPx }
+    .minByOrNull { (_, distance) -> distance }
+    ?.first
+    ?: desired
 
 internal fun magneticallyAlignedCropFrame(
     panels: List<RectFraction>,
@@ -2056,32 +2085,59 @@ internal fun magneticallyAlignedCropFrame(
     desired: RectFraction,
     displaySize: Size,
     snapThresholdDisplayPx: Float,
+    rotationDegrees: Float = 0f,
 ): RectFraction {
+    val corner = panelAnchorUv(HandleAnchor.BOTTOM_LEFT, rotationDegrees)
     val surrounding = panels.filter { it != cropping }
-    val right = desired.left + desired.width
+    val verticalEdges = surrounding.flatMap { listOf(it.left, it.left + it.width) }
+    val horizontalEdges = surrounding.flatMap { listOf(it.top, it.top + it.height) }
     val minimumWidth = cropping.width * MIN_CROP_FRAME_FRACTION
     val minimumHeight = cropping.height * MIN_CROP_FRAME_FRACTION
-    val left = surrounding
-        .flatMap { listOf(it.left, it.left + it.width) }
-        .filter { it in cropping.left..(right - minimumWidth) }
-        .map { edge -> edge to kotlin.math.abs(edge - desired.left) * displaySize.width }
-        .filter { (_, distance) -> distance <= snapThresholdDisplayPx }
-        .minByOrNull { (_, distance) -> distance }
-        ?.first
-        ?: desired.left
+    val desiredRight = desired.left + desired.width
     val desiredBottom = desired.top + desired.height
-    val bottom = surrounding
-        .flatMap { listOf(it.top, it.top + it.height) }
-        .filter { it in (desired.top + minimumHeight)..(cropping.top + cropping.height) }
-        .map { edge -> edge to kotlin.math.abs(edge - desiredBottom) * displaySize.height }
-        .filter { (_, distance) -> distance <= snapThresholdDisplayPx }
-        .minByOrNull { (_, distance) -> distance }
-        ?.first
-        ?: desiredBottom
+    var left = desired.left
+    var right = desiredRight
+    var top = desired.top
+    var bottom = desiredBottom
+    if (corner.x == 0f) {
+        left = verticalEdges.snappedCropEdge(
+            desired = desired.left,
+            minimum = cropping.left,
+            maximum = desiredRight - minimumWidth,
+            displayExtent = displaySize.width,
+            snapThresholdDisplayPx = snapThresholdDisplayPx,
+        )
+    } else {
+        right = verticalEdges.snappedCropEdge(
+            desired = desiredRight,
+            minimum = desired.left + minimumWidth,
+            maximum = cropping.left + cropping.width,
+            displayExtent = displaySize.width,
+            snapThresholdDisplayPx = snapThresholdDisplayPx,
+        )
+    }
+    if (corner.y == 0f) {
+        top = horizontalEdges.snappedCropEdge(
+            desired = desired.top,
+            minimum = cropping.top,
+            maximum = desiredBottom - minimumHeight,
+            displayExtent = displaySize.height,
+            snapThresholdDisplayPx = snapThresholdDisplayPx,
+        )
+    } else {
+        bottom = horizontalEdges.snappedCropEdge(
+            desired = desiredBottom,
+            minimum = desired.top + minimumHeight,
+            maximum = cropping.top + cropping.height,
+            displayExtent = displaySize.height,
+            snapThresholdDisplayPx = snapThresholdDisplayPx,
+        )
+    }
     return desired.copy(
         left = left,
+        top = top,
         width = right - left,
-        height = bottom - desired.top,
+        height = bottom - top,
     )
 }
 
@@ -2104,15 +2160,10 @@ internal fun quarterTurns(rotationDegrees: Float): Int {
 }
 
 /**
- * Centre, in rotated-layer pixels, of the handle that must appear at [anchor] on screen.
+ * Unrotated-layer position, in 0..1 panel coordinates, that ends up at [anchor] on screen.
  * Each quarter turn is undone by mapping the anchor counter-clockwise within the panel.
  */
-internal fun panelHandleCenter(
-    panel: RectFraction,
-    anchor: HandleAnchor,
-    rotationDegrees: Float,
-    displaySize: Size,
-): Offset {
+internal fun panelAnchorUv(anchor: HandleAnchor, rotationDegrees: Float): Offset {
     var u = anchor.u
     var v = anchor.v
     repeat(quarterTurns(rotationDegrees)) {
@@ -2120,9 +2171,32 @@ internal fun panelHandleCenter(
         v = 1f - u
         u = rotatedU
     }
+    return Offset(u, v)
+}
+
+/** Centre, in rotated-layer pixels, of the handle that must appear at [anchor] on screen. */
+internal fun panelHandleCenter(
+    panel: RectFraction,
+    anchor: HandleAnchor,
+    rotationDegrees: Float,
+    displaySize: Size,
+): Offset {
+    val uv = panelAnchorUv(anchor, rotationDegrees)
     return Offset(
-        x = (panel.left + u * panel.width) * displaySize.width,
-        y = (panel.top + v * panel.height) * displaySize.height,
+        x = (panel.left + uv.x * panel.width) * displaySize.width,
+        y = (panel.top + uv.y * panel.height) * displaySize.height,
+    )
+}
+
+/**
+ * Turns a resize-handle drag, already expressed in unrotated layer pixels, into the
+ * width/height growth the user asked for by dragging away from the panel on screen.
+ */
+internal fun panelResizeGrowth(dragOffset: Offset, rotationDegrees: Float): Offset {
+    val corner = panelAnchorUv(HandleAnchor.BOTTOM_RIGHT, rotationDegrees)
+    return Offset(
+        x = if (corner.x == 0f) -dragOffset.x else dragOffset.x,
+        y = if (corner.y == 0f) -dragOffset.y else dragOffset.y,
     )
 }
 

@@ -18,3 +18,4 @@ for the required format and status rules.
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
+| [ADR-0001](decisions/0001-view-rotation-is-a-display-only-layer-transform.md) | View rotation is a display-only layer transform | Active | 2026-09-25 |

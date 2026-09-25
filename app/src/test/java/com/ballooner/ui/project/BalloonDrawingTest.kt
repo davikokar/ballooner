@@ -477,9 +477,176 @@ class BalloonDrawingTest {
         assertEquals(1, quarterTurns(46f))
     }
 
+    @Test
+    fun `the resize anchor resolves to the layer corner facing the screen bottom-right`() {
+        assertOffsetEquals(Offset(1f, 1f), panelAnchorUv(HandleAnchor.BOTTOM_RIGHT, 0f))
+        assertOffsetEquals(Offset(1f, 0f), panelAnchorUv(HandleAnchor.BOTTOM_RIGHT, 90f))
+        assertOffsetEquals(Offset(0f, 0f), panelAnchorUv(HandleAnchor.BOTTOM_RIGHT, 180f))
+        assertOffsetEquals(Offset(0f, 1f), panelAnchorUv(HandleAnchor.BOTTOM_RIGHT, 270f))
+    }
+
+    @Test
+    fun `the crop anchor resolves to the layer corner facing the screen bottom-left`() {
+        assertOffsetEquals(Offset(0f, 1f), panelAnchorUv(HandleAnchor.BOTTOM_LEFT, 0f))
+        assertOffsetEquals(Offset(1f, 1f), panelAnchorUv(HandleAnchor.BOTTOM_LEFT, 90f))
+        assertOffsetEquals(Offset(1f, 0f), panelAnchorUv(HandleAnchor.BOTTOM_LEFT, 180f))
+        assertOffsetEquals(Offset(0f, 0f), panelAnchorUv(HandleAnchor.BOTTOM_LEFT, 270f))
+    }
+
+    @Test
+    fun `panel handle centres are the anchor uv scaled onto the panel`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+
+        for (rotation in quarterTurnRotations) {
+            for (anchor in HandleAnchor.entries) {
+                val uv = panelAnchorUv(anchor, rotation)
+
+                val center = panelHandleCenter(panel, anchor, rotation, displaySize)
+
+                assertOffsetEquals(
+                    Offset(
+                        (panel.left + uv.x * panel.width) * displaySize.width,
+                        (panel.top + uv.y * panel.height) * displaySize.height,
+                    ),
+                    center,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `pulling the resize handle toward the screen bottom-right grows the panel at every quarter turn`() {
+        val unrotated = panelResizeGrowth(bottomRightPullsInLayerSpace.getValue(0f), 0f)
+
+        for ((rotation, drag) in bottomRightPullsInLayerSpace) {
+            val growth = panelResizeGrowth(drag, rotation)
+
+            assertTrue(growth.x > 0f)
+            assertTrue(growth.y > 0f)
+            assertOffsetEquals(unrotated, growth)
+        }
+    }
+
+    @Test
+    fun `pushing the resize handle toward the panel shrinks it at every quarter turn`() {
+        val unrotated = panelResizeGrowth(-bottomRightPullsInLayerSpace.getValue(0f), 0f)
+
+        for ((rotation, drag) in bottomRightPullsInLayerSpace) {
+            val growth = panelResizeGrowth(-drag, rotation)
+
+            assertTrue(growth.x < 0f)
+            assertTrue(growth.y < 0f)
+            assertOffsetEquals(unrotated, growth)
+        }
+    }
+
+    @Test
+    fun `resize growth passes the drag through untouched when the view is upright`() {
+        val drag = Offset(40f, -30f)
+
+        assertOffsetEquals(drag, panelResizeGrowth(drag, 0f))
+        assertOffsetEquals(drag, panelResizeGrowth(drag, 360f))
+        assertOffsetEquals(drag, panelResizeGrowth(drag, -0f))
+    }
+
+    @Test
+    fun `crop handle moves right and bottom borders after a quarter turn`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val frame = cropFrameAfterHandleDrag(
+            panel = panel,
+            frame = RectFraction(0.1f, 0.1f, 0.3f, 0.3f),
+            dragOffset = Offset(50f, -30f),
+            displaySize = Size(1000f, 1000f),
+            rotationDegrees = 90f,
+        )
+
+        assertRectEquals(RectFraction(0.1f, 0.1f, 0.35f, 0.27f), frame)
+    }
+
+    @Test
+    fun `crop handle moves right and top borders after a half turn`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val frame = cropFrameAfterHandleDrag(
+            panel = panel,
+            frame = RectFraction(0.1f, 0.1f, 0.3f, 0.3f),
+            dragOffset = Offset(50f, -30f),
+            displaySize = Size(1000f, 1000f),
+            rotationDegrees = 180f,
+        )
+
+        assertRectEquals(RectFraction(0.1f, 0.07f, 0.35f, 0.33f), frame)
+    }
+
+    @Test
+    fun `crop handle moves left and top borders after three quarter turns`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val frame = cropFrameAfterHandleDrag(
+            panel = panel,
+            frame = RectFraction(0.1f, 0.1f, 0.3f, 0.3f),
+            dragOffset = Offset(50f, -30f),
+            displaySize = Size(1000f, 1000f),
+            rotationDegrees = 270f,
+        )
+
+        assertRectEquals(RectFraction(0.15f, 0.07f, 0.25f, 0.33f), frame)
+    }
+
+    @Test
+    fun `crop frame stays within the panel and above the minimum at every quarter turn`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+        val oversizedDrags = listOf(Offset(5000f, 5000f), Offset(-5000f, -5000f))
+
+        for (rotation in quarterTurnRotations) {
+            for (drag in oversizedDrags) {
+                val frame = cropFrameAfterHandleDrag(panel, panel, drag, displaySize, rotation)
+
+                assertTrue(frame.left >= panel.left - 0.0001f)
+                assertTrue(frame.top >= panel.top - 0.0001f)
+                assertTrue(frame.left + frame.width <= panel.left + panel.width + 0.0001f)
+                assertTrue(frame.top + frame.height <= panel.top + panel.height + 0.0001f)
+                assertTrue(frame.width >= panel.width * MINIMUM_CROP_FRACTION - 0.0001f)
+                assertTrue(frame.height >= panel.height * MINIMUM_CROP_FRACTION - 0.0001f)
+            }
+        }
+    }
+
+    @Test
+    fun `crop frame sticks only the borders the handle moves after a quarter turn`() {
+        val cropping = RectFraction(0.1f, 0.1f, 0.5f, 0.5f)
+        val nearRight = RectFraction(0.5f, 0.7f, 0.2f, 0.2f)
+        val nearBottom = RectFraction(0.7f, 0.5f, 0.2f, 0.2f)
+        val temptingLeft = RectFraction(0.2f, 0.7f, 0.1f, 0.1f)
+        val temptingTop = RectFraction(0.7f, 0.2f, 0.1f, 0.1f)
+
+        val snapped = magneticallyAlignedCropFrame(
+            panels = listOf(cropping, nearRight, nearBottom, temptingLeft, temptingTop),
+            cropping = cropping,
+            desired = RectFraction(0.21f, 0.21f, 0.28f, 0.28f),
+            displaySize = Size(1000f, 1000f),
+            snapThresholdDisplayPx = 20f,
+            rotationDegrees = 90f,
+        )
+
+        assertRectEquals(RectFraction(0.21f, 0.21f, 0.29f, 0.29f), snapped)
+    }
+
     private val displaySize = Size(1000f, 800f)
 
     private val quarterTurnRotations = listOf(0f, 90f, 180f, 270f)
+
+    /**
+     * Drags toward the screen bottom-right, already expressed in unrotated layer space the way
+     * Compose delivers them to a node beneath a rotated `graphicsLayer`.
+     */
+    private val bottomRightPullsInLayerSpace = mapOf(
+        0f to Offset(40f, 30f),
+        90f to Offset(40f, -30f),
+        180f to Offset(-40f, -30f),
+        270f to Offset(-40f, 30f),
+    )
 
     private fun assertOffsetEquals(expected: Offset, actual: Offset) {
         assertEquals(expected.x, actual.x, 0.01f)
@@ -525,3 +692,6 @@ class BalloonDrawingTest {
         return Offset(left + anchor.u * (right - left), top + anchor.v * (bottom - top))
     }
 }
+
+/** Mirrors `MIN_CROP_FRAME_FRACTION` in ProjectScreen.kt, which is private to that file. */
+private const val MINIMUM_CROP_FRACTION = 0.2f
