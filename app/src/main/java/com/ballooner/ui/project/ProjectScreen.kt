@@ -1515,9 +1515,10 @@ private fun Editor(
                                         val displayedPanel = previewPanel ?: pending
                                         if (rotationHandleEligible(editMode, panels, selectedPanel, focusedPanel)) {
                                             ImageRotateHandle(
-                                                centerPx = Offset(
-                                                    displayedPanel.left * size.width,
-                                                    displayedPanel.top * size.height,
+                                                centerPx = rotateHandleCenter(
+                                                    panel = displayedPanel,
+                                                    displaySize = size,
+                                                    handleRadiusPx = with(LocalDensity.current) { 16.dp.toPx() },
                                                 ),
                                                 contentScale = 1f,
                                                 onTap = onRotate,
@@ -1832,6 +1833,15 @@ internal fun rotationHandleEligible(
 ): Boolean = editMode &&
     focusedPanel == null &&
     panels.singleOrNull() == selectedPanel
+
+internal fun rotateHandleCenter(
+    panel: RectFraction,
+    displaySize: Size,
+    handleRadiusPx: Float,
+): Offset = Offset(
+    x = (panel.left * displaySize.width).coerceAtLeast(handleRadiusPx),
+    y = (panel.top * displaySize.height).coerceAtLeast(handleRadiusPx),
+)
 
 internal fun List<RectFraction>.ownerPanel(x: Float, y: Float): RectFraction? =
     panelAt(x, y) ?: minByOrNull { panel ->

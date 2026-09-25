@@ -315,6 +315,16 @@ class BalloonDrawingTest {
     }
 
     @Test
+    fun `panel rotate handle stays fully visible at the canvas top-left`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+
+        val center = rotateHandleCenter(panel, Size(600f, 400f), handleRadiusPx = 16f)
+
+        assertEquals(16f, center.x, 0.001f)
+        assertEquals(16f, center.y, 0.001f)
+    }
+
+    @Test
     fun `focused image navigation exposes only adjacent panels`() {
         val topLeft = RectFraction(0f, 0f, 0.5f, 0.5f)
         val topRight = RectFraction(0.5f, 0f, 0.5f, 0.5f)
