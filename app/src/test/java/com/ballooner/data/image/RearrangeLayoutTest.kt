@@ -78,4 +78,47 @@ class RearrangeLayoutTest {
         assertEquals(270, layout.canvasWidth)
         assertEquals(140, layout.canvasHeight)
     }
+
+    @Test
+    fun `a swapped-dimension destination rebounds the canvas to fit the widened panel`() {
+        val layout = computeRearrangeLayout(
+            panelRects = listOf(
+                PixelRect(0, 0, 100, 300),
+                PixelRect(110, 0, 100, 300),
+            ),
+            fromIndex = 0,
+            // The quarter turn of the tall panel: width and height swapped about its centre.
+            desiredLeft = -100,
+            desiredTop = 100,
+            desiredWidth = 300,
+            desiredHeight = 100,
+        )
+
+        assertEquals(PixelRect(0, 100, 300, 100), layout.panelRects[0])
+        assertEquals(PixelRect(410, 0, 100, 300), layout.panelRects[1])
+        assertEquals(510, layout.canvasWidth)
+        assertEquals(300, layout.canvasHeight)
+    }
+
+    @Test
+    fun `rotation deliberately leaves the gap where the panel shrank, an accepted ADR-0002 limitation`() {
+        val layout = computeRearrangeLayout(
+            panelRects = listOf(
+                PixelRect(0, 0, 100, 300),
+                PixelRect(0, 310, 100, 100),
+            ),
+            fromIndex = 0,
+            desiredLeft = -100,
+            desiredTop = 100,
+            desiredWidth = 300,
+            desiredHeight = 100,
+        )
+
+        // The reflow only pushes neighbours apart to make room for growth, never pulls them back
+        // in, so the 10px gap below the tall panel becomes a 110px gap below the turned one.
+        // ADR-0002 accepts this; closing it is explicitly out of scope. Do not "fix" this test.
+        assertEquals(PixelRect(0, 100, 300, 100), layout.panelRects[0])
+        assertEquals(PixelRect(100, 310, 100, 100), layout.panelRects[1])
+        assertEquals(110, layout.panelRects[1].top - (layout.panelRects[0].top + layout.panelRects[0].height))
+    }
 }

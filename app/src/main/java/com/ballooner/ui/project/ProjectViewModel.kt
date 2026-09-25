@@ -14,6 +14,8 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.TextSizeMode
+import com.ballooner.domain.model.quarterTurnedPanel
+import com.ballooner.domain.model.remappedByQuarterTurns
 import com.ballooner.domain.model.remappedFrom
 import com.ballooner.domain.model.retainedCanvasRect
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -204,8 +206,19 @@ class ProjectViewModel @Inject constructor(
         rearrangeImage(panel, destination, undoable = true)
     }
 
-    private fun rearrangeImage(panel: RectFraction, destination: RectFraction, undoable: Boolean) {
-        if (panel == destination) return
+    /** Turns [panel]'s pixels and rect a quarter turn clockwise, reflowing its neighbours. */
+    fun onRotateImage(panel: RectFraction) {
+        rearrangeImage(panel, quarterTurnedPanel(panel), undoable = true, quarterTurns = 1)
+    }
+
+    private fun rearrangeImage(
+        panel: RectFraction,
+        destination: RectFraction,
+        undoable: Boolean,
+        quarterTurns: Int = 0,
+    ) {
+        // A turn still rewrites the pixels even when the rect is unchanged, as for a square panel.
+        if (quarterTurns == 0 && panel == destination) return
         viewModelScope.launch {
             discardUndoInternal()
             val previous = uiState.value.imageUri ?: return@launch
@@ -217,13 +230,21 @@ class ProjectViewModel @Inject constructor(
                 panels,
                 fromIndex,
                 destination,
+                quarterTurns,
             ) ?: return@launch
             uiState.value.balloons.forEach { balloon ->
                 val panelIndex = panels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
                 if (panelIndex >= 0) {
+                    val from = panels[panelIndex]
+                    val to = rearranged.panelRects[panelIndex]
                     balloonRepository.upsertBalloon(
                         projectId,
-                        balloon.remappedBetween(panels[panelIndex], rearranged.panelRects[panelIndex]),
+                        // Only the turned panel's balloons orbit; the others just follow the reflow.
+                        if (quarterTurns != 0 && panelIndex == fromIndex) {
+                            balloon.remappedByQuarterTurns(from, to, quarterTurns)
+                        } else {
+                            balloon.remappedBetween(from, to)
+                        },
                     )
                 }
             }

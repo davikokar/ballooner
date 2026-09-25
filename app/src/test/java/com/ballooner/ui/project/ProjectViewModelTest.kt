@@ -531,6 +531,233 @@ class ProjectViewModelTest {
     }
 
     @Test
+    fun `rotating a panel persists the swapped layout and the new image`() = runTest {
+        val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
+        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onRotateImage(panel)
+        advanceUntilIdle()
+
+        assertEquals("rotated-uri", viewModel.uiState.value.imageUri)
+        assertEquals(listOf(turned), viewModel.uiState.value.panels)
+        assertEquals(listOf("existing-uri", listOf(panel), 0, turned), imageStore.lastRearrangeRequest)
+        assertEquals(1, imageStore.lastRearrangeQuarterTurns)
+    }
+
+    @Test
+    fun `rotating a panel makes the edit undoable`() = runTest {
+        val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
+        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onRotateImage(panel)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.canUndo)
+        // The pre-rotation image is kept around until the undo slot is spent.
+        assertTrue(imageStore.deleted.isEmpty())
+    }
+
+    @Test
+    fun `undoing a rotation restores the previous image, panels and balloons`() = runTest {
+        val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
+        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
+        }
+        val balloonRepository = FakeBalloonRepository()
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = balloonRepository,
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        balloonRepository.upsertBalloon(
+            1L,
+            Balloon(id = 0, type = BalloonType.SPEAK, centerX = 0.45f, centerY = 0.25f),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) && it.balloons.isNotEmpty() }
+
+        viewModel.onRotateImage(panel)
+        advanceUntilIdle()
+        viewModel.undoLastImageEdit()
+        advanceUntilIdle()
+
+        val restored = viewModel.uiState.first {
+            it.imageUri == "existing-uri" && it.panels == listOf(panel) && !it.canUndo
+        }
+        val balloon = restored.balloons.single()
+        assertEquals(0.45f, balloon.centerX, 0.0001f)
+        assertEquals(0.25f, balloon.centerY, 0.0001f)
+        assertEquals(90f, balloon.tailAngleDegrees, 0.0001f)
+        assertEquals(listOf("rotated-uri"), imageStore.deleted)
+    }
+
+    @Test
+    fun `rotating a panel leaves the balloon selection untouched`() = runTest {
+        // Panel focus is remembered by the Composable, so the only selection the ViewModel
+        // exposes is the selected balloon; a rotate must not disturb it.
+        val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
+        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+        viewModel.addBalloon(BalloonType.SPEAK, panel)
+        advanceUntilIdle()
+        val selectedId = viewModel.uiState.value.balloons.single().id
+
+        viewModel.onRotateImage(panel)
+        advanceUntilIdle()
+
+        assertEquals(selectedId, viewModel.uiState.value.selectedBalloonId)
+    }
+
+    @Test
+    fun `rotating a panel that is not in the layout does nothing`() = runTest {
+        val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
+        val missing = RectFraction(left = 0.6f, top = 0.6f, width = 0.2f, height = 0.2f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("rotated-uri", listOf(panel))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        // A no-op produces no new state emission, so assert on the current value directly
+        // instead of awaiting one (StateFlow dedupes equal consecutive values).
+        viewModel.onRotateImage(missing)
+        advanceUntilIdle()
+
+        assertEquals("existing-uri", viewModel.uiState.value.imageUri)
+        assertEquals(listOf(panel), viewModel.uiState.value.panels)
+        assertEquals(false, viewModel.uiState.value.canUndo)
+        assertNull(imageStore.lastRearrangeRequest)
+        assertNull(imageStore.lastRearrangeQuarterTurns)
+    }
+
+    @Test
+    fun `rotating a panel turns only its own balloons, rescaling the neighbour's as usual`() = runTest {
+        val rotated = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
+        val neighbour = RectFraction(left = 0.6f, top = 0.1f, width = 0.3f, height = 0.3f)
+        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val reflowed = RectFraction(left = 0.75f, top = 0.1f, width = 0.15f, height = 0.3f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("rotated-uri", listOf(turned, reflowed))
+        }
+        val balloonRepository = FakeBalloonRepository()
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = balloonRepository,
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        val turnedBalloonId = balloonRepository.upsertBalloon(
+            1L,
+            Balloon(id = 0, type = BalloonType.SPEAK, centerX = 0.45f, centerY = 0.25f),
+        )
+        val neighbourBalloonId = balloonRepository.upsertBalloon(
+            1L,
+            Balloon(id = 0, type = BalloonType.SPEAK, centerX = 0.7f, centerY = 0.2f),
+        )
+        panelRepository.replacePanels(1L, listOf(rotated, neighbour))
+        viewModel.uiState.first { it.panels.size == 2 && it.balloons.size == 2 }
+
+        viewModel.onRotateImage(rotated)
+        advanceUntilIdle()
+
+        val balloons = viewModel.uiState.value.balloons
+        val turnedBalloon = balloons.first { it.id == turnedBalloonId }
+        assertEquals(0.55f, turnedBalloon.centerX, 0.0001f)
+        assertEquals(0.45f, turnedBalloon.centerY, 0.0001f)
+        assertEquals(180f, turnedBalloon.tailAngleDegrees, 0.0001f)
+        // The body stays upright and keeps its size, so the text remains readable.
+        assertEquals(0.4f, turnedBalloon.width, 0.0001f)
+
+        val neighbourBalloon = balloons.first { it.id == neighbourBalloonId }
+        assertEquals(0.8f, neighbourBalloon.centerX, 0.0001f)
+        assertEquals(0.2f, neighbourBalloon.centerY, 0.0001f)
+        assertEquals(90f, neighbourBalloon.tailAngleDegrees, 0.0001f)
+        assertEquals(0.2f, neighbourBalloon.width, 0.0001f)
+    }
+
+    @Test
     fun `adds a balloon of the requested type and selects it`() = runTest {
         val viewModel = viewModel()
 

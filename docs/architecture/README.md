@@ -18,4 +18,5 @@ for the required format and status rules.
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| [ADR-0001](decisions/0001-view-rotation-is-a-display-only-layer-transform.md) | View rotation is a display-only layer transform | Active | 2026-09-25 |
+| [ADR-0001](decisions/0001-view-rotation-is-a-display-only-layer-transform.md) | View rotation is a display-only layer transform | Disabled | 2026-09-25 |
+| [ADR-0002](decisions/0002-panel-rotation-is-a-destructive-undoable-image-edit.md) | Panel rotation is a destructive, undoable edit to the merged comic image | Active | 2026-09-25 |

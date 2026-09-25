@@ -176,20 +176,33 @@ class AppImageStore @Inject constructor(
         panels: List<RectFraction>,
         fromIndex: Int,
         destination: RectFraction,
+        quarterTurns: Int,
     ): RearrangedImage? = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = decodeBitmap(uri) ?: return@runCatching null
+            val turns = ((quarterTurns % 4) + 4) % 4
             val sourceRects = panels.map { it.toPixelRect(bitmap.width, bitmap.height) }
-            val panelBitmaps = sourceRects.map { rect ->
-                Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width, rect.height)
+            val panelBitmaps = sourceRects.mapIndexed { index, rect ->
+                val panelBitmap = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width, rect.height)
+                if (index == fromIndex) panelBitmap.turnedByQuarters(turns) else panelBitmap
             }
+            val movedBitmap = panelBitmaps[fromIndex]
             val layout = computeRearrangeLayout(
                 panelRects = sourceRects,
                 fromIndex = fromIndex,
                 desiredLeft = (destination.left * bitmap.width).roundToInt(),
                 desiredTop = (destination.top * bitmap.height).roundToInt(),
-                desiredWidth = (destination.width * bitmap.width).roundToInt().coerceAtLeast(1),
-                desiredHeight = (destination.height * bitmap.height).roundToInt().coerceAtLeast(1),
+                // A turned panel must land at its own pixel size, so the blit resamples nothing.
+                desiredWidth = if (turns == 0) {
+                    (destination.width * bitmap.width).roundToInt().coerceAtLeast(1)
+                } else {
+                    movedBitmap.width
+                },
+                desiredHeight = if (turns == 0) {
+                    (destination.height * bitmap.height).roundToInt().coerceAtLeast(1)
+                } else {
+                    movedBitmap.height
+                },
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
@@ -295,6 +308,13 @@ class AppImageStore @Inject constructor(
         val pixelRight = ((left + width) * canvasWidth).roundToInt().coerceIn(pixelLeft + 1, canvasWidth)
         val pixelBottom = ((top + height) * canvasHeight).roundToInt().coerceIn(pixelTop + 1, canvasHeight)
         return PixelRect(pixelLeft, pixelTop, pixelRight - pixelLeft, pixelBottom - pixelTop)
+    }
+
+    /** Turns the panel a whole number of quarter turns clockwise; unfiltered, so no pixel is resampled. */
+    private fun Bitmap.turnedByQuarters(turns: Int): Bitmap {
+        if (turns == 0) return this
+        val matrix = android.graphics.Matrix().apply { postRotate(turns * 90f) }
+        return Bitmap.createBitmap(this, 0, 0, width, height, matrix, false)
     }
 
     private fun borderPaint(strokeWidthPx: Int) = Paint().apply {

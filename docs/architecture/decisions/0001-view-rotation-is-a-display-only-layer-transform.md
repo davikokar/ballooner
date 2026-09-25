@@ -1,7 +1,9 @@
 # ADR-0001: View rotation is a display-only layer transform
 
-- Status: Active
+- Status: Disabled
 - Date: 2026-09-25
+- Disabled date: 2026-09-25
+- Superseded by: ADR-0002
 - Decision makers: Ballooner maintainers
 
 ## Context

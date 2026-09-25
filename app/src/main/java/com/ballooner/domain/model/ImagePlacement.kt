@@ -154,6 +154,21 @@ fun magneticallyResizedPanel(
     )
 }
 
+/** The destination of a quarter turn of [panel]: its width and height swapped about its centre. */
+fun quarterTurnedPanel(panel: RectFraction): RectFraction {
+    val halfDifference = (panel.width.toDouble() - panel.height) / 2.0
+    return RectFraction(
+        left = snappedCoordinate(panel.left + halfDifference),
+        top = snappedCoordinate(panel.top - halfDifference),
+        width = panel.height,
+        height = panel.width,
+    )
+}
+
+// Turned edges land on the shared coordinate grid, so four quarter turns return the original rect exactly.
+private fun snappedCoordinate(value: Double): Float =
+    ((value * COORDINATE_PRECISION).roundToInt().toDouble() / COORDINATE_PRECISION).toFloat()
+
 fun repositionPanelsAfterResize(
     panels: List<RectFraction>,
     moving: RectFraction,

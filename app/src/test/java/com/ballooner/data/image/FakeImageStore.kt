@@ -19,6 +19,7 @@ class FakeImageStore : ImageStore {
     var rearrangeGate: CompletableDeferred<Unit>? = null
     var rearrangeStarted = false
     var lastRearrangeRequest: List<Any>? = null
+    var lastRearrangeQuarterTurns: Int? = null
     var cropResult: String? = null
     var lastCropRequest: List<Any>? = null
     var initialGridResult: InitialImageGrid? = null
@@ -54,8 +55,10 @@ class FakeImageStore : ImageStore {
         panels: List<RectFraction>,
         fromIndex: Int,
         destination: RectFraction,
+        quarterTurns: Int,
     ): RearrangedImage? {
         lastRearrangeRequest = listOf(uri, panels, fromIndex, destination)
+        lastRearrangeQuarterTurns = quarterTurns
         rearrangeStarted = true
         rearrangeGate?.await()
         return rearrangeResult

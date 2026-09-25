@@ -91,7 +91,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
@@ -181,6 +180,7 @@ fun ProjectRoute(
         onDeleteImage = viewModel::onDeleteImage,
         onMoveImage = viewModel::onMoveImage,
         onResizeImage = viewModel::onResizeImage,
+        onRotateImage = viewModel::onRotateImage,
         onCropImage = viewModel::onCropImage,
         onUndo = viewModel::undoLastImageEdit,
         onDiscardUndo = viewModel::discardUndo,
@@ -207,6 +207,7 @@ fun ProjectScreen(
     onDeleteImage: (RectFraction) -> Unit,
     onMoveImage: (RectFraction, RectFraction) -> Unit,
     onResizeImage: (RectFraction, RectFraction) -> Unit,
+    onRotateImage: (RectFraction) -> Unit,
     onCropImage: (RectFraction, RectFraction, RectFraction) -> Unit,
     onUndo: () -> Unit,
     onDiscardUndo: () -> Unit,
@@ -322,8 +323,6 @@ fun ProjectScreen(
     }
     // Edit mode shows the balloon controls; view mode shows the flat result.
     var editMode by remember { mutableStateOf(true) }
-    // View-only rotation is hoisted so the toolbar and reset affordance share the same state.
-    var rotation by remember { mutableStateOf(0f) }
     var selectedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var focusedPanel by remember { mutableStateOf<RectFraction?>(null) }
     var undoPressInProgress by remember { mutableStateOf(false) }
@@ -414,7 +413,6 @@ fun ProjectScreen(
                         imageFocused = focusedPanel != null,
                         onToggleImageFocus = {
                             focusedPanel = imageFocusTarget(uiState.panels, selectedPanel, focusedPanel)
-                            rotation = 0f
                         },
                         onChangeImage = { launchPicker(true, null) },
                         onSave = onSave,
@@ -427,16 +425,7 @@ fun ProjectScreen(
                         editMode = editMode,
                         hideFontSelector = uiState.hideFontSelector,
                         autoTextSize = uiState.autoTextSize,
-                        rotation = rotation,
-                        onRotate = {
-                            rotationTarget(uiState.panels, selectedPanel, focusedPanel)?.let { target ->
-                                if (uiState.panels.size > 1) {
-                                    focusedPanel = target
-                                    selectedPanel = null
-                                }
-                                rotation = (rotation + 90f) % 360f
-                            }
-                        },
+                        onRotateImage = onRotateImage,
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
@@ -453,7 +442,6 @@ fun ProjectScreen(
                         onFocusPanel = {
                             focusedPanel = it
                             selectedPanel = null
-                            rotation = 0f
                         },
                         onDeleteImage = onDeleteImage,
                         onMoveImage = onMoveImage,
@@ -981,8 +969,7 @@ private fun Editor(
     editMode: Boolean,
     hideFontSelector: Boolean,
     autoTextSize: Boolean,
-    rotation: Float,
-    onRotate: () -> Unit,
+    onRotateImage: (RectFraction) -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
@@ -1105,7 +1092,6 @@ private fun Editor(
                         }
                         is ImageResult.Loaded -> {
                         val image = state.bitmap
-                        val quarterTurned = ((rotation / 90f).roundToInt() % 2) != 0
                         // Fit the frame within the available space (letterboxed) with an exact
                         // size, reserving room below for the shape slider so tall images never
                         // push it off-screen.
@@ -1113,8 +1099,7 @@ private fun Editor(
                             (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER)
                         val shapeSliderSpace = if (showShapeSlider) 8.dp + 24.dp else 0.dp
                         val viewport = focusedPanel ?: RectFraction(0f, 0f, 1f, 1f)
-                        val unrotatedAspect = image.width * viewport.width / (image.height * viewport.height)
-                        val viewportAspect = if (quarterTurned) 1f / unrotatedAspect else unrotatedAspect
+                        val viewportAspect = image.width * viewport.width / (image.height * viewport.height)
                         val fitWidth = minOf(availableWidth, (availableHeight - shapeSliderSpace) * viewportAspect)
                         val fitHeight = fitWidth / viewportAspect
                         val normalAspect = image.width.toFloat() / image.height
@@ -1122,8 +1107,8 @@ private fun Editor(
                             availableWidth,
                             (availableHeight - shapeSliderSpace) * normalAspect,
                         ).value
-                        val focusLayout = if (focusedPanel != null || rotation != 0f) {
-                            viewport.focusLayout(fitWidth.value, fitHeight.value, quarterTurned)
+                        val focusLayout = if (focusedPanel != null) {
+                            viewport.focusLayout(fitWidth.value, fitHeight.value)
                         } else {
                             null
                         }
@@ -1131,17 +1116,13 @@ private fun Editor(
                             currentContentWidth = focusLayout?.contentWidth ?: fitWidth.value,
                             normalContentWidth = normalContentWidth,
                         )
-                        val rotationOrigin = TransformOrigin(
-                            pivotFractionX = viewport.left + viewport.width / 2f,
-                            pivotFractionY = viewport.top + viewport.height / 2f,
-                        )
                         Box(
                             modifier = Modifier.size(fitWidth, fitHeight),
                         ) {
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    // Clip only in focus mode: the unfocused rotated layer fits this frame exactly, so clipping would only cut off handle overhang.
+                                    // Clip only in focus mode: unfocused, the layer fits this frame exactly, so clipping would only cut off handle overhang.
                                     .then(if (focusedPanel != null) Modifier.clipToBounds() else Modifier),
                             ) {
                             Box(
@@ -1154,14 +1135,10 @@ private fun Editor(
                                     .requiredSize(
                                         width = (focusLayout?.contentWidth ?: fitWidth.value).dp,
                                         height = (focusLayout?.contentHeight ?: fitHeight.value).dp,
-                                    )
-                                    // No outer border here: each stored image already has its own
-                                    // border baked in (see AppImageStore), so a group-level border
-                                    // isn't drawn around composited panels.
-                                    .graphicsLayer {
-                                        rotationZ = rotation
-                                        transformOrigin = rotationOrigin
-                                    },
+                                    ),
+                                // No outer border here: each stored image already has its own
+                                // border baked in (see AppImageStore), so a group-level border
+                                // isn't drawn around composited panels.
                             ) {
                             Box(
                                 modifier = Modifier
@@ -1526,18 +1503,16 @@ private fun Editor(
                                             centerPx = panelHandleCenter(
                                                 panel = displayedPanel,
                                                 anchor = HandleAnchor.TOP_LEFT,
-                                                rotationDegrees = rotation,
                                                 displaySize = size,
                                             ),
                                             contentScale = 1f,
-                                            rotationDegrees = rotation,
                                             onTap = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
                                                 } else if (finishPanelImageTransform()) {
                                                     Unit
                                                 } else {
-                                                    onRotate()
+                                                    onRotateImage(pending)
                                                 }
                                             },
                                         )
@@ -1545,11 +1520,9 @@ private fun Editor(
                                             centerPx = panelHandleCenter(
                                                 panel = displayedPanel,
                                                 anchor = HandleAnchor.TOP_CENTER,
-                                                rotationDegrees = rotation,
                                                 displaySize = size,
                                             ),
                                             contentScale = 1f,
-                                            rotationDegrees = rotation,
                                             onDragStart = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
@@ -1584,11 +1557,9 @@ private fun Editor(
                                             centerPx = panelHandleCenter(
                                                 panel = displayedPanel,
                                                 anchor = HandleAnchor.TOP_RIGHT,
-                                                rotationDegrees = rotation,
                                                 displaySize = size,
                                             ),
                                             contentScale = 1f,
-                                            rotationDegrees = rotation,
                                             onTap = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
@@ -1603,11 +1574,9 @@ private fun Editor(
                                             centerPx = panelHandleCenter(
                                                 panel = displayedPanel,
                                                 anchor = HandleAnchor.BOTTOM_RIGHT,
-                                                rotationDegrees = rotation,
                                                 displaySize = size,
                                             ),
                                             contentScale = 1f,
-                                            rotationDegrees = rotation,
                                             onDragStart = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
@@ -1620,7 +1589,7 @@ private fun Editor(
                                             },
                                             onDrag = { delta ->
                                                 moveHandleOffset = Offset.Zero
-                                                resizeHandleOffset += panelResizeGrowth(delta, rotation)
+                                                resizeHandleOffset += delta
                                             },
                                             onDragEnd = { finalDragOffset ->
                                                 if (finalDragOffset != Offset.Zero) {
@@ -1629,7 +1598,7 @@ private fun Editor(
                                                         magneticResizeDestination(
                                                             panels = panels,
                                                             moving = pending,
-                                                            dragOffset = panelResizeGrowth(finalDragOffset, rotation),
+                                                            dragOffset = finalDragOffset,
                                                             displaySize = size,
                                                             imageSize = IntSize(image.width, image.height),
                                                             snapThresholdDisplayPx = magneticSnapThresholdPx,
@@ -1642,10 +1611,8 @@ private fun Editor(
                                             centerPx = cropHandleCenter(
                                                 frame = cropFrame.takeIf { croppingPanel == pending } ?: pending,
                                                 displaySize = size,
-                                                rotationDegrees = rotation,
                                             ),
                                             contentScale = 1f,
-                                            rotationDegrees = rotation,
                                             onDragStart = {
                                                 if (finishPanelImageTransform()) {
                                                     false
@@ -1666,7 +1633,6 @@ private fun Editor(
                                                     frame = cropDesiredFrame ?: pending,
                                                     dragOffset = delta,
                                                     displaySize = size,
-                                                    rotationDegrees = rotation,
                                                 )
                                                 cropDesiredFrame = newFrame
                                                 val snappedFrame = magneticallyAlignedCropFrame(
@@ -1675,7 +1641,6 @@ private fun Editor(
                                                     desired = newFrame,
                                                     displaySize = size,
                                                     snapThresholdDisplayPx = magneticSnapThresholdPx,
-                                                    rotationDegrees = rotation,
                                                 )
                                                 cropFrame = snappedFrame
                                                 cropImageOffset = panCroppedImage(
@@ -1726,11 +1691,7 @@ private fun Editor(
                                         .requiredSize(
                                             width = (focusLayout?.contentWidth ?: fitWidth.value).dp,
                                             height = (focusLayout?.contentHeight ?: fitHeight.value).dp,
-                                        )
-                                        .graphicsLayer {
-                                            rotationZ = rotation
-                                            transformOrigin = rotationOrigin
-                                        },
+                                        ),
                                 ) {
                                     val ownerBounds = panels
                                         .ownerPanel(selected.centerX, selected.centerY)
@@ -1753,14 +1714,6 @@ private fun Editor(
                                     onFocusPanel = onFocusPanel,
                                     modifier = Modifier.matchParentSize(),
                                 )
-                                // Focusing clears the selection, so the focused view carries its own
-                                // rotate handle to keep further quarter turns reachable.
-                                ImageRotateHandle(
-                                    centerPx = Offset.Zero,
-                                    contentScale = 1f,
-                                    rotationDegrees = 0f,
-                                    onTap = onRotate,
-                                )
                                 if (selectedPanel == focusedPanel) {
                                     val density = LocalDensity.current
                                     ImageDeleteHandle(
@@ -1769,7 +1722,6 @@ private fun Editor(
                                             0f,
                                         ),
                                         contentScale = 1f,
-                                        rotationDegrees = 0f,
                                         onTap = { showConfirmDeleteImage = true },
                                     )
                                 }
@@ -1864,12 +1816,6 @@ internal fun addPanelPlacements(
 internal fun canEditBalloons(editMode: Boolean, selectedPanel: RectFraction?): Boolean =
     editMode && selectedPanel == null
 
-internal fun rotationTarget(
-    panels: List<RectFraction>,
-    selectedPanel: RectFraction?,
-    focusedPanel: RectFraction?,
-): RectFraction? = focusedPanel ?: selectedPanel ?: panels.singleOrNull()
-
 internal fun List<RectFraction>.ownerPanel(x: Float, y: Float): RectFraction? =
     panelAt(x, y) ?: minByOrNull { panel ->
         val dx = x - (panel.left + panel.width / 2f)
@@ -1887,10 +1833,9 @@ internal data class FocusLayout(
 internal fun RectFraction.focusLayout(
     viewportWidth: Float,
     viewportHeight: Float,
-    quarterTurned: Boolean = false,
 ): FocusLayout {
-    val contentWidth = (if (quarterTurned) viewportHeight else viewportWidth) / width
-    val contentHeight = (if (quarterTurned) viewportWidth else viewportHeight) / height
+    val contentWidth = viewportWidth / width
+    val contentHeight = viewportHeight / height
     return FocusLayout(
         contentWidth = contentWidth,
         contentHeight = contentHeight,
@@ -2036,27 +1981,17 @@ internal fun cropFrameAfterHandleDrag(
     frame: RectFraction,
     dragOffset: Offset,
     displaySize: Size,
-    rotationDegrees: Float = 0f,
 ): RectFraction {
-    val corner = panelAnchorUv(HandleAnchor.BOTTOM_LEFT, rotationDegrees)
     var left = frame.left
-    var top = frame.top
-    var right = frame.left + frame.width
+    val top = frame.top
+    val right = frame.left + frame.width
     var bottom = frame.top + frame.height
     val minimumWidth = panel.width * MIN_CROP_FRAME_FRACTION
     val minimumHeight = panel.height * MIN_CROP_FRAME_FRACTION
     val dx = dragOffset.x / displaySize.width
     val dy = dragOffset.y / displaySize.height
-    if (corner.x == 0f) {
-        left = (left + dx).coerceIn(panel.left, right - minimumWidth)
-    } else {
-        right = (right + dx).coerceIn(left + minimumWidth, panel.left + panel.width)
-    }
-    if (corner.y == 0f) {
-        top = (top + dy).coerceIn(panel.top, bottom - minimumHeight)
-    } else {
-        bottom = (bottom + dy).coerceIn(top + minimumHeight, panel.top + panel.height)
-    }
+    left = (left + dx).coerceIn(panel.left, right - minimumWidth)
+    bottom = (bottom + dy).coerceIn(top + minimumHeight, panel.top + panel.height)
     return RectFraction(
         left = left,
         top = top,
@@ -2085,9 +2020,7 @@ internal fun magneticallyAlignedCropFrame(
     desired: RectFraction,
     displaySize: Size,
     snapThresholdDisplayPx: Float,
-    rotationDegrees: Float = 0f,
 ): RectFraction {
-    val corner = panelAnchorUv(HandleAnchor.BOTTOM_LEFT, rotationDegrees)
     val surrounding = panels.filter { it != cropping }
     val verticalEdges = surrounding.flatMap { listOf(it.left, it.left + it.width) }
     val horizontalEdges = surrounding.flatMap { listOf(it.top, it.top + it.height) }
@@ -2095,44 +2028,22 @@ internal fun magneticallyAlignedCropFrame(
     val minimumHeight = cropping.height * MIN_CROP_FRAME_FRACTION
     val desiredRight = desired.left + desired.width
     val desiredBottom = desired.top + desired.height
-    var left = desired.left
-    var right = desiredRight
-    var top = desired.top
-    var bottom = desiredBottom
-    if (corner.x == 0f) {
-        left = verticalEdges.snappedCropEdge(
-            desired = desired.left,
-            minimum = cropping.left,
-            maximum = desiredRight - minimumWidth,
-            displayExtent = displaySize.width,
-            snapThresholdDisplayPx = snapThresholdDisplayPx,
-        )
-    } else {
-        right = verticalEdges.snappedCropEdge(
-            desired = desiredRight,
-            minimum = desired.left + minimumWidth,
-            maximum = cropping.left + cropping.width,
-            displayExtent = displaySize.width,
-            snapThresholdDisplayPx = snapThresholdDisplayPx,
-        )
-    }
-    if (corner.y == 0f) {
-        top = horizontalEdges.snappedCropEdge(
-            desired = desired.top,
-            minimum = cropping.top,
-            maximum = desiredBottom - minimumHeight,
-            displayExtent = displaySize.height,
-            snapThresholdDisplayPx = snapThresholdDisplayPx,
-        )
-    } else {
-        bottom = horizontalEdges.snappedCropEdge(
-            desired = desiredBottom,
-            minimum = desired.top + minimumHeight,
-            maximum = cropping.top + cropping.height,
-            displayExtent = displaySize.height,
-            snapThresholdDisplayPx = snapThresholdDisplayPx,
-        )
-    }
+    val right = desiredRight
+    val top = desired.top
+    val left = verticalEdges.snappedCropEdge(
+        desired = desired.left,
+        minimum = cropping.left,
+        maximum = desiredRight - minimumWidth,
+        displayExtent = displaySize.width,
+        snapThresholdDisplayPx = snapThresholdDisplayPx,
+    )
+    val bottom = horizontalEdges.snappedCropEdge(
+        desired = desiredBottom,
+        minimum = desired.top + minimumHeight,
+        maximum = cropping.top + cropping.height,
+        displayExtent = displaySize.height,
+        snapThresholdDisplayPx = snapThresholdDisplayPx,
+    )
     return desired.copy(
         left = left,
         top = top,
@@ -2141,10 +2052,7 @@ internal fun magneticallyAlignedCropFrame(
     )
 }
 
-/**
- * The corner or edge of a panel, as seen on screen, that a handle must keep occupying
- * no matter how the panel's view layer is rotated.
- */
+/** The corner or edge of a panel that a handle occupies. */
 internal enum class HandleAnchor(val u: Float, val v: Float) {
     TOP_LEFT(0f, 0f),
     TOP_CENTER(0.5f, 0f),
@@ -2153,58 +2061,20 @@ internal enum class HandleAnchor(val u: Float, val v: Float) {
     BOTTOM_LEFT(0f, 1f),
 }
 
-/** Clockwise quarter turns in 0..3 for any rotation value, including negatives and 359.9. */
-internal fun quarterTurns(rotationDegrees: Float): Int {
-    val turns = (rotationDegrees / 90f).roundToInt() % 4
-    return if (turns < 0) turns + 4 else turns
-}
-
-/**
- * Unrotated-layer position, in 0..1 panel coordinates, that ends up at [anchor] on screen.
- * Each quarter turn is undone by mapping the anchor counter-clockwise within the panel.
- */
-internal fun panelAnchorUv(anchor: HandleAnchor, rotationDegrees: Float): Offset {
-    var u = anchor.u
-    var v = anchor.v
-    repeat(quarterTurns(rotationDegrees)) {
-        val rotatedU = v
-        v = 1f - u
-        u = rotatedU
-    }
-    return Offset(u, v)
-}
-
-/** Centre, in rotated-layer pixels, of the handle that must appear at [anchor] on screen. */
+/** Centre, in layer pixels, of the handle that sits at [anchor] on [panel]. */
 internal fun panelHandleCenter(
     panel: RectFraction,
     anchor: HandleAnchor,
-    rotationDegrees: Float,
     displaySize: Size,
-): Offset {
-    val uv = panelAnchorUv(anchor, rotationDegrees)
-    return Offset(
-        x = (panel.left + uv.x * panel.width) * displaySize.width,
-        y = (panel.top + uv.y * panel.height) * displaySize.height,
-    )
-}
-
-/**
- * Turns a resize-handle drag, already expressed in unrotated layer pixels, into the
- * width/height growth the user asked for by dragging away from the panel on screen.
- */
-internal fun panelResizeGrowth(dragOffset: Offset, rotationDegrees: Float): Offset {
-    val corner = panelAnchorUv(HandleAnchor.BOTTOM_RIGHT, rotationDegrees)
-    return Offset(
-        x = if (corner.x == 0f) -dragOffset.x else dragOffset.x,
-        y = if (corner.y == 0f) -dragOffset.y else dragOffset.y,
-    )
-}
+): Offset = Offset(
+    x = (panel.left + anchor.u * panel.width) * displaySize.width,
+    y = (panel.top + anchor.v * panel.height) * displaySize.height,
+)
 
 internal fun cropHandleCenter(
     frame: RectFraction,
     displaySize: Size,
-    rotationDegrees: Float = 0f,
-): Offset = panelHandleCenter(frame, HandleAnchor.BOTTOM_LEFT, rotationDegrees, displaySize)
+): Offset = panelHandleCenter(frame, HandleAnchor.BOTTOM_LEFT, displaySize)
 
 internal fun panCroppedImage(
     panel: RectFraction,
@@ -2795,7 +2665,6 @@ private fun Handles(
 private fun ImageDeleteHandle(
     centerPx: Offset,
     contentScale: Float,
-    rotationDegrees: Float,
     onTap: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -2817,17 +2686,16 @@ private fun ImageDeleteHandle(
             imageVector = Icons.Default.Close,
             contentDescription = stringResource(R.string.delete_panel),
             tint = Color.White,
-            modifier = Modifier.size(18.dp).uprightIn(rotationDegrees),
+            modifier = Modifier.size(18.dp),
         )
     }
 }
 
-/** Tap handle that rotates the panel view a quarter turn, shown at its top-left corner. */
+/** Tap handle that turns the panel a quarter turn clockwise, shown at its top-left corner. */
 @Composable
 private fun ImageRotateHandle(
     centerPx: Offset,
     contentScale: Float,
-    rotationDegrees: Float,
     onTap: () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -2849,21 +2717,16 @@ private fun ImageRotateHandle(
             imageVector = BalloonerIcons.Rotate,
             contentDescription = stringResource(R.string.rotate_panel),
             tint = InkBlack,
-            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
-
-/** Keeps handle chrome readable while its parent layer is rotated. */
-private fun Modifier.uprightIn(rotationDegrees: Float): Modifier =
-    if (rotationDegrees == 0f) this else graphicsLayer { rotationZ = -rotationDegrees }
 
 /** Drag handle for moving an image panel, positioned at its top-center edge. */
 @Composable
 private fun ImageMoveHandle(
     centerPx: Offset,
     contentScale: Float,
-    rotationDegrees: Float,
     onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit,
@@ -2908,7 +2771,7 @@ private fun ImageMoveHandle(
             imageVector = BalloonerIcons.Move,
             contentDescription = stringResource(R.string.move_panel),
             tint = InkBlack,
-            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -2917,7 +2780,6 @@ private fun ImageMoveHandle(
 private fun ImageResizeHandle(
     centerPx: Offset,
     contentScale: Float,
-    rotationDegrees: Float,
     onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit,
@@ -2962,7 +2824,7 @@ private fun ImageResizeHandle(
             imageVector = BalloonerIcons.Resize,
             contentDescription = stringResource(R.string.resize_panel),
             tint = InkBlack,
-            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -2971,7 +2833,6 @@ private fun ImageResizeHandle(
 private fun ImageCropHandle(
     centerPx: Offset,
     contentScale: Float,
-    rotationDegrees: Float,
     onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
 ) {
@@ -3006,7 +2867,7 @@ private fun ImageCropHandle(
             imageVector = BalloonerIcons.Crop,
             contentDescription = stringResource(R.string.crop_panel),
             tint = InkBlack,
-            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -3325,6 +3186,7 @@ private fun ProjectScreenNoImagePreview() {
         onDeleteImage = {},
         onMoveImage = { _, _ -> },
         onResizeImage = { _, _ -> },
+        onRotateImage = {},
         onCropImage = { _, _, _ -> },
         onUndo = {},
         onDiscardUndo = {},

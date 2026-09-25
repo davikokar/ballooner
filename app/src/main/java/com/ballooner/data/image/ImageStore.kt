@@ -24,12 +24,16 @@ interface ImageStore {
     /** Erases [removed] and crops the image to [retained], returning the new local uri. */
     suspend fun removeRegion(uri: String, removed: RectFraction, retained: RectFraction): String?
 
-    /** Rebuilds the flattened image after freely moving one panel to [destination]. */
+    /**
+     * Rebuilds the flattened image after freely moving one panel to [destination], turning that
+     * panel's pixels by [quarterTurns] clockwise quarter turns first.
+     */
     suspend fun rearrangePanels(
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
         destination: RectFraction,
+        quarterTurns: Int = 0,
     ): RearrangedImage?
 
     /** Replaces [panel] with a clipped [frame], drawing its pixels at unchanged-size [imageBounds]. */
