@@ -36,6 +36,11 @@ app/
 
 ## Conventions
 
+- Before introducing a significant architectural choice, read the
+  [ADR instructions](.github/instructions/architecture-decisions.instructions.md)
+  and existing [architecture decisions](docs/architecture/README.md).
+- For UI work or references to named screens, areas, and controls, read
+  [the UI vocabulary](.github/instructions/ui-vocabulary.instructions.md).
 - Each screen has its own package under `ui/<feature>/` containing:
   - `<Feature>Screen.kt` — stateless Composable that takes state + callbacks
   - `<Feature>ViewModel.kt` — exposes `StateFlow<<Feature>UiState>`
