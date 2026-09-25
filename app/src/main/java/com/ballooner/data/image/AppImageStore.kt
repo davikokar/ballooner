@@ -11,7 +11,6 @@ import android.net.Uri
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
-import com.ballooner.domain.model.panelGridCells
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -176,8 +175,7 @@ class AppImageStore @Inject constructor(
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
-        targetIndex: Int,
-        position: ImagePosition,
+        destination: RectFraction,
     ): RearrangedImage? = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = decodeBitmap(uri) ?: return@runCatching null
@@ -185,24 +183,30 @@ class AppImageStore @Inject constructor(
             val panelBitmaps = sourceRects.map { rect ->
                 Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width, rect.height)
             }
-            val cells = panelGridCells(panels)
-            val rowSizes = panels.groupingBy { cells.getValue(it).row }.eachCount().toSortedMap().values.toList()
-            val gapPx = (sourceRects.minOf { minOf(it.width, it.height) } * PANEL_GAP_FRACTION)
-                .roundToInt().coerceAtLeast(MIN_PANEL_GAP_PX)
             val layout = computeRearrangeLayout(
-                panelSizes = sourceRects.map { PixelSize(it.width, it.height) },
-                rowSizes = rowSizes,
+                panelRects = sourceRects,
                 fromIndex = fromIndex,
-                targetIndex = targetIndex,
-                position = position,
-                gapPx = gapPx,
+                desiredLeft = (destination.left * bitmap.width).roundToInt(),
+                desiredTop = (destination.top * bitmap.height).roundToInt(),
+                desiredWidth = (destination.width * bitmap.width).roundToInt().coerceAtLeast(1),
+                desiredHeight = (destination.height * bitmap.height).roundToInt().coerceAtLeast(1),
             )
             val composite = Bitmap.createBitmap(layout.canvasWidth, layout.canvasHeight, Bitmap.Config.ARGB_8888)
             composite.eraseColor(COMIC_CANVAS_BACKGROUND_COLOR)
             val canvas = android.graphics.Canvas(composite)
             panelBitmaps.forEachIndexed { index, panelBitmap ->
                 val target = layout.panelRects[index]
-                canvas.drawBitmap(panelBitmap, target.left.toFloat(), target.top.toFloat(), null)
+                canvas.drawBitmap(
+                    panelBitmap,
+                    null,
+                    android.graphics.Rect(
+                        target.left,
+                        target.top,
+                        target.left + target.width,
+                        target.top + target.height,
+                    ),
+                    null,
+                )
             }
             imagesDir.mkdirs()
             val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
@@ -218,6 +222,70 @@ class AppImageStore @Inject constructor(
                     )
                 },
             )
+        }.getOrNull()
+    }
+
+    override suspend fun cropPanel(
+        uri: String,
+        panel: RectFraction,
+        frame: RectFraction,
+        imageBounds: RectFraction,
+    ): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val bitmap = decodeBitmap(uri, mutable = true) ?: return@runCatching null
+            val panelRect = panel.toPixelRect(bitmap.width, bitmap.height)
+            val frameRect = frame.toPixelRect(bitmap.width, bitmap.height)
+            val panelBitmap = Bitmap.createBitmap(panelRect.width, panelRect.height, Bitmap.Config.ARGB_8888)
+            android.graphics.Canvas(panelBitmap).drawBitmap(
+                bitmap,
+                -panelRect.left.toFloat(),
+                -panelRect.top.toFloat(),
+                null,
+            )
+            val canvas = android.graphics.Canvas(bitmap)
+            canvas.drawRect(
+                panelRect.left.toFloat(),
+                panelRect.top.toFloat(),
+                (panelRect.left + panelRect.width).toFloat(),
+                (panelRect.top + panelRect.height).toFloat(),
+                Paint().apply {
+                    xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+                },
+            )
+            val checkpoint = canvas.save()
+            canvas.clipRect(
+                frameRect.left,
+                frameRect.top,
+                frameRect.left + frameRect.width,
+                frameRect.top + frameRect.height,
+            )
+            canvas.drawBitmap(
+                panelBitmap,
+                null,
+                android.graphics.Rect(
+                    (imageBounds.left * bitmap.width).roundToInt(),
+                    (imageBounds.top * bitmap.height).roundToInt(),
+                    ((imageBounds.left + imageBounds.width) * bitmap.width).roundToInt(),
+                    ((imageBounds.top + imageBounds.height) * bitmap.height).roundToInt(),
+                ),
+                null,
+            )
+            canvas.restoreToCount(checkpoint)
+            val borderWidth = borderThicknessPx(frameRect.width, frameRect.height)
+            canvas.drawRect(
+                borderRect(
+                    frameRect.left,
+                    frameRect.top,
+                    frameRect.width,
+                    frameRect.height,
+                    borderWidth / 2f,
+                ),
+                borderPaint(borderWidth),
+            )
+            imagesDir.mkdirs()
+            val dest = File(imagesDir, "img_${System.currentTimeMillis()}.png")
+            dest.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
+            Uri.fromFile(dest).toString()
         }.getOrNull()
     }
 
@@ -268,7 +336,6 @@ class AppImageStore @Inject constructor(
     private companion object {
         const val MAX_DECODED_DIMENSION_PX = 2048
         const val MAX_GRID_WIDTH_PX = 2048
-        const val PANEL_GAP_FRACTION = 0.02f
         const val MIN_PANEL_GAP_PX = 8
     }
 }

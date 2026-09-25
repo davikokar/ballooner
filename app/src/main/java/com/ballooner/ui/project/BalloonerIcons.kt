@@ -60,6 +60,27 @@ object BalloonerIcons {
         )
     }
 
+    val Resize: ImageVector by lazy {
+        icon(
+            name = "Resize",
+            pathData = "M21 15v6h-6v-2h2.59L6.41 7.83V10H4V4h6v2H7.83L19 17.17V15h2z",
+        )
+    }
+
+    val Crop: ImageVector by lazy {
+        icon(
+            name = "Crop",
+            pathData = "M17 15h2V7c0-1.1-.9-2-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10c0 1.1.9 2 2 2h10v4h2v-4h4v-2H7z",
+        )
+    }
+
+    val Undo: ImageVector by lazy {
+        icon(
+            name = "Undo",
+            pathData = "M7.5 6H14c3.31 0 6 2.69 6 6s-2.69 6-6 6H8v-2h6c2.21 0 4-1.79 4-4s-1.79-4-4-4H7.5L11 11.5 9.59 12.91 3.67 7l5.92-5.91L11 2.5 7.5 6z",
+        )
+    }
+
     val Balloon: ImageVector by lazy {
         icon(
             name = "Balloon",

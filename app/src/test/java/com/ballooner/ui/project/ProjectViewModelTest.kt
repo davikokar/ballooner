@@ -20,8 +20,10 @@ import com.ballooner.domain.model.Project
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -397,14 +399,15 @@ class ProjectViewModelTest {
         viewModel.uiState.test {
             while (awaitItem().panels.size < 3) { /* await seeded panels */ }
 
-            viewModel.onMoveImage(third, ImagePlacement(first, ImagePosition.LEFT))
+            val destination = third.copy(left = -0.4f, top = 0f)
+            viewModel.onMoveImage(third, destination)
             advanceUntilIdle()
 
             val state = expectMostRecentItem()
             assertEquals("rearranged-uri", state.imageUri)
             assertEquals(rearrangedRects, state.panels)
             assertEquals(
-                listOf("existing-uri", listOf(first, second, third), 2, 0, ImagePosition.LEFT),
+                listOf("existing-uri", listOf(first, second, third), 2, destination),
                 imageStore.lastRearrangeRequest,
             )
             assertEquals(listOf("existing-uri"), imageStore.deleted)
@@ -412,6 +415,119 @@ class ProjectViewModelTest {
             assertEquals(0.24f, state.balloons.single().centerY, 0.0001f)
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    @Test
+    fun `moving a panel does not show the blocking image overlay`() = runTest {
+        val panel = RectFraction(0f, 0f, 0.48f, 1f)
+        val destination = panel.copy(left = 0.52f)
+        val gate = CompletableDeferred<Unit>()
+        val imageStore = FakeImageStore().apply {
+            rearrangeGate = gate
+            rearrangeResult = RearrangedImage("rearranged-uri", listOf(destination))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onMoveImage(panel, destination)
+        runCurrent()
+
+        assertTrue(imageStore.rearrangeStarted)
+        assertEquals(false, viewModel.uiState.value.isProcessingImage)
+        gate.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `cropping can be undone to restore the previous image and panels`() = runTest {
+        val panel = RectFraction(0f, 0f, 0.5f, 1f)
+        val frame = RectFraction(0.1f, 0f, 0.4f, 0.8f)
+        val imageBounds = RectFraction(0.05f, -0.1f, 0.5f, 1f)
+        val imageStore = FakeImageStore().apply { cropResult = "cropped-uri" }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onCropImage(panel, frame, imageBounds)
+        advanceUntilIdle()
+
+        assertEquals("cropped-uri", viewModel.uiState.value.imageUri)
+        assertEquals(listOf(frame), viewModel.uiState.value.panels)
+        assertEquals(listOf("existing-uri", panel, frame, imageBounds), imageStore.lastCropRequest)
+        assertTrue(viewModel.uiState.value.canUndo)
+        assertTrue(imageStore.deleted.isEmpty())
+
+        viewModel.undoLastImageEdit()
+        advanceUntilIdle()
+
+        val restored = viewModel.uiState.first {
+            it.imageUri == "existing-uri" && it.panels == listOf(panel) && !it.canUndo
+        }
+        assertEquals("existing-uri", restored.imageUri)
+        assertEquals(listOf(panel), restored.panels)
+        assertEquals(listOf("cropped-uri"), imageStore.deleted)
+    }
+
+    @Test
+    fun `resizing a panel makes undo available`() = runTest {
+        val panel = RectFraction(0f, 0f, 0.5f, 1f)
+        val resized = RectFraction(0f, 0f, 0.7f, 1.4f)
+        val imageStore = FakeImageStore().apply {
+            rearrangeResult = RearrangedImage("resized-uri", listOf(resized))
+        }
+        val panelRepository = FakePanelRepository()
+        val viewModel = ProjectViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("projectId" to 1L)),
+            projectRepository = FakeProjectRepository(
+                initial = listOf(
+                    Project(id = 1, name = "Comic", description = "", createdAt = 1, imageUri = "existing-uri"),
+                ),
+            ),
+            balloonRepository = FakeBalloonRepository(),
+            panelRepository = panelRepository,
+            imageStore = imageStore,
+            settingsRepository = FakeSettingsRepository(),
+        )
+        panelRepository.replacePanels(1L, listOf(panel))
+        viewModel.uiState.first { it.panels == listOf(panel) }
+
+        viewModel.onResizeImage(panel, resized)
+        advanceUntilIdle()
+
+        assertEquals("resized-uri", viewModel.uiState.value.imageUri)
+        assertTrue(viewModel.uiState.value.canUndo)
+        assertTrue(imageStore.deleted.isEmpty())
+
+        viewModel.discardUndo()
+        advanceUntilIdle()
+
+        viewModel.uiState.first { !it.canUndo }
+        assertEquals(listOf("existing-uri"), imageStore.deleted)
     }
 
     @Test

@@ -14,7 +14,6 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.domain.model.ImagePlacement
 import com.ballooner.domain.model.RectFraction
 import com.ballooner.domain.model.TextSizeMode
-import com.ballooner.domain.model.panelsInReadingOrder
 import com.ballooner.domain.model.remappedFrom
 import com.ballooner.domain.model.retainedCanvasRect
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +43,7 @@ class ProjectViewModel @Inject constructor(
     // True while an image import/compose is running, so the UI can show a spinner instead of
     // looking frozen (decoding/scaling full-resolution photos can take a moment).
     private val isProcessingImage = MutableStateFlow(false)
+        private val undoSnapshot = MutableStateFlow<ImageEditSnapshot?>(null)
 
     // Kept hot so new balloons can read the default font even before the UI subscribes.
     private val settings = settingsRepository.observeSettings()
@@ -71,7 +71,8 @@ class ProjectViewModel @Inject constructor(
     val uiState: StateFlow<ProjectUiState> = combine(
         baseUiState,
         panelRepository.observePanels(projectId),
-    ) { state, panels -> state.copy(panels = panels) }.stateIn(
+        undoSnapshot,
+    ) { state, panels, undo -> state.copy(panels = panels, canUndo = undo != null) }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = ProjectUiState(),
@@ -194,40 +195,83 @@ class ProjectViewModel @Inject constructor(
         tailLength = tailLength / minOf(rect.width, rect.height),
     )
 
-    /** Inserts [panel] at [target]'s reading-order position and shifts the intervening panels. */
-    fun onMoveImage(panel: RectFraction, placement: ImagePlacement) {
-        if (panel == placement.anchor) return
+    /** Moves [panel] freely, snapping it beside the panel nearest [destination]. */
+    fun onMoveImage(panel: RectFraction, destination: RectFraction) {
+        rearrangeImage(panel, destination, undoable = false)
+    }
+
+    fun onResizeImage(panel: RectFraction, destination: RectFraction) {
+        rearrangeImage(panel, destination, undoable = true)
+    }
+
+    private fun rearrangeImage(panel: RectFraction, destination: RectFraction, undoable: Boolean) {
+        if (panel == destination) return
         viewModelScope.launch {
-            isProcessingImage.value = true
-            try {
-                val previous = uiState.value.imageUri ?: return@launch
-                val orderedPanels = panelsInReadingOrder(uiState.value.panels)
-                val fromIndex = orderedPanels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
-                val targetIndex = orderedPanels.indexOf(placement.anchor).takeIf { it >= 0 } ?: return@launch
-                val rearranged = imageStore.rearrangePanels(
-                    previous,
-                    orderedPanels,
-                    fromIndex,
-                    targetIndex,
-                    placement.position,
-                )
-                    ?: return@launch
-                uiState.value.balloons.forEach { balloon ->
-                    val panelIndex = orderedPanels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
-                    if (panelIndex >= 0) {
-                        balloonRepository.upsertBalloon(
-                            projectId,
-                            balloon.remappedBetween(orderedPanels[panelIndex], rearranged.panelRects[panelIndex]),
-                        )
-                    }
+            discardUndoInternal()
+            val previous = uiState.value.imageUri ?: return@launch
+            val panels = uiState.value.panels
+            val balloons = uiState.value.balloons
+            val fromIndex = panels.indexOf(panel).takeIf { it >= 0 } ?: return@launch
+            val rearranged = imageStore.rearrangePanels(
+                previous,
+                panels,
+                fromIndex,
+                destination,
+            ) ?: return@launch
+            uiState.value.balloons.forEach { balloon ->
+                val panelIndex = panels.indexOfFirst { it.contains(balloon.centerX, balloon.centerY) }
+                if (panelIndex >= 0) {
+                    balloonRepository.upsertBalloon(
+                        projectId,
+                        balloon.remappedBetween(panels[panelIndex], rearranged.panelRects[panelIndex]),
+                    )
                 }
-                panelRepository.replacePanels(projectId, rearranged.panelRects)
-                projectRepository.setProjectImage(projectId, rearranged.uri)
+            }
+            panelRepository.replacePanels(projectId, rearranged.panelRects)
+            projectRepository.setProjectImage(projectId, rearranged.uri)
+            if (undoable) {
+                undoSnapshot.value = ImageEditSnapshot(previous, panels, balloons)
+            } else {
                 imageStore.deleteImage(previous)
-            } finally {
-                isProcessingImage.value = false
             }
         }
+    }
+
+    fun onCropImage(panel: RectFraction, frame: RectFraction, imageBounds: RectFraction) {
+        if (panel == frame && panel == imageBounds) return
+        viewModelScope.launch {
+            discardUndoInternal()
+            val previous = uiState.value.imageUri ?: return@launch
+            val panels = uiState.value.panels
+            val balloons = uiState.value.balloons
+            if (panel !in panels) return@launch
+            val cropped = imageStore.cropPanel(previous, panel, frame, imageBounds) ?: return@launch
+            panelRepository.replacePanels(projectId, panels.map { if (it == panel) frame else it })
+            projectRepository.setProjectImage(projectId, cropped)
+            undoSnapshot.value = ImageEditSnapshot(previous, panels, balloons)
+        }
+    }
+
+    fun undoLastImageEdit() {
+        viewModelScope.launch {
+            val snapshot = undoSnapshot.value ?: return@launch
+            undoSnapshot.value = null
+            val currentImage = uiState.value.imageUri
+            panelRepository.replacePanels(projectId, snapshot.panels)
+            snapshot.balloons.forEach { balloonRepository.upsertBalloon(projectId, it) }
+            projectRepository.setProjectImage(projectId, snapshot.imageUri)
+            if (currentImage != null && currentImage != snapshot.imageUri) imageStore.deleteImage(currentImage)
+        }
+    }
+
+    fun discardUndo() {
+        viewModelScope.launch { discardUndoInternal() }
+    }
+
+    private suspend fun discardUndoInternal() {
+        val snapshot = undoSnapshot.value ?: return
+        undoSnapshot.value = null
+        if (snapshot.imageUri != uiState.value.imageUri) imageStore.deleteImage(snapshot.imageUri)
     }
 
     private fun Balloon.remappedBetween(from: RectFraction, to: RectFraction) = copy(
@@ -309,3 +353,9 @@ class ProjectViewModel @Inject constructor(
         const val MAX_FONT_SIZE = 48f
     }
 }
+
+private data class ImageEditSnapshot(
+    val imageUri: String,
+    val panels: List<RectFraction>,
+    val balloons: List<Balloon>,
+)

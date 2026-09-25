@@ -1,8 +1,8 @@
 package com.ballooner.data.image
 
 import com.ballooner.domain.model.ImagePlacement
-import com.ballooner.domain.model.ImagePosition
 import com.ballooner.domain.model.RectFraction
+import kotlinx.coroutines.CompletableDeferred
 
 /** Records deletions and echoes imports so tests can assert cleanup. */
 class FakeImageStore : ImageStore {
@@ -16,7 +16,11 @@ class FakeImageStore : ImageStore {
     var removeResult: String? = null
     var lastRemoveRequest: Triple<String, RectFraction, RectFraction>? = null
     var rearrangeResult: RearrangedImage? = null
+    var rearrangeGate: CompletableDeferred<Unit>? = null
+    var rearrangeStarted = false
     var lastRearrangeRequest: List<Any>? = null
+    var cropResult: String? = null
+    var lastCropRequest: List<Any>? = null
     var initialGridResult: InitialImageGrid? = null
     var lastInitialGridRequest: Pair<List<String>, Int>? = null
 
@@ -49,10 +53,21 @@ class FakeImageStore : ImageStore {
         uri: String,
         panels: List<RectFraction>,
         fromIndex: Int,
-        targetIndex: Int,
-        position: ImagePosition,
+        destination: RectFraction,
     ): RearrangedImage? {
-        lastRearrangeRequest = listOf(uri, panels, fromIndex, targetIndex, position)
+        lastRearrangeRequest = listOf(uri, panels, fromIndex, destination)
+        rearrangeStarted = true
+        rearrangeGate?.await()
         return rearrangeResult
+    }
+
+    override suspend fun cropPanel(
+        uri: String,
+        panel: RectFraction,
+        frame: RectFraction,
+        imageBounds: RectFraction,
+    ): String? {
+        lastCropRequest = listOf(uri, panel, frame, imageBounds)
+        return cropResult
     }
 }

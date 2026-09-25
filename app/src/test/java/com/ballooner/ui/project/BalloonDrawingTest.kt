@@ -2,6 +2,7 @@ package com.ballooner.ui.project
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.model.Balloon
 import com.ballooner.domain.model.BalloonType
@@ -14,6 +15,167 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BalloonDrawingTest {
+
+    private fun assertRectEquals(expected: RectFraction, actual: RectFraction) {
+        assertEquals(expected.left, actual.left, 0.0001f)
+        assertEquals(expected.top, actual.top, 0.0001f)
+        assertEquals(expected.width, actual.width, 0.0001f)
+        assertEquals(expected.height, actual.height, 0.0001f)
+    }
+
+    @Test
+    fun `final drag offset commits the magnetic preview position`() {
+        val anchor = RectFraction(0f, 0f, 0.4f, 0.4f)
+        val moving = RectFraction(0.6f, 0f, 0.4f, 0.4f)
+
+        val destination = magneticDragDestination(
+            panels = listOf(anchor, moving),
+            moving = moving,
+            dragOffset = Offset(-175f, 10f),
+            displaySize = Size(1000f, 1000f),
+            imageSize = IntSize(1000, 1000),
+            snapThresholdDisplayPx = 28f,
+        )
+
+        assertEquals(0.408f, destination.left, 0.0001f)
+        assertEquals(0f, destination.top, 0.0001f)
+    }
+
+    @Test
+    fun `resize drag commits magnetically aligned proportional dimensions`() {
+        val moving = RectFraction(0f, 0f, 0.3f, 0.3f)
+        val rightNeighbor = RectFraction(0.5f, 0f, 0.2f, 0.3f)
+        val bottomNeighbor = RectFraction(0f, 0.6f, 0.3f, 0.2f)
+
+        val destination = magneticResizeDestination(
+            panels = listOf(moving, rightNeighbor, bottomNeighbor),
+            moving = moving,
+            dragOffset = Offset(190f, 190f),
+            displaySize = Size(1000f, 1000f),
+            imageSize = IntSize(1000, 1000),
+            snapThresholdDisplayPx = 20f,
+        )
+
+        assertEquals(0.5f, destination.width, 0.0001f)
+        assertEquals(0.5f, destination.height, 0.0001f)
+    }
+
+    @Test
+    fun `crop handle moves left and bottom borders independently`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val frame = cropFrameAfterHandleDrag(
+            panel = panel,
+            frame = panel,
+            dragOffset = Offset(100f, -50f),
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertRectEquals(RectFraction(0.1f, 0f, 0.4f, 0.45f), frame)
+    }
+
+    @Test
+    fun `crop frame sticks to nearby surrounding panel edges`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+        val verticalAnchor = RectFraction(0.2f, 0.6f, 0.15f, 0.2f)
+        val horizontalAnchor = RectFraction(0.6f, 0.25f, 0.2f, 0.15f)
+        val desired = RectFraction(0.21f, 0f, 0.29f, 0.39f)
+
+        val snapped = magneticallyAlignedCropFrame(
+            panels = listOf(panel, verticalAnchor, horizontalAnchor),
+            cropping = panel,
+            desired = desired,
+            displaySize = Size(1000f, 1000f),
+            snapThresholdDisplayPx = 20f,
+        )
+
+        assertRectEquals(RectFraction(0.2f, 0f, 0.3f, 0.4f), snapped)
+    }
+
+    @Test
+    fun `crop handle follows the moving canvas corner`() {
+        val frame = RectFraction(0.1f, 0f, 0.4f, 0.45f)
+
+        val center = cropHandleCenter(frame, Size(1000f, 800f))
+
+        assertEquals(100f, center.x, 0.001f)
+        assertEquals(360f, center.y, 0.001f)
+    }
+
+    @Test
+    fun `dragging cropped picture moves fixed-scale image within crop frame`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+        val frame = RectFraction(0.1f, 0f, 0.4f, 0.45f)
+
+        val offset = panCroppedImage(
+            panel = panel,
+            frame = frame,
+            imageOffset = Offset.Zero,
+            dragOffset = Offset(200f, -200f),
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertEquals(0.1f, offset.x, 0.0001f)
+        assertEquals(-0.05f, offset.y, 0.0001f)
+    }
+
+    @Test
+    fun `panel image zooms around center and pans while covering frame`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val zoomed = transformedPanelImageBounds(
+            panel = panel,
+            imageBounds = panel,
+            pan = Offset.Zero,
+            zoom = 2f,
+            displaySize = Size(1000f, 1000f),
+        )
+        val panned = transformedPanelImageBounds(
+            panel = panel,
+            imageBounds = zoomed,
+            pan = Offset(100f, -400f),
+            zoom = 1f,
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertRectEquals(RectFraction(-0.25f, -0.25f, 1f, 1f), zoomed)
+        assertRectEquals(RectFraction(-0.15f, -0.5f, 1f, 1f), panned)
+    }
+
+    @Test
+    fun `zoom preview source region stays inside bitmap after rounding`() {
+        val panel = RectFraction(0.5005f, 0f, 0.5005f, 1f)
+
+        val (offset, size) = bitmapRegion(panel, IntSize(1000, 800))
+
+        assertEquals(501, offset.x)
+        assertEquals(499, size.width)
+        assertEquals(1000, offset.x + size.width)
+    }
+
+    @Test
+    fun `non finite pinch input preserves valid panel image bounds`() {
+        val panel = RectFraction(0f, 0f, 0.5f, 0.5f)
+
+        val result = transformedPanelImageBounds(
+            panel = panel,
+            imageBounds = panel,
+            pan = Offset(Float.NaN, 0f),
+            zoom = Float.NaN,
+            displaySize = Size(1000f, 1000f),
+        )
+
+        assertEquals(panel, result)
+    }
+
+    @Test
+    fun `balloon editing is disabled while a panel is selected for image editing`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+
+        assertFalse(canEditBalloons(editMode = true, selectedPanel = panel))
+        assertTrue(canEditBalloons(editMode = true, selectedPanel = null))
+        assertFalse(canEditBalloons(editMode = false, selectedPanel = null))
+    }
 
     @Test
     fun `balloon clip bounds preserve the panel border`() {
@@ -150,6 +312,33 @@ class BalloonDrawingTest {
         assertEquals(bottomLeft, adjacent[ImagePosition.BOTTOM])
         assertFalse(ImagePosition.LEFT in adjacent)
         assertFalse(ImagePosition.TOP in adjacent)
+    }
+
+    @Test
+    fun `focused navigation uses coordinates for irregular panel positions`() {
+        val focused = RectFraction(0.4f, 0.4f, 0.2f, 0.2f)
+        val nearRight = RectFraction(0.65f, 0.46f, 0.12f, 0.18f)
+        val farRight = RectFraction(0.85f, 0.1f, 0.1f, 0.1f)
+        val above = RectFraction(0.32f, 0.05f, 0.15f, 0.2f)
+
+        val adjacent = adjacentPanels(listOf(focused, nearRight, farRight, above), focused)
+
+        assertEquals(nearRight, adjacent[ImagePosition.RIGHT])
+        assertEquals(above, adjacent[ImagePosition.TOP])
+    }
+
+    @Test
+    fun `add panel handles appear only for the tapped panel`() {
+        val left = RectFraction(0f, 0f, 0.45f, 1f)
+        val right = RectFraction(0.55f, 0f, 0.45f, 1f)
+        val panels = listOf(left, right)
+
+        val placements = addPanelPlacements(panels, focusedPanel = null, tappedPanel = left)
+
+        assertTrue(placements.isNotEmpty())
+        assertTrue(placements.all { it.anchor == left })
+        assertTrue(addPanelPlacements(panels, focusedPanel = null, tappedPanel = null).isEmpty())
+        assertTrue(addPanelPlacements(panels, focusedPanel = left, tappedPanel = left).isEmpty())
     }
 
     @Test
