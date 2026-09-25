@@ -1511,153 +1511,6 @@ private fun Editor(
                                                 },
                                         )
                                     }
-                                    selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
-                                        val displayedPanel = previewPanel ?: pending
-                                        if (rotationHandleEligible(editMode, panels, selectedPanel, focusedPanel)) {
-                                            ImageRotateHandle(
-                                                centerPx = rotateHandleCenter(
-                                                    panel = displayedPanel,
-                                                    displaySize = size,
-                                                    handleRadiusPx = with(LocalDensity.current) { 16.dp.toPx() },
-                                                ),
-                                                contentScale = 1f,
-                                                onTap = onRotate,
-                                            )
-                                        }
-                                        ImageMoveHandle(
-                                            centerPx = Offset(
-                                                (displayedPanel.left + displayedPanel.width / 2f) * size.width,
-                                                displayedPanel.top * size.height,
-                                            ),
-                                            contentScale = 1f,
-                                            onDragStart = {
-                                                if (croppingPanel != null) {
-                                                    finishCrop()
-                                                    false
-                                                } else if (finishPanelImageTransform()) {
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            },
-                                            onDrag = { delta ->
-                                                resizeHandleOffset = Offset.Zero
-                                                moveHandleOffset += delta
-                                            },
-                                            onDragEnd = { finalDragOffset ->
-                                                if (finalDragOffset != Offset.Zero) {
-                                                    onMoveImage(
-                                                        pending,
-                                                        magneticDragDestination(
-                                                            panels = panels,
-                                                            moving = pending,
-                                                            dragOffset = finalDragOffset,
-                                                            displaySize = size,
-                                                            imageSize = IntSize(image.width, image.height),
-                                                            snapThresholdDisplayPx = magneticSnapThresholdPx,
-                                                        ),
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        ImageDeleteHandle(
-                                            centerPx = Offset(
-                                                (displayedPanel.left + displayedPanel.width) * size.width,
-                                                displayedPanel.top * size.height,
-                                            ),
-                                            contentScale = 1f,
-                                            onTap = {
-                                                if (croppingPanel != null) {
-                                                    finishCrop()
-                                                } else if (finishPanelImageTransform()) {
-                                                    Unit
-                                                } else {
-                                                    showConfirmDeleteImage = true
-                                                }
-                                            },
-                                        )
-                                        ImageResizeHandle(
-                                            centerPx = Offset(
-                                                (displayedPanel.left + displayedPanel.width) * size.width,
-                                                (displayedPanel.top + displayedPanel.height) * size.height,
-                                            ),
-                                            contentScale = 1f,
-                                            onDragStart = {
-                                                if (croppingPanel != null) {
-                                                    finishCrop()
-                                                    false
-                                                } else if (finishPanelImageTransform()) {
-                                                    false
-                                                } else {
-                                                    true
-                                                }
-                                            },
-                                            onDrag = { delta ->
-                                                moveHandleOffset = Offset.Zero
-                                                resizeHandleOffset += delta
-                                            },
-                                            onDragEnd = { finalDragOffset ->
-                                                if (finalDragOffset != Offset.Zero) {
-                                                    onResizeImage(
-                                                        pending,
-                                                        magneticResizeDestination(
-                                                            panels = panels,
-                                                            moving = pending,
-                                                            dragOffset = finalDragOffset,
-                                                            displaySize = size,
-                                                            imageSize = IntSize(image.width, image.height),
-                                                            snapThresholdDisplayPx = magneticSnapThresholdPx,
-                                                        ),
-                                                    )
-                                                }
-                                            },
-                                        )
-                                        ImageCropHandle(
-                                            centerPx = cropHandleCenter(
-                                                frame = cropFrame.takeIf { croppingPanel == pending } ?: pending,
-                                                displaySize = size,
-                                            ),
-                                            contentScale = 1f,
-                                            onDragStart = {
-                                                if (finishPanelImageTransform()) {
-                                                    false
-                                                } else {
-                                                    if (croppingPanel != pending) {
-                                                        cropFrame = pending
-                                                        cropDesiredFrame = pending
-                                                        cropImageOffset = Offset.Zero
-                                                    }
-                                                    croppingPanel = pending
-                                                    true
-                                                }
-                                            },
-                                            onDrag = { delta ->
-                                                croppingPanel = pending
-                                                val newFrame = cropFrameAfterHandleDrag(
-                                                    panel = pending,
-                                                    frame = cropDesiredFrame ?: pending,
-                                                    dragOffset = delta,
-                                                    displaySize = size,
-                                                )
-                                                cropDesiredFrame = newFrame
-                                                val snappedFrame = magneticallyAlignedCropFrame(
-                                                    panels = panels,
-                                                    cropping = pending,
-                                                    desired = newFrame,
-                                                    displaySize = size,
-                                                    snapThresholdDisplayPx = magneticSnapThresholdPx,
-                                                )
-                                                cropFrame = snappedFrame
-                                                cropImageOffset = panCroppedImage(
-                                                    panel = pending,
-                                                    frame = snappedFrame,
-                                                    imageOffset = cropImageOffset,
-                                                    dragOffset = Offset.Zero,
-                                                    displaySize = size,
-                                                )
-                                            },
-                                        )
-                                    }
                                     addPanelPlacements(panels, focusedPanel, tappedPanel).forEach { placement ->
                                             val anchor = placement.anchor
                                             val center = when (placement.position) {
@@ -1680,6 +1533,183 @@ private fun Editor(
                                 }
                             }
                             }
+                            }
+                            if (editMode && layerSize.width > 0 && layerSize.height > 0) {
+                                selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
+                                    val contentSize = Size(layerSize.width.toFloat(), layerSize.height.toFloat())
+                                    val overlaySize = with(LocalDensity.current) {
+                                        Size(fitWidth.toPx(), fitHeight.toPx())
+                                    }
+                                    val magneticSnapThresholdPx = with(LocalDensity.current) { 28.dp.toPx() }
+                                    val movingPanel = pending.takeIf {
+                                        moveHandleOffset != Offset.Zero || resizeHandleOffset != Offset.Zero
+                                    }
+                                    val previewPanel = when {
+                                        movingPanel == null -> null
+                                        resizeHandleOffset != Offset.Zero -> magneticResizeDestination(
+                                            panels = panels,
+                                            moving = movingPanel,
+                                            dragOffset = resizeHandleOffset,
+                                            displaySize = contentSize,
+                                            imageSize = IntSize(image.width, image.height),
+                                            snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                        )
+                                        else -> magneticDragDestination(
+                                            panels = panels,
+                                            moving = movingPanel,
+                                            dragOffset = moveHandleOffset,
+                                            displaySize = contentSize,
+                                            imageSize = IntSize(image.width, image.height),
+                                            snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                        )
+                                    }
+                                    val displayedPanel = previewPanel ?: pending
+                                    val controlRadiusPx = with(LocalDensity.current) { 16.dp.toPx() }
+                                    val centers = selectedPanelControlCenters(
+                                        panel = displayedPanel,
+                                        displaySize = overlaySize,
+                                        rotation = rotation,
+                                        controlRadiusPx = controlRadiusPx,
+                                    )
+                                    if (rotationHandleEligible(editMode, panels, selectedPanel, focusedPanel)) {
+                                        ImageRotateHandle(
+                                            centerPx = centers.rotate,
+                                            contentScale = 1f,
+                                            onTap = onRotate,
+                                        )
+                                    }
+                                    ImageMoveHandle(
+                                        centerPx = centers.move,
+                                        contentScale = 1f,
+                                        onDragStart = {
+                                            if (croppingPanel != null) {
+                                                finishCrop()
+                                                false
+                                            } else if (finishPanelImageTransform()) {
+                                                false
+                                            } else {
+                                                true
+                                            }
+                                        },
+                                        onDrag = { screenDelta ->
+                                            resizeHandleOffset = Offset.Zero
+                                            moveHandleOffset += screenDragToContentDelta(screenDelta, rotation)
+                                        },
+                                        onDragEnd = { screenDragOffset ->
+                                            val contentDragOffset = screenDragToContentDelta(screenDragOffset, rotation)
+                                            if (contentDragOffset != Offset.Zero) {
+                                                onMoveImage(
+                                                    pending,
+                                                    magneticDragDestination(
+                                                        panels = panels,
+                                                        moving = pending,
+                                                        dragOffset = contentDragOffset,
+                                                        displaySize = contentSize,
+                                                        imageSize = IntSize(image.width, image.height),
+                                                        snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                                    ),
+                                                )
+                                            }
+                                        },
+                                    )
+                                    ImageDeleteHandle(
+                                        centerPx = centers.delete,
+                                        contentScale = 1f,
+                                        onTap = {
+                                            if (croppingPanel != null) {
+                                                finishCrop()
+                                            } else if (finishPanelImageTransform()) {
+                                                Unit
+                                            } else {
+                                                showConfirmDeleteImage = true
+                                            }
+                                        },
+                                    )
+                                    ImageResizeHandle(
+                                        centerPx = centers.resize,
+                                        contentScale = 1f,
+                                        onDragStart = {
+                                            if (croppingPanel != null) {
+                                                finishCrop()
+                                                false
+                                            } else if (finishPanelImageTransform()) {
+                                                false
+                                            } else {
+                                                true
+                                            }
+                                        },
+                                        onDrag = { screenDelta ->
+                                            moveHandleOffset = Offset.Zero
+                                            resizeHandleOffset += screenDragToContentDelta(screenDelta, rotation)
+                                        },
+                                        onDragEnd = { screenDragOffset ->
+                                            val contentDragOffset = screenDragToContentDelta(screenDragOffset, rotation)
+                                            if (contentDragOffset != Offset.Zero) {
+                                                onResizeImage(
+                                                    pending,
+                                                    magneticResizeDestination(
+                                                        panels = panels,
+                                                        moving = pending,
+                                                        dragOffset = contentDragOffset,
+                                                        displaySize = contentSize,
+                                                        imageSize = IntSize(image.width, image.height),
+                                                        snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                                    ),
+                                                )
+                                            }
+                                        },
+                                    )
+                                    val cropPanel = cropFrame.takeIf { croppingPanel == pending } ?: displayedPanel
+                                    val cropCenter = selectedPanelControlCenters(
+                                        panel = cropPanel,
+                                        displaySize = overlaySize,
+                                        rotation = rotation,
+                                        controlRadiusPx = controlRadiusPx,
+                                    ).crop
+                                    ImageCropHandle(
+                                        centerPx = cropCenter,
+                                        contentScale = 1f,
+                                        onDragStart = {
+                                            if (finishPanelImageTransform()) {
+                                                false
+                                            } else {
+                                                if (croppingPanel != pending) {
+                                                    cropFrame = pending
+                                                    cropDesiredFrame = pending
+                                                    cropImageOffset = Offset.Zero
+                                                }
+                                                croppingPanel = pending
+                                                true
+                                            }
+                                        },
+                                        onDrag = { screenDelta ->
+                                            croppingPanel = pending
+                                            val contentDelta = screenDragToContentDelta(screenDelta, rotation)
+                                            val newFrame = cropFrameAfterHandleDrag(
+                                                panel = pending,
+                                                frame = cropDesiredFrame ?: pending,
+                                                dragOffset = contentDelta,
+                                                displaySize = contentSize,
+                                            )
+                                            cropDesiredFrame = newFrame
+                                            val snappedFrame = magneticallyAlignedCropFrame(
+                                                panels = panels,
+                                                cropping = pending,
+                                                desired = newFrame,
+                                                displaySize = contentSize,
+                                                snapThresholdDisplayPx = magneticSnapThresholdPx,
+                                            )
+                                            cropFrame = snappedFrame
+                                            cropImageOffset = panCroppedImage(
+                                                panel = pending,
+                                                frame = snappedFrame,
+                                                imageOffset = cropImageOffset,
+                                                dragOffset = Offset.Zero,
+                                                displaySize = contentSize,
+                                            )
+                                        },
+                                    )
+                                }
                             }
                             if (
                                 canEditBalloons(editMode, selectedPanel) && selected != null &&
@@ -1834,14 +1864,60 @@ internal fun rotationHandleEligible(
     focusedPanel == null &&
     panels.singleOrNull() == selectedPanel
 
-internal fun rotateHandleCenter(
+internal data class SelectedPanelControlCenters(
+    val rotate: Offset,
+    val move: Offset,
+    val delete: Offset,
+    val resize: Offset,
+    val crop: Offset,
+)
+
+internal fun selectedPanelControlCenters(
     panel: RectFraction,
     displaySize: Size,
-    handleRadiusPx: Float,
-): Offset = Offset(
-    x = (panel.left * displaySize.width).coerceAtLeast(handleRadiusPx),
-    y = (panel.top * displaySize.height).coerceAtLeast(handleRadiusPx),
-)
+    rotation: Float,
+    controlRadiusPx: Float,
+): SelectedPanelControlCenters {
+    fun transformedAnchor(x: Float, y: Float): Offset {
+        val panelX = panel.left + x * panel.width
+        val panelY = panel.top + y * panel.height
+        val (rotatedX, rotatedY) = when (rotation.quarterTurns()) {
+            1 -> 1f - panelY to panelX
+            2 -> 1f - panelX to 1f - panelY
+            3 -> panelY to 1f - panelX
+            else -> panelX to panelY
+        }
+        return Offset(
+            x = (rotatedX * displaySize.width)
+                .visibleControlCoordinate(displaySize.width, controlRadiusPx),
+            y = (rotatedY * displaySize.height)
+                .visibleControlCoordinate(displaySize.height, controlRadiusPx),
+        )
+    }
+
+    return SelectedPanelControlCenters(
+        rotate = transformedAnchor(0f, 0f),
+        move = transformedAnchor(0.5f, 0f),
+        delete = transformedAnchor(1f, 0f),
+        resize = transformedAnchor(1f, 1f),
+        crop = transformedAnchor(0f, 1f),
+    )
+}
+
+internal fun screenDragToContentDelta(screenDrag: Offset, rotation: Float): Offset =
+    when (rotation.quarterTurns()) {
+        1 -> Offset(screenDrag.y, -screenDrag.x)
+        2 -> Offset(-screenDrag.x, -screenDrag.y)
+        3 -> Offset(-screenDrag.y, screenDrag.x)
+        else -> screenDrag
+    }
+
+private fun Float.visibleControlCoordinate(displayExtent: Float, controlRadiusPx: Float): Float =
+    if (displayExtent <= controlRadiusPx * 2f) displayExtent / 2f
+    else coerceIn(controlRadiusPx, displayExtent - controlRadiusPx)
+
+private fun Float.quarterTurns(): Int =
+    ((this / 90f).roundToInt() % 4 + 4) % 4
 
 internal fun List<RectFraction>.ownerPanel(x: Float, y: Float): RectFraction? =
     panelAt(x, y) ?: minByOrNull { panel ->

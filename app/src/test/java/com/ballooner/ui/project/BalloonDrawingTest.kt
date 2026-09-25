@@ -23,6 +23,11 @@ class BalloonDrawingTest {
         assertEquals(expected.height, actual.height, 0.0001f)
     }
 
+    private fun assertOffsetEquals(expected: Offset, actual: Offset) {
+        assertEquals(expected.x, actual.x, 0.001f)
+        assertEquals(expected.y, actual.y, 0.001f)
+    }
+
     @Test
     fun `final drag offset commits the magnetic preview position`() {
         val anchor = RectFraction(0f, 0f, 0.4f, 0.4f)
@@ -315,13 +320,118 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `panel rotate handle stays fully visible at the canvas top-left`() {
+    fun `selected panel controls stay fully visible at zero degrees`() {
         val panel = RectFraction(0f, 0f, 1f, 1f)
+        val displaySize = Size(600f, 400f)
+        val controlRadiusPxAtDensityOne = 16f
 
-        val center = rotateHandleCenter(panel, Size(600f, 400f), handleRadiusPx = 16f)
+        val centers = selectedPanelControlCenters(
+            panel = panel,
+            displaySize = displaySize,
+            rotation = 0f,
+            controlRadiusPx = controlRadiusPxAtDensityOne,
+        )
 
-        assertEquals(16f, center.x, 0.001f)
-        assertEquals(16f, center.y, 0.001f)
+        assertOffsetEquals(Offset(16f, 16f), centers.rotate)
+        assertOffsetEquals(Offset(300f, 16f), centers.move)
+        assertOffsetEquals(Offset(584f, 16f), centers.delete)
+        assertOffsetEquals(Offset(584f, 384f), centers.resize)
+        assertOffsetEquals(Offset(16f, 384f), centers.crop)
+    }
+
+    @Test
+    fun `selected panel controls stay fully visible at ninety degrees`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+        val displaySize = Size(600f, 400f)
+        val controlRadiusPxAtDensityOne = 16f
+
+        val centers = selectedPanelControlCenters(
+            panel = panel,
+            displaySize = displaySize,
+            rotation = 90f,
+            controlRadiusPx = controlRadiusPxAtDensityOne,
+        )
+
+        assertOffsetEquals(Offset(584f, 16f), centers.rotate)
+        assertOffsetEquals(Offset(584f, 200f), centers.move)
+        assertOffsetEquals(Offset(584f, 384f), centers.delete)
+        assertOffsetEquals(Offset(16f, 384f), centers.resize)
+        assertOffsetEquals(Offset(16f, 16f), centers.crop)
+    }
+
+    @Test
+    fun `selected panel controls stay fully visible at one hundred eighty degrees`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+        val displaySize = Size(600f, 400f)
+        val controlRadiusPxAtDensityOne = 16f
+
+        val centers = selectedPanelControlCenters(
+            panel = panel,
+            displaySize = displaySize,
+            rotation = 180f,
+            controlRadiusPx = controlRadiusPxAtDensityOne,
+        )
+
+        assertOffsetEquals(Offset(584f, 384f), centers.rotate)
+        assertOffsetEquals(Offset(300f, 384f), centers.move)
+        assertOffsetEquals(Offset(16f, 384f), centers.delete)
+        assertOffsetEquals(Offset(16f, 16f), centers.resize)
+        assertOffsetEquals(Offset(584f, 16f), centers.crop)
+    }
+
+    @Test
+    fun `selected panel controls stay fully visible at two hundred seventy degrees`() {
+        val panel = RectFraction(0f, 0f, 1f, 1f)
+        val displaySize = Size(600f, 400f)
+        val controlRadiusPxAtDensityOne = 16f
+
+        val centers = selectedPanelControlCenters(
+            panel = panel,
+            displaySize = displaySize,
+            rotation = 270f,
+            controlRadiusPx = controlRadiusPxAtDensityOne,
+        )
+
+        assertOffsetEquals(Offset(16f, 384f), centers.rotate)
+        assertOffsetEquals(Offset(16f, 200f), centers.move)
+        assertOffsetEquals(Offset(16f, 16f), centers.delete)
+        assertOffsetEquals(Offset(584f, 16f), centers.resize)
+        assertOffsetEquals(Offset(584f, 384f), centers.crop)
+    }
+
+    @Test
+    fun `quarter turns place controls on distinct edges of an asymmetric panel`() {
+        val panel = RectFraction(left = 0.2f, top = 0.1f, width = 0.5f, height = 0.6f)
+        val displaySize = Size(300f, 200f)
+
+        val ninety = selectedPanelControlCenters(panel, displaySize, rotation = 90f, controlRadiusPx = 16f)
+        val twoSeventy = selectedPanelControlCenters(panel, displaySize, rotation = 270f, controlRadiusPx = 16f)
+
+        assertOffsetEquals(Offset(270f, 40f), ninety.rotate)
+        assertOffsetEquals(Offset(270f, 90f), ninety.move)
+        assertOffsetEquals(Offset(270f, 140f), ninety.delete)
+        assertOffsetEquals(Offset(90f, 140f), ninety.resize)
+        assertOffsetEquals(Offset(90f, 40f), ninety.crop)
+        assertOffsetEquals(Offset(30f, 160f), twoSeventy.rotate)
+        assertOffsetEquals(Offset(30f, 110f), twoSeventy.move)
+        assertOffsetEquals(Offset(30f, 60f), twoSeventy.delete)
+        assertOffsetEquals(Offset(210f, 60f), twoSeventy.resize)
+        assertOffsetEquals(Offset(210f, 160f), twoSeventy.crop)
+    }
+
+    @Test
+    fun `screen drag maps to content delta for move resize and crop at every quarter turn`() {
+        val screenDrag = Offset(12f, -7f)
+
+        val atZero = screenDragToContentDelta(screenDrag, rotation = 0f)
+        val atNinety = screenDragToContentDelta(screenDrag, rotation = 90f)
+        val atOneEighty = screenDragToContentDelta(screenDrag, rotation = 180f)
+        val atTwoSeventy = screenDragToContentDelta(screenDrag, rotation = 270f)
+
+        assertOffsetEquals(Offset(12f, -7f), atZero)
+        assertOffsetEquals(Offset(-7f, -12f), atNinety)
+        assertOffsetEquals(Offset(-12f, 7f), atOneEighty)
+        assertOffsetEquals(Offset(7f, 12f), atTwoSeventy)
     }
 
     @Test
