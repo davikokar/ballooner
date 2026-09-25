@@ -52,7 +52,6 @@
     <string name="delete_comic_title">Excluir quadrinho?</string>
     <string name="delete_comic_message">Isso exclui permanentemente o quadrinho e seus quadros.</string>
     <string name="delete">Excluir</string>
-    <string name="rotate">Girar</string>
     <string name="show_all_panels">Mostrar todos os quadros</string>
     <string name="focus_panel">Focar no quadro</string>
     <string name="save">Salvar</string>
@@ -73,6 +72,7 @@
     <string name="move_panel">Mover quadro</string>
     <string name="resize_panel">Redimensionar quadro</string>
     <string name="crop_panel">Recortar quadro</string>
+    <string name="rotate_panel">Girar quadro</string>
     <string name="undo">Desfazer</string>
     <string name="no_comics_yet">Ainda não há quadrinhos!</string>
     <string name="empty_comics_message">É hora de começar sua jornada heroica. Pegue um lápis e vamos lá!</string>

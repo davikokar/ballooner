@@ -410,21 +410,11 @@ fun ProjectScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     Toolbar(
                         editMode = editMode,
-                        canRotate = rotationTarget(uiState.panels, selectedPanel, focusedPanel) != null,
                         canFocusImage = uiState.panels.size > 1,
                         imageFocused = focusedPanel != null,
                         onToggleImageFocus = {
                             focusedPanel = imageFocusTarget(uiState.panels, selectedPanel, focusedPanel)
                             rotation = 0f
-                        },
-                        onRotate = {
-                            rotationTarget(uiState.panels, selectedPanel, focusedPanel)?.let { target ->
-                                if (uiState.panels.size > 1) {
-                                    focusedPanel = target
-                                    selectedPanel = null
-                                }
-                                rotation = (rotation + 90f) % 360f
-                            }
                         },
                         onChangeImage = { launchPicker(true, null) },
                         onSave = onSave,
@@ -438,6 +428,15 @@ fun ProjectScreen(
                         hideFontSelector = uiState.hideFontSelector,
                         autoTextSize = uiState.autoTextSize,
                         rotation = rotation,
+                        onRotate = {
+                            rotationTarget(uiState.panels, selectedPanel, focusedPanel)?.let { target ->
+                                if (uiState.panels.size > 1) {
+                                    focusedPanel = target
+                                    selectedPanel = null
+                                }
+                                rotation = (rotation + 90f) % 360f
+                            }
+                        },
                         onSelectBalloon = onSelectBalloon,
                         onCommitBalloon = onCommitBalloon,
                         onDeleteSelected = onDeleteSelected,
@@ -767,11 +766,9 @@ private fun ProjectOverflowMenu(
 @Composable
 private fun Toolbar(
     editMode: Boolean,
-    canRotate: Boolean,
     canFocusImage: Boolean,
     imageFocused: Boolean,
     onToggleImageFocus: () -> Unit,
-    onRotate: () -> Unit,
     onChangeImage: () -> Unit,
     onSave: () -> Unit,
     onToggleMode: (Boolean) -> Unit,
@@ -792,13 +789,6 @@ private fun Toolbar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ComicButton(
-            text = stringResource(R.string.rotate),
-            onClick = onRotate,
-            icon = BalloonerIcons.Rotate,
-            showLabel = false,
-            enabled = canRotate,
-        )
         ComicButton(
             text = stringResource(if (imageFocused) R.string.show_all_panels else R.string.focus_panel),
             onClick = onToggleImageFocus,
@@ -992,6 +982,7 @@ private fun Editor(
     hideFontSelector: Boolean,
     autoTextSize: Boolean,
     rotation: Float,
+    onRotate: () -> Unit,
     onSelectBalloon: (Long?) -> Unit,
     onCommitBalloon: (Balloon) -> Unit,
     onDeleteSelected: () -> Unit,
@@ -1530,12 +1521,34 @@ private fun Editor(
                                     }
                                     selectedPanel?.takeIf { focusedPanel == null }?.let { pending ->
                                         val displayedPanel = previewPanel ?: pending
-                                        ImageMoveHandle(
-                                            centerPx = Offset(
-                                                (displayedPanel.left + displayedPanel.width / 2f) * size.width,
-                                                displayedPanel.top * size.height,
+                                        ImageRotateHandle(
+                                            centerPx = panelHandleCenter(
+                                                panel = displayedPanel,
+                                                anchor = HandleAnchor.TOP_LEFT,
+                                                rotationDegrees = rotation,
+                                                displaySize = size,
                                             ),
                                             contentScale = 1f,
+                                            rotationDegrees = rotation,
+                                            onTap = {
+                                                if (croppingPanel != null) {
+                                                    finishCrop()
+                                                } else if (finishPanelImageTransform()) {
+                                                    Unit
+                                                } else {
+                                                    onRotate()
+                                                }
+                                            },
+                                        )
+                                        ImageMoveHandle(
+                                            centerPx = panelHandleCenter(
+                                                panel = displayedPanel,
+                                                anchor = HandleAnchor.TOP_CENTER,
+                                                rotationDegrees = rotation,
+                                                displaySize = size,
+                                            ),
+                                            contentScale = 1f,
+                                            rotationDegrees = rotation,
                                             onDragStart = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
@@ -1567,11 +1580,14 @@ private fun Editor(
                                             },
                                         )
                                         ImageDeleteHandle(
-                                            centerPx = Offset(
-                                                (displayedPanel.left + displayedPanel.width) * size.width,
-                                                displayedPanel.top * size.height,
+                                            centerPx = panelHandleCenter(
+                                                panel = displayedPanel,
+                                                anchor = HandleAnchor.TOP_RIGHT,
+                                                rotationDegrees = rotation,
+                                                displaySize = size,
                                             ),
                                             contentScale = 1f,
+                                            rotationDegrees = rotation,
                                             onTap = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
@@ -1583,11 +1599,14 @@ private fun Editor(
                                             },
                                         )
                                         ImageResizeHandle(
-                                            centerPx = Offset(
-                                                (displayedPanel.left + displayedPanel.width) * size.width,
-                                                (displayedPanel.top + displayedPanel.height) * size.height,
+                                            centerPx = panelHandleCenter(
+                                                panel = displayedPanel,
+                                                anchor = HandleAnchor.BOTTOM_RIGHT,
+                                                rotationDegrees = rotation,
+                                                displaySize = size,
                                             ),
                                             contentScale = 1f,
+                                            rotationDegrees = rotation,
                                             onDragStart = {
                                                 if (croppingPanel != null) {
                                                     finishCrop()
@@ -1622,8 +1641,10 @@ private fun Editor(
                                             centerPx = cropHandleCenter(
                                                 frame = cropFrame.takeIf { croppingPanel == pending } ?: pending,
                                                 displaySize = size,
+                                                rotationDegrees = rotation,
                                             ),
                                             contentScale = 1f,
+                                            rotationDegrees = rotation,
                                             onDragStart = {
                                                 if (finishPanelImageTransform()) {
                                                     false
@@ -1729,6 +1750,14 @@ private fun Editor(
                                     onFocusPanel = onFocusPanel,
                                     modifier = Modifier.matchParentSize(),
                                 )
+                                // Focusing clears the selection, so the focused view carries its own
+                                // rotate handle to keep further quarter turns reachable.
+                                ImageRotateHandle(
+                                    centerPx = Offset.Zero,
+                                    contentScale = 1f,
+                                    rotationDegrees = 0f,
+                                    onTap = onRotate,
+                                )
                                 if (selectedPanel == focusedPanel) {
                                     val density = LocalDensity.current
                                     ImageDeleteHandle(
@@ -1737,6 +1766,7 @@ private fun Editor(
                                             0f,
                                         ),
                                         contentScale = 1f,
+                                        rotationDegrees = 0f,
                                         onTap = { showConfirmDeleteImage = true },
                                     )
                                 }
@@ -2055,13 +2085,52 @@ internal fun magneticallyAlignedCropFrame(
     )
 }
 
+/**
+ * The corner or edge of a panel, as seen on screen, that a handle must keep occupying
+ * no matter how the panel's view layer is rotated.
+ */
+internal enum class HandleAnchor(val u: Float, val v: Float) {
+    TOP_LEFT(0f, 0f),
+    TOP_CENTER(0.5f, 0f),
+    TOP_RIGHT(1f, 0f),
+    BOTTOM_RIGHT(1f, 1f),
+    BOTTOM_LEFT(0f, 1f),
+}
+
+/** Clockwise quarter turns in 0..3 for any rotation value, including negatives and 359.9. */
+internal fun quarterTurns(rotationDegrees: Float): Int {
+    val turns = (rotationDegrees / 90f).roundToInt() % 4
+    return if (turns < 0) turns + 4 else turns
+}
+
+/**
+ * Centre, in rotated-layer pixels, of the handle that must appear at [anchor] on screen.
+ * Each quarter turn is undone by mapping the anchor counter-clockwise within the panel.
+ */
+internal fun panelHandleCenter(
+    panel: RectFraction,
+    anchor: HandleAnchor,
+    rotationDegrees: Float,
+    displaySize: Size,
+): Offset {
+    var u = anchor.u
+    var v = anchor.v
+    repeat(quarterTurns(rotationDegrees)) {
+        val rotatedU = v
+        v = 1f - u
+        u = rotatedU
+    }
+    return Offset(
+        x = (panel.left + u * panel.width) * displaySize.width,
+        y = (panel.top + v * panel.height) * displaySize.height,
+    )
+}
+
 internal fun cropHandleCenter(
     frame: RectFraction,
     displaySize: Size,
-): Offset = Offset(
-    x = frame.left * displaySize.width,
-    y = (frame.top + frame.height) * displaySize.height,
-)
+    rotationDegrees: Float = 0f,
+): Offset = panelHandleCenter(frame, HandleAnchor.BOTTOM_LEFT, rotationDegrees, displaySize)
 
 internal fun panCroppedImage(
     panel: RectFraction,
@@ -2649,7 +2718,12 @@ private fun Handles(
 
 /** Delete badge for a whole image panel, styled to match the comic list's delete button. */
 @Composable
-private fun ImageDeleteHandle(centerPx: Offset, contentScale: Float, onTap: () -> Unit) {
+private fun ImageDeleteHandle(
+    centerPx: Offset,
+    contentScale: Float,
+    rotationDegrees: Float,
+    onTap: () -> Unit,
+) {
     val density = LocalDensity.current
     val halfPx = with(density) { 16.dp.toPx() }
     Box(
@@ -2669,16 +2743,53 @@ private fun ImageDeleteHandle(centerPx: Offset, contentScale: Float, onTap: () -
             imageVector = Icons.Default.Close,
             contentDescription = stringResource(R.string.delete_panel),
             tint = Color.White,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(18.dp).uprightIn(rotationDegrees),
         )
     }
 }
+
+/** Tap handle that rotates the panel view a quarter turn, shown at its top-left corner. */
+@Composable
+private fun ImageRotateHandle(
+    centerPx: Offset,
+    contentScale: Float,
+    rotationDegrees: Float,
+    onTap: () -> Unit,
+) {
+    val density = LocalDensity.current
+    val halfPx = with(density) { 16.dp.toPx() }
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((centerPx.x - halfPx).roundToInt(), (centerPx.y - halfPx).roundToInt()) }
+            .size(32.dp)
+            .graphicsLayer {
+                scaleX = fixedControlScale(contentScale)
+                scaleY = fixedControlScale(contentScale)
+            }
+            .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(6.dp))
+            .border(2.dp, InkBlack, RoundedCornerShape(6.dp))
+            .pointerInput(Unit) { detectTapGestures { onTap() } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = BalloonerIcons.Rotate,
+            contentDescription = stringResource(R.string.rotate_panel),
+            tint = InkBlack,
+            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
+        )
+    }
+}
+
+/** Keeps handle chrome readable while its parent layer is rotated. */
+private fun Modifier.uprightIn(rotationDegrees: Float): Modifier =
+    if (rotationDegrees == 0f) this else graphicsLayer { rotationZ = -rotationDegrees }
 
 /** Drag handle for moving an image panel, positioned at its top-center edge. */
 @Composable
 private fun ImageMoveHandle(
     centerPx: Offset,
     contentScale: Float,
+    rotationDegrees: Float,
     onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit,
@@ -2723,7 +2834,7 @@ private fun ImageMoveHandle(
             imageVector = BalloonerIcons.Move,
             contentDescription = stringResource(R.string.move_panel),
             tint = InkBlack,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
         )
     }
 }
@@ -2732,6 +2843,7 @@ private fun ImageMoveHandle(
 private fun ImageResizeHandle(
     centerPx: Offset,
     contentScale: Float,
+    rotationDegrees: Float,
     onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
     onDragEnd: (Offset) -> Unit,
@@ -2776,7 +2888,7 @@ private fun ImageResizeHandle(
             imageVector = BalloonerIcons.Resize,
             contentDescription = stringResource(R.string.resize_panel),
             tint = InkBlack,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
         )
     }
 }
@@ -2785,6 +2897,7 @@ private fun ImageResizeHandle(
 private fun ImageCropHandle(
     centerPx: Offset,
     contentScale: Float,
+    rotationDegrees: Float,
     onDragStart: () -> Boolean,
     onDrag: (Offset) -> Unit,
 ) {
@@ -2819,7 +2932,7 @@ private fun ImageCropHandle(
             imageVector = BalloonerIcons.Crop,
             contentDescription = stringResource(R.string.crop_panel),
             tint = InkBlack,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(20.dp).uprightIn(rotationDegrees),
         )
     }
 }

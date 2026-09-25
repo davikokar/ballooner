@@ -52,7 +52,6 @@
     <string name="delete_comic_title">Supprimer la bande dessinée ?</string>
     <string name="delete_comic_message">Cette action supprime définitivement la bande dessinée et ses cases.</string>
     <string name="delete">Supprimer</string>
-    <string name="rotate">Faire pivoter</string>
     <string name="show_all_panels">Afficher toutes les cases</string>
     <string name="focus_panel">Centrer sur la case</string>
     <string name="save">Enregistrer</string>
@@ -73,6 +72,7 @@
     <string name="move_panel">Déplacer la case</string>
     <string name="resize_panel">Redimensionner la case</string>
     <string name="crop_panel">Recadrer la case</string>
+    <string name="rotate_panel">Faire pivoter la case</string>
     <string name="undo">Annuler</string>
     <string name="no_comics_yet">Aucune bande dessinée pour le moment !</string>
     <string name="empty_comics_message">Il est temps de commencer votre aventure héroïque. Prenez un crayon et lancez-vous !</string>

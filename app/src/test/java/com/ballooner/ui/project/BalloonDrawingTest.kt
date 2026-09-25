@@ -394,4 +394,134 @@ class BalloonDrawingTest {
 
         assertFalse(balloon.containsPoint(outside, canvas))
     }
+
+    @Test
+    fun `panel rotate handle sits on the top-left corner of an unrotated panel`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+
+        val center = panelHandleCenter(panel, HandleAnchor.TOP_LEFT, rotationDegrees = 0f, displaySize = displaySize)
+
+        assertOffsetEquals(Offset(250f, 80f), center)
+    }
+
+    @Test
+    fun `panel rotate handle keeps the top-left screen corner through every quarter turn`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+
+        for (rotation in quarterTurnRotations) {
+            val onScreen = onScreenAfterRotation(
+                panelHandleCenter(panel, HandleAnchor.TOP_LEFT, rotation, displaySize),
+                panel,
+                rotation,
+            )
+
+            assertOffsetEquals(rotatedPanelAnchorPx(panel, HandleAnchor.TOP_LEFT, rotation), onScreen)
+        }
+    }
+
+    @Test
+    fun `move delete and resize handles keep their own screen corner through every quarter turn`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+        val anchors = listOf(HandleAnchor.TOP_CENTER, HandleAnchor.TOP_RIGHT, HandleAnchor.BOTTOM_RIGHT)
+
+        for (rotation in quarterTurnRotations) {
+            for (anchor in anchors) {
+                val onScreen = onScreenAfterRotation(
+                    panelHandleCenter(panel, anchor, rotation, displaySize),
+                    panel,
+                    rotation,
+                )
+
+                assertOffsetEquals(rotatedPanelAnchorPx(panel, anchor, rotation), onScreen)
+            }
+        }
+    }
+
+    @Test
+    fun `crop handle keeps the bottom-left screen corner through every quarter turn`() {
+        val frame = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+
+        for (rotation in quarterTurnRotations) {
+            val onScreen = onScreenAfterRotation(cropHandleCenter(frame, displaySize, rotation), frame, rotation)
+
+            assertOffsetEquals(rotatedPanelAnchorPx(frame, HandleAnchor.BOTTOM_LEFT, rotation), onScreen)
+        }
+    }
+
+    @Test
+    fun `no two panel handles ever share a position`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+
+        for (rotation in quarterTurnRotations) {
+            val centers = HandleAnchor.entries.map { panelHandleCenter(panel, it, rotation, displaySize) }
+
+            assertEquals(HandleAnchor.entries.size, centers.toSet().size)
+        }
+    }
+
+    @Test
+    fun `quarterTurns normalises rotations outside a single revolution`() {
+        assertEquals(0, quarterTurns(0f))
+        assertEquals(3, quarterTurns(-90f))
+        assertEquals(1, quarterTurns(-270f))
+        assertEquals(1, quarterTurns(450f))
+        assertEquals(0, quarterTurns(720f))
+    }
+
+    @Test
+    fun `quarterTurns rounds near-miss rotations to the closest quarter`() {
+        assertEquals(0, quarterTurns(359.9f))
+        assertEquals(1, quarterTurns(89.9f))
+        assertEquals(1, quarterTurns(-269.9f))
+        assertEquals(0, quarterTurns(44f))
+        assertEquals(1, quarterTurns(46f))
+    }
+
+    private val displaySize = Size(1000f, 800f)
+
+    private val quarterTurnRotations = listOf(0f, 90f, 180f, 270f)
+
+    private fun assertOffsetEquals(expected: Offset, actual: Offset) {
+        assertEquals(expected.x, actual.x, 0.01f)
+        assertEquals(expected.y, actual.y, 0.01f)
+    }
+
+    /** Clockwise rotation, matching Compose's positive `rotationZ` on a y-down canvas. */
+    private fun rotatedClockwise(point: Offset, pivot: Offset, degrees: Float): Offset {
+        val radians = Math.toRadians(degrees.toDouble())
+        val cos = kotlin.math.cos(radians).toFloat()
+        val sin = kotlin.math.sin(radians).toFloat()
+        val dx = point.x - pivot.x
+        val dy = point.y - pivot.y
+        return Offset(pivot.x + dx * cos - dy * sin, pivot.y + dx * sin + dy * cos)
+    }
+
+    private fun panelCenterPx(panel: RectFraction) = Offset(
+        (panel.left + panel.width / 2f) * displaySize.width,
+        (panel.top + panel.height / 2f) * displaySize.height,
+    )
+
+    /** Where a handle placed in the unrotated layer actually lands once the layer is rotated. */
+    private fun onScreenAfterRotation(center: Offset, panel: RectFraction, rotationDegrees: Float) =
+        rotatedClockwise(center, panelCenterPx(panel), rotationDegrees)
+
+    /** The screen position of [anchor] on the panel's on-screen bounding box after rotation. */
+    private fun rotatedPanelAnchorPx(panel: RectFraction, anchor: HandleAnchor, rotationDegrees: Float): Offset {
+        val pivot = panelCenterPx(panel)
+        val corners = listOf(0f to 0f, 1f to 0f, 1f to 1f, 0f to 1f).map { (u, v) ->
+            rotatedClockwise(
+                Offset(
+                    (panel.left + u * panel.width) * displaySize.width,
+                    (panel.top + v * panel.height) * displaySize.height,
+                ),
+                pivot,
+                rotationDegrees,
+            )
+        }
+        val left = corners.minOf { it.x }
+        val top = corners.minOf { it.y }
+        val right = corners.maxOf { it.x }
+        val bottom = corners.maxOf { it.y }
+        return Offset(left + anchor.u * (right - left), top + anchor.v * (bottom - top))
+    }
 }
