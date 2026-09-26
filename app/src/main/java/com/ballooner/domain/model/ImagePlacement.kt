@@ -154,6 +154,14 @@ fun magneticallyResizedPanel(
     )
 }
 
+/** The destination of a quarter turn of [panel]: its width and height exchanged about its top-left corner. */
+fun quarterTurnedPanel(panel: RectFraction): RectFraction = RectFraction(
+    left = panel.left,
+    top = panel.top,
+    width = panel.height,
+    height = panel.width,
+)
+
 fun repositionPanelsAfterResize(
     panels: List<RectFraction>,
     moving: RectFraction,

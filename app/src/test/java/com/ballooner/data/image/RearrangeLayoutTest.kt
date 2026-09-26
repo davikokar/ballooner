@@ -1,6 +1,7 @@
 package com.ballooner.data.image
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RearrangeLayoutTest {
@@ -77,5 +78,95 @@ class RearrangeLayoutTest {
         assertEquals(PixelRect(170, 0, 100, 100), layout.panelRects[1])
         assertEquals(270, layout.canvasWidth)
         assertEquals(140, layout.canvasHeight)
+    }
+
+    @Test
+    fun `a swapped-dimension destination rebounds the canvas to fit the widened panel`() {
+        val layout = computeRearrangeLayout(
+            panelRects = listOf(
+                PixelRect(0, 0, 100, 300),
+                PixelRect(110, 0, 100, 300),
+            ),
+            fromIndex = 0,
+            // The quarter turn of the tall panel: width and height swapped about its top-left corner.
+            desiredLeft = 0,
+            desiredTop = 0,
+            desiredWidth = 300,
+            desiredHeight = 100,
+        )
+
+        assertEquals(PixelRect(0, 0, 300, 100), layout.panelRects[0])
+        assertEquals(PixelRect(310, 0, 100, 300), layout.panelRects[1])
+        assertEquals(410, layout.canvasWidth)
+        assertEquals(300, layout.canvasHeight)
+    }
+
+    @Test
+    fun `a turned panel stays on the origin it was turned from`() {
+        val layout = computeRearrangeLayout(
+            panelRects = listOf(
+                PixelRect(20, 30, 100, 300),
+                PixelRect(130, 30, 100, 300),
+                PixelRect(20, 340, 100, 100),
+            ),
+            fromIndex = 0,
+            desiredLeft = 20,
+            desiredTop = 30,
+            desiredWidth = 300,
+            desiredHeight = 100,
+        )
+
+        assertEquals(20, layout.panelRects[0].left)
+        assertEquals(30, layout.panelRects[0].top)
+    }
+
+    @Test
+    fun `a turned panel never drags a neighbour left or up`() {
+        val panelRects = listOf(
+            PixelRect(20, 30, 100, 300),
+            PixelRect(130, 30, 100, 300),
+            PixelRect(20, 340, 100, 100),
+        )
+
+        val layout = computeRearrangeLayout(
+            panelRects = panelRects,
+            fromIndex = 0,
+            desiredLeft = 20,
+            desiredTop = 30,
+            desiredWidth = 300,
+            desiredHeight = 100,
+        )
+
+        // A top-left anchored turn cannot produce a negative coordinate, so the origin shift in
+        // computeRearrangeLayout is a no-op and untouched panels only ever move out of the way.
+        panelRects.indices.drop(1).forEach { index ->
+            val moved = layout.panelRects[index]
+            val original = panelRects[index]
+            assertTrue("panel $index moved left: $moved was $original", moved.left >= original.left)
+            assertTrue("panel $index moved up: $moved was $original", moved.top >= original.top)
+        }
+    }
+
+    @Test
+    fun `rotation deliberately leaves the gap where the panel shrank, an accepted ADR-0002 limitation`() {
+        val layout = computeRearrangeLayout(
+            panelRects = listOf(
+                PixelRect(0, 0, 100, 300),
+                PixelRect(0, 310, 100, 100),
+            ),
+            fromIndex = 0,
+            desiredLeft = 0,
+            desiredTop = 0,
+            desiredWidth = 300,
+            desiredHeight = 100,
+        )
+
+        // The reflow only pushes neighbours apart to make room for growth, never pulls them back
+        // in, so the 10px gap below the tall panel becomes a 210px gap below the turned one.
+        // ADR-0002 accepts this and ADR-0003 only changes where the gap lands, not that it exists.
+        // Closing it is explicitly out of scope. Do not "fix" this test.
+        assertEquals(PixelRect(0, 0, 300, 100), layout.panelRects[0])
+        assertEquals(PixelRect(0, 310, 100, 100), layout.panelRects[1])
+        assertEquals(210, layout.panelRects[1].top - (layout.panelRects[0].top + layout.panelRects[0].height))
     }
 }

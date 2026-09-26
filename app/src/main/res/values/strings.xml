@@ -53,7 +53,6 @@
     <string name="delete_comic_title">Delete comic?</string>
     <string name="delete_comic_message">This permanently removes the comic and its panels.</string>
     <string name="delete">Delete</string>
-    <string name="rotate">Rotate</string>
     <string name="show_all_panels">Show all panels</string>
     <string name="focus_panel">Focus panel</string>
     <string name="save">Save</string>
@@ -74,6 +73,7 @@
     <string name="move_panel">Move panel</string>
     <string name="resize_panel">Resize panel</string>
     <string name="crop_panel">Crop panel</string>
+    <string name="rotate_panel">Rotate panel</string>
     <string name="undo">Undo</string>
     <string name="no_comics_yet">No comics yet!</string>
     <string name="empty_comics_message">Time to start your heroic journey. Grab a pen and let\'s go!</string>

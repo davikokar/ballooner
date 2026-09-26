@@ -56,7 +56,6 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 
 ### Editor toolbar controls
 
-- **Rotate panel button**: Rotates the current panel view by 90 degrees.
 - **Focus panel button**: Focuses the selected panel, or the first panel when none is
   selected.
 - **Show all panels button**: Leaves the focused-panel view and displays the whole comic.
@@ -83,6 +82,8 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Panel move handle** (`ImageMoveHandle`): Drags a panel to a new layout position.
 - **Panel resize handle** (`ImageResizeHandle`): Changes a panel's outer bounds.
 - **Panel crop handle** (`ImageCropHandle`): Changes the visible crop of a panel image.
+- **Panel rotate handle** (`ImageRotateHandle`): Turns a panel's image a quarter turn, swapping
+  the panel's width and height and moving neighbouring panels to accommodate it.
 - **Panel delete button** (`ImageDeleteHandle`): Removes a panel after confirmation.
 - **Add-panel edge button** (`ImageAddEdgeButton`): Adds a panel beside a specific edge of
   an existing panel.
@@ -127,6 +128,8 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Move**: Reposition an item without changing its size.
 - **Resize**: Change an item's outer bounds.
 - **Crop**: Change which part of an image is visible inside a panel.
+- **Rotate**: Turn a panel's image a quarter turn; its width and height swap as a result
+  rather than being chosen, and no image content is hidden.
 - **Add**: Create a new comic, panel, or balloon.
 - **Delete**: Permanently remove an item, including any required confirmation.
 

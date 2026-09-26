@@ -18,3 +18,6 @@ for the required format and status rules.
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
+| [ADR-0001](decisions/0001-view-rotation-is-a-display-only-layer-transform.md) | View rotation is a display-only layer transform | Disabled | 2026-09-25 |
+| [ADR-0002](decisions/0002-panel-rotation-is-a-destructive-undoable-image-edit.md) | Panel rotation is a destructive, undoable edit to the merged comic image | Active | 2026-09-25 |
+| [ADR-0003](decisions/0003-a-panel-quarter-turn-is-anchored-at-the-panel-top-left-corner.md) | A panel quarter turn is anchored at the panel's top-left corner | Active | 2026-09-26 |

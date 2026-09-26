@@ -52,7 +52,6 @@
     <string name="delete_comic_title">만화를 삭제할까요?</string>
     <string name="delete_comic_message">만화와 모든 컷이 영구적으로 삭제됩니다.</string>
     <string name="delete">삭제</string>
-    <string name="rotate">회전</string>
     <string name="show_all_panels">모든 컷 표시</string>
     <string name="focus_panel">컷에 초점 맞추기</string>
     <string name="save">저장</string>
@@ -73,6 +72,7 @@
     <string name="move_panel">컷 이동</string>
     <string name="resize_panel">컷 크기 조절</string>
     <string name="crop_panel">컷 자르기</string>
+    <string name="rotate_panel">컷 회전</string>
     <string name="undo">실행 취소</string>
     <string name="no_comics_yet">아직 만화가 없습니다!</string>
     <string name="empty_comics_message">영웅의 여정을 시작할 시간입니다. 펜을 들고 출발하세요!</string>

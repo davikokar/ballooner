@@ -52,7 +52,6 @@
     <string name="delete_comic_title">¿Eliminar cómic?</string>
     <string name="delete_comic_message">Esto elimina permanentemente el cómic y sus viñetas.</string>
     <string name="delete">Eliminar</string>
-    <string name="rotate">Girar</string>
     <string name="show_all_panels">Mostrar todas las viñetas</string>
     <string name="focus_panel">Enfocar viñeta</string>
     <string name="save">Guardar</string>
@@ -73,6 +72,7 @@
     <string name="move_panel">Mover viñeta</string>
     <string name="resize_panel">Cambiar tamaño de viñeta</string>
     <string name="crop_panel">Recortar viñeta</string>
+    <string name="rotate_panel">Girar viñeta</string>
     <string name="undo">Deshacer</string>
     <string name="no_comics_yet">¡Aún no hay cómics!</string>
     <string name="empty_comics_message">Es hora de comenzar tu aventura heroica. ¡Toma un lápiz y adelante!</string>

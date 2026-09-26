@@ -278,29 +278,6 @@ class BalloonDrawingTest {
     }
 
     @Test
-    fun `quarter turn swaps focused panel layout dimensions`() {
-        val panel = RectFraction(left = 0.5f, top = 0f, width = 0.25f, height = 1f)
-
-        val layout = panel.focusLayout(viewportWidth = 600f, viewportHeight = 300f, quarterTurned = true)
-
-        assertEquals(1200f, layout.contentWidth, 0.001f)
-        assertEquals(600f, layout.contentHeight, 0.001f)
-        assertEquals(300f, layout.offsetX + (panel.left + panel.width / 2f) * layout.contentWidth, 0.001f)
-        assertEquals(150f, layout.offsetY + (panel.top + panel.height / 2f) * layout.contentHeight, 0.001f)
-    }
-
-    @Test
-    fun `rotation targets the only focused or selected image`() {
-        val first = RectFraction(0f, 0f, 0.5f, 1f)
-        val second = RectFraction(0.5f, 0f, 0.5f, 1f)
-
-        assertEquals(first, rotationTarget(listOf(first), selectedPanel = null, focusedPanel = null))
-        assertNull(rotationTarget(listOf(first, second), selectedPanel = null, focusedPanel = null))
-        assertEquals(second, rotationTarget(listOf(first, second), selectedPanel = second, focusedPanel = null))
-        assertEquals(first, rotationTarget(listOf(first, second), selectedPanel = second, focusedPanel = first))
-    }
-
-    @Test
     fun `focused image navigation exposes only adjacent panels`() {
         val topLeft = RectFraction(0f, 0f, 0.5f, 0.5f)
         val topRight = RectFraction(0.5f, 0f, 0.5f, 0.5f)
@@ -394,4 +371,49 @@ class BalloonDrawingTest {
 
         assertFalse(balloon.containsPoint(outside, canvas))
     }
+
+    @Test
+    fun `panel rotate handle sits on the top-left corner of an unrotated panel`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+
+        val center = panelHandleCenter(panel, HandleAnchor.TOP_LEFT, displaySize = displaySize)
+
+        assertOffsetEquals(Offset(250f, 80f), center)
+    }
+
+    @Test
+    fun `no two panel handles ever share a position`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+
+        val centers = HandleAnchor.entries.map { panelHandleCenter(panel, it, displaySize) }
+
+        assertEquals(HandleAnchor.entries.size, centers.toSet().size)
+    }
+
+    @Test
+    fun `crop frame stays within the panel and above the minimum`() {
+        val panel = RectFraction(0.25f, 0.1f, 0.5f, 0.4f)
+        val oversizedDrags = listOf(Offset(5000f, 5000f), Offset(-5000f, -5000f))
+
+        for (drag in oversizedDrags) {
+            val frame = cropFrameAfterHandleDrag(panel, panel, drag, displaySize)
+
+            assertTrue(frame.left >= panel.left - 0.0001f)
+            assertTrue(frame.top >= panel.top - 0.0001f)
+            assertTrue(frame.left + frame.width <= panel.left + panel.width + 0.0001f)
+            assertTrue(frame.top + frame.height <= panel.top + panel.height + 0.0001f)
+            assertTrue(frame.width >= panel.width * MINIMUM_CROP_FRACTION - 0.0001f)
+            assertTrue(frame.height >= panel.height * MINIMUM_CROP_FRACTION - 0.0001f)
+        }
+    }
+
+    private val displaySize = Size(1000f, 800f)
+
+    private fun assertOffsetEquals(expected: Offset, actual: Offset) {
+        assertEquals(expected.x, actual.x, 0.01f)
+        assertEquals(expected.y, actual.y, 0.01f)
+    }
 }
+
+/** Mirrors `MIN_CROP_FRAME_FRACTION` in ProjectScreen.kt, which is private to that file. */
+private const val MINIMUM_CROP_FRACTION = 0.2f
