@@ -7,29 +7,25 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.ballooner.ui.project.ProjectRoute
-import com.ballooner.ui.projectlist.ProjectListRoute
+import com.ballooner.ui.comiceditor.COMIC_ID_KEY
+import com.ballooner.ui.comiceditor.ComicEditorRoute
+import com.ballooner.ui.comiclist.ComicListRoute
 import com.ballooner.ui.settings.SettingsRoute
 
 object Routes {
-    const val PROJECT_LIST = "projects"
+    const val COMIC_LIST = "comics"
     const val SETTINGS = "settings"
-    const val PROJECT_ARG = "projectId"
-    const val NEW_ARG = "new"
-    const val PROJECT = "project/{$PROJECT_ARG}?$NEW_ARG={$NEW_ARG}"
+    const val COMIC = "comic/{$COMIC_ID_KEY}"
 
-    fun project(projectId: Long, isNew: Boolean = false): String = "project/$projectId?$NEW_ARG=$isNew"
+    fun comic(comicId: Long): String = "comic/$comicId"
 }
 
 @Composable
 fun BalloonerNavHost(navController: NavHostController = rememberNavController()) {
-    NavHost(navController = navController, startDestination = Routes.PROJECT_LIST) {
-        composable(Routes.PROJECT_LIST) {
-            ProjectListRoute(
-                onOpenProject = { projectId -> navController.navigate(Routes.project(projectId)) },
-                onCreatedProject = { projectId ->
-                    navController.navigate(Routes.project(projectId, isNew = true))
-                },
+    NavHost(navController = navController, startDestination = Routes.COMIC_LIST) {
+        composable(Routes.COMIC_LIST) {
+            ComicListRoute(
+                onOpenComic = { comicId -> navController.navigate(Routes.comic(comicId)) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
@@ -37,23 +33,10 @@ fun BalloonerNavHost(navController: NavHostController = rememberNavController())
             SettingsRoute(onNavigateBack = { navController.popBackStack() })
         }
         composable(
-            route = Routes.PROJECT,
-            arguments = listOf(
-                navArgument(Routes.PROJECT_ARG) { type = NavType.LongType },
-                navArgument(Routes.NEW_ARG) {
-                    type = NavType.BoolType
-                    defaultValue = false
-                },
-            ),
-        ) { backStackEntry ->
-            val projectId = backStackEntry.arguments?.getLong(Routes.PROJECT_ARG) ?: 0L
-            val isNew = backStackEntry.arguments?.getBoolean(Routes.NEW_ARG) ?: false
-            ProjectRoute(
-                projectId = projectId,
-                autoOpenPicker = isNew,
-                onNavigateBack = { navController.popBackStack() },
-                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-            )
+            route = Routes.COMIC,
+            arguments = listOf(navArgument(COMIC_ID_KEY) { type = NavType.LongType }),
+        ) {
+            ComicEditorRoute(onNavigateBack = { navController.popBackStack() })
         }
     }
 }

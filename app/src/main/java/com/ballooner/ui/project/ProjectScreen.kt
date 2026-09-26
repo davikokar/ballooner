@@ -145,6 +145,7 @@ import com.ballooner.domain.model.targetRect
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors
+import com.ballooner.ui.theme.googleFontFamily
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -2114,9 +2115,13 @@ internal fun transformedPanelImageBounds(
     val targetHeight = panel.height * targetScale
     val centerX = imageBounds.left + imageBounds.width / 2f + pan.x / displaySize.width
     val centerY = imageBounds.top + imageBounds.height / 2f + pan.y / displaySize.height
+    // At scale 1 the image exactly covers the panel, but float rounding can leave these
+    // lower bounds a hair above panel.left/top, which would make coerceIn throw.
+    val minLeft = (panel.left + panel.width - targetWidth).coerceAtMost(panel.left)
+    val minTop = (panel.top + panel.height - targetHeight).coerceAtMost(panel.top)
     return RectFraction(
-        left = (centerX - targetWidth / 2f).coerceIn(panel.left + panel.width - targetWidth, panel.left),
-        top = (centerY - targetHeight / 2f).coerceIn(panel.top + panel.height - targetHeight, panel.top),
+        left = (centerX - targetWidth / 2f).coerceIn(minLeft, panel.left),
+        top = (centerY - targetHeight / 2f).coerceIn(minTop, panel.top),
         width = targetWidth,
         height = targetHeight,
     )

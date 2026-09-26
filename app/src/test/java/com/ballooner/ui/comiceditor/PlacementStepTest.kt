@@ -1,0 +1,265 @@
+package com.ballooner.ui.comiceditor
+
+import com.ballooner.data.comic.FakeComicRepository
+import com.ballooner.domain.comic.Comic
+import com.ballooner.domain.comic.ComicStyle
+import com.ballooner.domain.comic.Grid
+import com.ballooner.domain.comic.Layout
+import com.ballooner.domain.comic.MAX_PANEL_ZOOM
+import com.ballooner.domain.comic.MIN_PANEL_ZOOM
+import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.Panel
+import com.ballooner.domain.comic.PanelImage
+import com.ballooner.util.MainDispatcherRule
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+
+/** Covers the Placement step: choosing a panel, filling it, and fitting the image inside it. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class PlacementStepTest {
+
+    @get:Rule
+    val dispatcherRule = MainDispatcherRule()
+
+    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+
+    private fun comic(withImages: Boolean = true) = Comic(
+        pageShape = PageShape.SQUARE,
+        style = style,
+        layout = Layout(Grid(rows = 1, columns = 2)),
+        panels = List(2) { Panel(if (withImages) PanelImage("image$it") else null) },
+    )
+
+    private fun editorFor(initial: Comic): Pair<ComicEditorViewModel, FakeComicRepository> {
+        val repository = FakeComicRepository(initial)
+        return ComicEditorViewModel(comicId = 1L, repository = repository) to repository
+    }
+
+    private fun content(viewModel: ComicEditorViewModel) =
+        viewModel.uiState.value as ComicEditorUiState.Content
+
+    private fun imageOf(viewModel: ComicEditorViewModel, index: Int) =
+        content(viewModel).comic.panels[index].image
+
+    @Test
+    fun `choosing a panel makes it the one being placed`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.selectPanel(1)
+
+        assertEquals(1, content(viewModel).activePanel)
+    }
+
+    @Test
+    fun `choosing a panel that is not there selects nothing`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.selectPanel(9)
+
+        assertNull(content(viewModel).activePanel)
+    }
+
+    @Test
+    fun `leaving the step forgets which panel was being placed`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+        viewModel.selectPanel(0)
+
+        viewModel.selectStep(EditorStep.BALLOONS)
+
+        assertNull(content(viewModel).activePanel)
+    }
+
+    @Test
+    fun `an image dropped into a panel starts out filling it`() = runTest {
+        val (viewModel, repository) = editorFor(comic(withImages = false))
+        advanceUntilIdle()
+
+        viewModel.setPanelImage(0, "file://picked")
+        advanceUntilIdle()
+
+        val placed = imageOf(viewModel, 0)
+        assertNotNull(placed)
+        assertEquals("file://picked", placed!!.sourceUri)
+        assertEquals(MIN_PANEL_ZOOM, placed.zoom, TOLERANCE)
+        assertEquals(0f, placed.angleDegrees, TOLERANCE)
+        assertEquals("file://picked", repository.saved.value.getValue(1L).panels[0].image?.sourceUri)
+    }
+
+    @Test
+    fun `removing an image leaves the panel empty but still there`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.setPanelImage(0, null)
+        advanceUntilIdle()
+
+        assertNull(imageOf(viewModel, 0))
+        assertEquals(2, content(viewModel).comic.panels.size)
+    }
+
+    @Test
+    fun `replacing an image starts its placement again`() = runTest {
+        val turned = PanelImage("image0", zoom = 3f, angleDegrees = 40f)
+        val (viewModel, _) = editorFor(comic().let { it.copy(panels = listOf(Panel(turned), it.panels[1])) })
+        advanceUntilIdle()
+
+        viewModel.setPanelImage(0, "file://other")
+        advanceUntilIdle()
+
+        assertEquals(MIN_PANEL_ZOOM, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
+        assertEquals(0f, imageOf(viewModel, 0)!!.angleDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun `pinching zooms the image in its panel`() = runTest {
+        val (viewModel, repository) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.startPlacementGesture()
+        viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f)
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertEquals(2f, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
+        assertEquals(2f, repository.saved.value.getValue(1L).panels[0].image!!.zoom, TOLERANCE)
+    }
+
+    @Test
+    fun `a whole pinch counts as one undo`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.startPlacementGesture()
+        repeat(5) { viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 1.1f) }
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+        assertTrue(content(viewModel).canUndo)
+
+        viewModel.undo()
+        advanceUntilIdle()
+
+        assertEquals(MIN_PANEL_ZOOM, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
+        assertFalse(content(viewModel).canUndo)
+    }
+
+    @Test
+    fun `an image can never be zoomed out past covering its panel`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.startPlacementGesture()
+        repeat(10) { viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 0.5f) }
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertEquals(MIN_PANEL_ZOOM, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
+    }
+
+    @Test
+    fun `zooming stops at the maximum`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.startPlacementGesture()
+        repeat(20) { viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f) }
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertEquals(MAX_PANEL_ZOOM, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
+    }
+
+    @Test
+    fun `dragging a zoomed image moves what is shown`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.startPlacementGesture()
+        viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f)
+        viewModel.transformPanelImage(0, imageAspect = 1f, panX = 0.05f)
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertTrue(imageOf(viewModel, 0)!!.centre.u < 0.5f)
+    }
+
+    @Test
+    fun `twisting turns the image and snaps near a quarter turn`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.startPlacementGesture()
+        viewModel.transformPanelImage(0, imageAspect = 1f, rotateBy = 88f)
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertEquals(90f, imageOf(viewModel, 0)!!.angleDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun `placing one panel leaves the others alone`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+        val before = imageOf(viewModel, 1)
+
+        viewModel.startPlacementGesture()
+        viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 3f, rotateBy = 20f)
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertEquals(before, imageOf(viewModel, 1))
+    }
+
+    @Test
+    fun `placing an empty panel does nothing`() = runTest {
+        val (viewModel, _) = editorFor(comic(withImages = false))
+        advanceUntilIdle()
+
+        viewModel.startPlacementGesture()
+        viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f)
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertNull(imageOf(viewModel, 0))
+        assertFalse(content(viewModel).canUndo)
+    }
+
+    @Test
+    fun `the layout step is unaffected by image placement`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+        val layout = content(viewModel).comic.layout
+
+        viewModel.startPlacementGesture()
+        viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f, rotateBy = 33f)
+        viewModel.endPlacementGesture()
+        advanceUntilIdle()
+
+        assertEquals(layout, content(viewModel).comic.layout)
+    }
+
+    @Test
+    fun `style changes never add or remove panels`() = runTest {
+        val (viewModel, repository) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.setStyle(ComicStyle(pageMargin = 0.08f, gutter = 0.05f, borderThickness = 0.01f))
+        advanceUntilIdle()
+
+        assertEquals(2, content(viewModel).comic.panels.size)
+        assertEquals(0.05f, repository.saved.value.getValue(1L).style.gutter, TOLERANCE)
+        assertEquals("image0", imageOf(viewModel, 0)?.sourceUri)
+    }
+}
+
+private const val TOLERANCE = 1e-4f

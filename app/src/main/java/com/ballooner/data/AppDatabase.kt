@@ -2,20 +2,27 @@ package com.ballooner.data
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.ballooner.data.balloon.BalloonDao
-import com.ballooner.data.balloon.BalloonEntity
-import com.ballooner.data.panel.PanelDao
-import com.ballooner.data.panel.PanelEntity
-import com.ballooner.data.project.ProjectDao
-import com.ballooner.data.project.ProjectEntity
+import androidx.room.TypeConverters
+import com.ballooner.data.comic.ComicBalloonEntity
+import com.ballooner.data.comic.ComicCutEntity
+import com.ballooner.data.comic.ComicDao
+import com.ballooner.data.comic.ComicEntity
+import com.ballooner.data.comic.ComicPanelEntity
+import com.ballooner.data.comic.ComicSpanEntity
+import com.ballooner.data.comic.FloatListConverter
 
 @Database(
-    entities = [ProjectEntity::class, BalloonEntity::class, PanelEntity::class],
-    version = 6,
+    entities = [
+        ComicEntity::class,
+        ComicSpanEntity::class,
+        ComicCutEntity::class,
+        ComicPanelEntity::class,
+        ComicBalloonEntity::class,
+    ],
+    version = 8,
     exportSchema = true,
 )
+@TypeConverters(FloatListConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun projectDao(): ProjectDao
-    abstract fun balloonDao(): BalloonDao
-    abstract fun panelDao(): PanelDao
+    abstract fun comicDao(): ComicDao
 }

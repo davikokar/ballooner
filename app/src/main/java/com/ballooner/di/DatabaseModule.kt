@@ -8,9 +8,9 @@ import com.ballooner.data.MIGRATION_2_3
 import com.ballooner.data.MIGRATION_3_4
 import com.ballooner.data.MIGRATION_4_5
 import com.ballooner.data.MIGRATION_5_6
-import com.ballooner.data.balloon.BalloonDao
-import com.ballooner.data.panel.PanelDao
-import com.ballooner.data.project.ProjectDao
+import com.ballooner.data.MIGRATION_6_7
+import com.ballooner.data.MIGRATION_7_8
+import com.ballooner.data.comic.ComicDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,15 +26,17 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "ballooner.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+            )
             .build()
 
     @Provides
-    fun provideProjectDao(database: AppDatabase): ProjectDao = database.projectDao()
-
-    @Provides
-    fun provideBalloonDao(database: AppDatabase): BalloonDao = database.balloonDao()
-
-    @Provides
-    fun providePanelDao(database: AppDatabase): PanelDao = database.panelDao()
+    fun provideComicDao(database: AppDatabase): ComicDao = database.comicDao()
 }

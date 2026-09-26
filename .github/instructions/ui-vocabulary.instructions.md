@@ -47,60 +47,95 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Editor top bar**: The top bar containing the Back button, Comic title field, and Editor
   overflow menu.
 - **Comic title field** (`EditableTitle`): The editable comic name in the Editor top bar.
-- **Editor toolbar** (`Toolbar`): The row below the Editor top bar containing panel and file
-  actions plus the Mode toggle.
-- **Canvas** (`Editor`): The dotted editing area containing the comic image, panels,
-  balloons, and their handles. The Editor toolbar and Comic kit are outside the Canvas.
+- **Editor toolbar**: The row below the Editor top bar containing the Step switch and file
+  actions.
+- **Canvas**: The editing area that displays the Page. The Editor toolbar and Comic kit are
+  outside the Canvas.
+- **Page**: The fixed surface a comic is drawn on. One comic is exactly one page.
+- **Page shape**: The page's proportions: square, portrait, landscape, or strip.
 - **Comic kit** (`ComicKit`): The collapsible bottom area containing balloon creation and
   text controls. Aliases: **balloon buttons area**, **bottom bar**
 
+### Steps
+
+Comic creation is divided into three steps. Each step edits a different part of the comic, and
+the parts owned by later steps are shown dimmed and are not interactive.
+
+- **Layout step**: The step for choosing the Page shape and dividing the Page into panels.
+- **Placement step**: The step for choosing each panel's image and adjusting it in its frame.
+- **Balloon step**: The step for adding and editing balloons.
+- **Step switch**: The persistent control that moves between the three steps. It replaces the
+  former Edit / View mode toggle.
+- **Preview**: The comic shown without any editing affordances.
+
 ### Editor toolbar controls
 
-- **Focus panel button**: Focuses the selected panel, or the first panel when none is
-  selected.
-- **Show all panels button**: Leaves the focused-panel view and displays the whole comic.
-- **Mode toggle** (`ModeToggle`): The segmented **Edit / View** control.
-- **Edit mode**: The mode in which panels and balloons can be changed.
-- **View mode**: The mode that shows the comic without editing controls.
-- **Add panel button**: Opens image selection to add another image panel.
+- **Comic style button**: Opens the Comic style controls.
+- **Focus panel button**: Focuses the selected panel, or the first panel when none is selected.
+- **Show all panels button**: Leaves the focused view and displays the whole Page.
 - **Save button**: Exports the comic as a PNG selected by the user.
+- **Undo button**: Reverses the most recent edit, in any step.
+
+### Layout step
+
+- **Grid**: The rows and columns a page is divided into. A single panel is a 1×1 grid and a
+  strip is a 1×n or n×1 grid.
+- **Cell**: One row-and-column position in the Grid.
+- **Grid line**: A draggable divider that changes row or column proportions.
+- **Merged panel**: One panel spanning a rectangular block of cells.
+- **Cut**: A straight line traced over the Page that splits the regions it crosses into separate
+  panels. A cut may be horizontal, vertical, or diagonal at any angle.
+- **Page cut**: A Cut that crosses the whole Page and splits every panel in its path.
+- **Panel cut**: A Cut that crosses a single panel and splits only that one.
+- **Layout preset**: A starting layout offered to the user, such as single panel, strip, grid, or
+  blank page.
+- **Layout change warning**: The confirmation shown before a layout change that would delete
+  panels along with their images and balloons.
+
+### Comic style
+
+Comic-level settings that restyle the whole comic at once.
+
+- **Page margin**: Space between the page edge and the outermost panels.
+- **Gutter**: Space between adjacent panels.
+- **Border thickness**: The panel outline weight.
+- **Corner radius**: How rounded panel corners are.
+
+### Placement step
+
+- **Panel image**: The image placed in a panel.
+- **Panel image transform**: How a Panel image sits inside its panel: its centre, zoom, and
+  rotation angle.
+- **Empty panel**: A panel with no Panel image yet.
+- **Cover**: The rule that a Panel image always fills its panel completely. Zoom, pan, and
+  rotation are constrained so no empty area can appear.
+- **Swap**: Exchange the images of two panels by dragging one onto the other.
 
 ### Canvas concepts
 
-- **Panel**: One image region in the comic. A panel is not a Comic card or generic visual
-  container.
-- **Selected panel**: The panel currently showing panel editing controls.
-- **Focused panel**: The panel temporarily filling the Canvas for closer viewing. Selection
-  and focus are distinct states.
-- **Balloon**: A speech, thought, whisper, yell, or caption shape placed over a panel.
+- **Panel**: One region of the Page, produced by the Grid and the Cuts. A panel is not a Comic
+  card or generic visual container.
+- **Selected panel**: The panel currently showing editing controls.
+- **Focused panel**: The panel temporarily filling the Canvas for closer work, available in the
+  Placement and Balloon steps. Selection and focus are distinct states, and focus is a view
+  state that is never saved with the comic.
+- **Focus navigation buttons** (`FocusNavigation`): Directional edge buttons used to move between
+  panels while a panel is focused.
+- **Balloon**: A speech, thought, whisper, yell, or caption shape placed over the comic.
 - **Selected balloon**: The balloon currently showing balloon editing controls.
-- **Focus navigation buttons** (`FocusNavigation`): Directional edge buttons used to move
-  between panels while a panel is focused.
-
-### Panel controls
-
-- **Panel move handle** (`ImageMoveHandle`): Drags a panel to a new layout position.
-- **Panel resize handle** (`ImageResizeHandle`): Changes a panel's outer bounds.
-- **Panel crop handle** (`ImageCropHandle`): Changes the visible crop of a panel image.
-- **Panel rotate handle** (`ImageRotateHandle`): Turns a panel's image a quarter turn, swapping
-  the panel's width and height and moving neighbouring panels to accommodate it.
-- **Panel delete button** (`ImageDeleteHandle`): Removes a panel after confirmation.
-- **Add-panel edge button** (`ImageAddEdgeButton`): Adds a panel beside a specific edge of
-  an existing panel.
-- **Add panel dialog** (`ImagePositionDialog`): The dialog for choosing a new panel's
-  position.
-- **Panel position picker** (`ImagePositionPicker`): The draggable panel-layout preview
-  inside the Add panel dialog.
-- **Delete panel dialog**: The confirmation dialog shown before a panel is removed.
-- **Image processing overlay** (`ImageProcessingOverlay`): The blocking progress overlay
-  shown while panel images are being composed.
+- **Balloon scope**: Whether a balloon belongs to one panel or to the whole comic.
+- **Panel balloon**: A balloon belonging to one panel. It is clipped to that panel, moves with
+  it, and is deleted with it. This is the default scope.
+- **Comic balloon**: A balloon belonging to the Page. It draws above every panel, may cross panel
+  boundaries and gutters, and is unaffected by layout changes.
 
 ### Balloon controls
 
 - **Balloon type buttons** (`BalloonTypeButton`): The Comic kit controls that add each
   balloon type.
 - **Comic kit toggle**: Expands or collapses the Comic kit.
-- **Undo button**: Reverses the most recent panel image edit.
+- **Balloon scope toggle**: Switches the selected balloon between Panel balloon and Comic
+  balloon.
 - **Font selector**: Selects the typeface of the selected balloon's text.
 - **Text size slider**: Changes the selected balloon's text size in manual sizing mode.
 - **Shape slider** (`ShapeSlider`): Changes the selected speech or whisper balloon's
@@ -125,13 +160,19 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Open**: Navigate to a screen or reveal a menu or dialog.
 - **Select**: Make a panel or balloon the current editing target.
 - **Focus**: Temporarily show one panel as the Canvas viewport.
+- **Trace**: Draw a Cut across the Page or across one panel.
+- **Merge**: Combine adjacent panels into one Merged panel. **Unmerge** reverses it.
+- **Place**: Choose the image that fills a panel.
 - **Move**: Reposition an item without changing its size.
 - **Resize**: Change an item's outer bounds.
-- **Crop**: Change which part of an image is visible inside a panel.
-- **Rotate**: Turn a panel's image a quarter turn; its width and height swap as a result
-  rather than being chosen, and no image content is hidden.
-- **Add**: Create a new comic, panel, or balloon.
+- **Zoom** and **Pan**: Change a Panel image's scale and position inside its panel.
+- **Rotate**: Turn a Panel image inside its panel, at any angle, snapping near quarter turns. It
+  never changes the panel's shape or the page layout.
+- **Add**: Create a new comic, cut, or balloon.
 - **Delete**: Permanently remove an item, including any required confirmation.
+
+Panels are not added or deleted directly. They are produced by the Layout step, so the ways to
+change how many there are is to change the Grid, merge, unmerge, or add and remove Cuts.
 
 When a request uses an approximate name, map it to the closest canonical term. Ask for
 clarification only when multiple terms would lead to materially different behavior.

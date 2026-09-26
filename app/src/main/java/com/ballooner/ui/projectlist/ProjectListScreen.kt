@@ -70,7 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.R
 import com.ballooner.domain.model.Project
 import com.ballooner.ui.project.BalloonerIcons
-import com.ballooner.ui.project.googleFontFamily
+import com.ballooner.ui.theme.googleFontFamily
 import com.ballooner.ui.theme.AnimeAceFontFamily
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.balloonerTopAppBarColors

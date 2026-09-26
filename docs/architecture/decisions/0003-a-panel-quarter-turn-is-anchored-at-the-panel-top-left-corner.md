@@ -1,6 +1,8 @@
 # ADR-0003: A panel quarter turn is anchored at the panel's top-left corner
 
-- Status: Active
+- Status: Disabled
+- Disabled date: 2026-09-26
+- Superseded by: [ADR-0004](0004-a-comic-is-a-declarative-document-rendered-on-demand.md)
 - Date: 2026-09-26
 - Decision makers: Ballooner maintainers
 - Corrects: ADR-0002 (the "about the panel's centre" clause of its Decision 2)

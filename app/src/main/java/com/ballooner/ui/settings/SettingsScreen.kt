@@ -66,7 +66,7 @@ import com.ballooner.R
 import com.ballooner.domain.model.AppSettings
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.TextSizeMode
-import com.ballooner.ui.project.label
+import com.ballooner.ui.theme.label
 import com.ballooner.ui.theme.balloonerTopAppBarColors
 
 private enum class SettingsDialog { TEXT, LAYOUT, ABOUT, PRIVACY, TERMS }
