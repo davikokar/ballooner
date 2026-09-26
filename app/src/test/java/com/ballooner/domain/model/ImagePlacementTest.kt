@@ -119,20 +119,22 @@ class ImagePlacementTest {
     }
 
     @Test
-    fun `rotating a panel swaps its width and height about its centre`() {
+    fun `rotating a panel swaps its width and height about its top-left corner`() {
         val panel = RectFraction(0.1f, 0.2f, 0.6f, 0.2f)
 
         val turned = quarterTurnedPanel(panel)
 
-        assertEquals(RectFraction(0.3f, 0f, 0.2f, 0.6f), turned)
-        assertEquals(panel.left + panel.width / 2f, turned.left + turned.width / 2f, 0.0001f)
-        assertEquals(panel.top + panel.height / 2f, turned.top + turned.height / 2f, 0.0001f)
+        assertEquals(RectFraction(0.1f, 0.2f, 0.2f, 0.6f), turned)
+        assertEquals(panel.left, turned.left, 0f)
+        assertEquals(panel.top, turned.top, 0f)
     }
 
     @Test
     fun `rotating a tall panel pushes the panel on its right further right`() {
         val tall = RectFraction(0f, 0f, 0.2f, 0.6f)
-        val right = RectFraction(0.3f, 0.2f, 0.2f, 0.2f)
+        // The turned panel sweeps the band 0f..0.2f down from the tall panel's own top, so this
+        // neighbour sits squarely in the way of the growth and has to be pushed clear.
+        val right = RectFraction(0.3f, 0.05f, 0.2f, 0.2f)
 
         val repositioned = repositionPanelsAfterResize(
             panels = listOf(tall, right),
@@ -140,7 +142,7 @@ class ImagePlacementTest {
             resized = quarterTurnedPanel(tall),
         )
 
-        assertEquals(RectFraction(-0.2f, 0.2f, 0.6f, 0.2f), repositioned[0])
+        assertEquals(RectFraction(0f, 0f, 0.6f, 0.2f), repositioned[0])
         assertEquals(0.7f, repositioned[1].left, 0.0001f)
         assertEquals(right.top, repositioned[1].top, 0.0001f)
     }
@@ -157,17 +159,19 @@ class ImagePlacementTest {
     @Test
     fun `rotating a panel leaves panels that do not share its band in place`() {
         val tall = RectFraction(0f, 0f, 0.2f, 0.6f)
-        val aboveTheTurnedBand = RectFraction(0.3f, 0f, 0.2f, 0.15f)
-        val belowTheTurnedBand = RectFraction(0.5f, 0.7f, 0.2f, 0.2f)
+        // The turn only grows rightwards, across the band 0f..0.2f. Neither neighbour is in it:
+        // one clears the band vertically, the other sits below a panel that only ever shrank.
+        val rightOfThePanelBelowTheBand = RectFraction(0.3f, 0.25f, 0.2f, 0.2f)
+        val belowTheTurnedPanel = RectFraction(0f, 0.7f, 0.2f, 0.2f)
 
         val repositioned = repositionPanelsAfterResize(
-            panels = listOf(tall, aboveTheTurnedBand, belowTheTurnedBand),
+            panels = listOf(tall, rightOfThePanelBelowTheBand, belowTheTurnedPanel),
             moving = tall,
             resized = quarterTurnedPanel(tall),
         )
 
-        assertEquals(aboveTheTurnedBand, repositioned[1])
-        assertEquals(belowTheTurnedBand, repositioned[2])
+        assertEquals(rightOfThePanelBelowTheBand, repositioned[1])
+        assertEquals(belowTheTurnedPanel, repositioned[2])
     }
 
     @Test
@@ -177,6 +181,37 @@ class ImagePlacementTest {
         val turned = quarterTurnedPanel(panel)
 
         assertEquals(panel.width * panel.height, turned.width * turned.height, 0.000001f)
+    }
+
+    @Test
+    fun `a rotated panel keeps the top-left corner it started from`() {
+        val panels = listOf(
+            RectFraction(0f, 0f, 0.6f, 0.2f),
+            RectFraction(0.1f, 0.2f, 0.2f, 0.6f),
+            RectFraction(0.42f, 0.37f, 0.3f, 0.45f),
+        )
+
+        panels.forEach { panel ->
+            val turned = quarterTurnedPanel(panel)
+
+            assertEquals("left of $panel", panel.left, turned.left, 0f)
+            assertEquals("top of $panel", panel.top, turned.top, 0f)
+        }
+    }
+
+    @Test
+    fun `a rotated panel lands on the same pixel origin on a non-square canvas`() {
+        val canvasWidth = 1600
+        val canvasHeight = 900
+        val panel = RectFraction(0.25f, 0.5f, 0.5f, 0.2f)
+
+        val turned = quarterTurnedPanel(panel)
+
+        // Pins the fraction-to-pixel contract, not just the fraction arithmetic: `width` is a
+        // fraction of the canvas width and `height` one of the canvas height, so any turn that
+        // mixes them lands the panel somewhere else whenever the canvas is not square.
+        assertEquals(400f, turned.left * canvasWidth, 0.5f)
+        assertEquals(450f, turned.top * canvasHeight, 0.5f)
     }
 
     @Test

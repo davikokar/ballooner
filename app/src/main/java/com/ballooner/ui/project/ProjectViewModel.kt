@@ -208,6 +208,7 @@ class ProjectViewModel @Inject constructor(
 
     /** Turns [panel]'s pixels and rect a quarter turn clockwise, reflowing its neighbours. */
     fun onRotateImage(panel: RectFraction) {
+        // Only the destination's left/top are consumed: the store sizes the turn from the rotated bitmap, so nothing resamples.
         rearrangeImage(panel, quarterTurnedPanel(panel), undoable = true, quarterTurns = 1)
     }
 

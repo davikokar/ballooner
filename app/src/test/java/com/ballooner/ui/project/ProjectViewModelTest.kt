@@ -533,7 +533,9 @@ class ProjectViewModelTest {
     @Test
     fun `rotating a panel persists the swapped layout and the new image`() = runTest {
         val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
-        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        // A quarter turn is anchored at the panel's top-left corner: left and top pass through
+        // unchanged and only width and height are exchanged.
+        val turned = RectFraction(left = 0.3f, top = 0.1f, width = 0.6f, height = 0.2f)
         val imageStore = FakeImageStore().apply {
             rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
         }
@@ -565,7 +567,7 @@ class ProjectViewModelTest {
     @Test
     fun `rotating a panel makes the edit undoable`() = runTest {
         val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
-        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val turned = RectFraction(left = 0.3f, top = 0.1f, width = 0.6f, height = 0.2f)
         val imageStore = FakeImageStore().apply {
             rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
         }
@@ -596,7 +598,7 @@ class ProjectViewModelTest {
     @Test
     fun `undoing a rotation restores the previous image, panels and balloons`() = runTest {
         val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
-        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val turned = RectFraction(left = 0.3f, top = 0.1f, width = 0.6f, height = 0.2f)
         val imageStore = FakeImageStore().apply {
             rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
         }
@@ -641,7 +643,7 @@ class ProjectViewModelTest {
         // Panel focus is remembered by the Composable, so the only selection the ViewModel
         // exposes is the selected balloon; a rotate must not disturb it.
         val panel = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
-        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
+        val turned = RectFraction(left = 0.3f, top = 0.1f, width = 0.6f, height = 0.2f)
         val imageStore = FakeImageStore().apply {
             rearrangeResult = RearrangedImage("rotated-uri", listOf(turned))
         }
@@ -708,9 +710,12 @@ class ProjectViewModelTest {
     @Test
     fun `rotating a panel turns only its own balloons, rescaling the neighbour's as usual`() = runTest {
         val rotated = RectFraction(left = 0.3f, top = 0.1f, width = 0.2f, height = 0.6f)
-        val neighbour = RectFraction(left = 0.6f, top = 0.1f, width = 0.3f, height = 0.3f)
-        val turned = RectFraction(left = 0.1f, top = 0.3f, width = 0.6f, height = 0.2f)
-        val reflowed = RectFraction(left = 0.75f, top = 0.1f, width = 0.15f, height = 0.3f)
+        val neighbour = RectFraction(left = 0.5f, top = 0.1f, width = 0.3f, height = 0.3f)
+        // The top-left-anchored turn widens `rotated` from 0.2 to 0.6 and shortens it to 0.2,
+        // pushing `neighbour` right by that growth. The store then rebounds the canvas around the
+        // new layout, so both rects come back renormalized against the wider, shorter canvas.
+        val turned = RectFraction(left = 0.25f, top = 0.25f, width = 0.5f, height = 0.5f)
+        val reflowed = RectFraction(left = 0.75f, top = 0.25f, width = 0.25f, height = 0.75f)
         val imageStore = FakeImageStore().apply {
             rearrangeResult = RearrangedImage("rotated-uri", listOf(turned, reflowed))
         }
@@ -744,17 +749,17 @@ class ProjectViewModelTest {
 
         val balloons = viewModel.uiState.value.balloons
         val turnedBalloon = balloons.first { it.id == turnedBalloonId }
-        assertEquals(0.55f, turnedBalloon.centerX, 0.0001f)
-        assertEquals(0.45f, turnedBalloon.centerY, 0.0001f)
+        assertEquals(0.625f, turnedBalloon.centerX, 0.0001f)
+        assertEquals(0.625f, turnedBalloon.centerY, 0.0001f)
         assertEquals(180f, turnedBalloon.tailAngleDegrees, 0.0001f)
         // The body stays upright and keeps its size, so the text remains readable.
         assertEquals(0.4f, turnedBalloon.width, 0.0001f)
 
         val neighbourBalloon = balloons.first { it.id == neighbourBalloonId }
-        assertEquals(0.8f, neighbourBalloon.centerX, 0.0001f)
-        assertEquals(0.2f, neighbourBalloon.centerY, 0.0001f)
+        assertEquals(0.9166667f, neighbourBalloon.centerX, 0.0001f)
+        assertEquals(0.5f, neighbourBalloon.centerY, 0.0001f)
         assertEquals(90f, neighbourBalloon.tailAngleDegrees, 0.0001f)
-        assertEquals(0.2f, neighbourBalloon.width, 0.0001f)
+        assertEquals(0.3333333f, neighbourBalloon.width, 0.0001f)
     }
 
     @Test

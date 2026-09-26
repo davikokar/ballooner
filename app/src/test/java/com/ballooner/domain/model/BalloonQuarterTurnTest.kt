@@ -9,13 +9,16 @@ class BalloonQuarterTurnTest {
     fun `a balloon on a rotated panel orbits the panel centre by a quarter turn`() {
         val panel = RectFraction(0.2f, 0.1f, 0.2f, 0.6f)
         val turned = quarterTurnedPanel(panel)
-        // Top-middle of the tall panel, so a clockwise turn must land it right-of-middle.
+        // Horizontally centred, a quarter of the panel's height above its centre. A clockwise turn
+        // must land it vertically centred, a quarter of the turned panel's width right of centre.
         val balloon = balloonAt(centerX = 0.3f, centerY = 0.25f)
 
         val remapped = balloon.remappedByQuarterTurns(from = panel, to = turned, quarterTurns = 1)
 
-        assertEquals(0.45f, remapped.centerX, 0.0001f)
-        assertEquals(0.4f, remapped.centerY, 0.0001f)
+        // Turned rect is (0.2, 0.1, 0.6, 0.2), so its centre is (0.5, 0.2) and a quarter of its
+        // width is 0.15.
+        assertEquals(0.65f, remapped.centerX, 0.0001f)
+        assertEquals(0.2f, remapped.centerY, 0.0001f)
     }
 
     @Test

@@ -3,6 +3,9 @@
 - Status: Active
 - Date: 2026-09-25
 - Decision makers: Ballooner maintainers
+- Corrected by: [ADR-0003](0003-a-panel-quarter-turn-is-anchored-at-the-panel-top-left-corner.md) — a quarter
+  turn is anchored at the panel's top-left corner, not about its centre. Every other decision below
+  still governs.
 
 ## Context
 
