@@ -6,8 +6,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,10 +47,6 @@ import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
-import com.ballooner.domain.comic.PageSizing
-import com.ballooner.domain.comic.SQUARE_RATIO
-import com.ballooner.domain.comic.TALL_RATIO
-import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.model.BalloonFont
@@ -96,6 +90,19 @@ fun ComicEditorScreen(
                     LayoutPresetPicker(
                         active = layoutKindOf(state.comic),
                         onSelect = actions::selectLayoutKind,
+                    )
+                    return@Column
+                }
+                // A single panel is the whole comic, so its own preview says everything the
+                // canvas would.
+                if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.SINGLE) {
+                    val panel = state.comic.panelShapes().firstOrNull()?.bounds
+                    SinglePanelShapeScreen(
+                        sizing = state.comic.sizing,
+                        panelRatio = panel?.takeIf { it.height > 0f }
+                            ?.let { it.width / it.height } ?: 1f,
+                        onChange = actions::setSizing,
+                        onBack = actions::closeLayoutKind,
                     )
                     return@Column
                 }
@@ -322,87 +329,12 @@ private fun LayoutStepControls(state: ComicEditorUiState.Content, actions: Comic
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            TextButton(onClick = actions::closeLayoutKind) { Text("\u2039 Presets") }
-            Text(kind.label, style = MaterialTheme.typography.headlineSmall)
+            TextButton(onClick = actions::closeLayoutKind) { Text("Presets") }
+            Text("/", style = MaterialTheme.typography.bodyMedium)
+            Text(kind.label, style = MaterialTheme.typography.titleMedium)
         }
-        when (kind) {
-            LayoutKind.SINGLE -> SinglePanelControls(state.comic.sizing, actions::setSizing)
-            // The other three kinds keep the tools they have always had until each is designed.
-            else -> MultiPanelControls(state, actions)
-        }
+        MultiPanelControls(state, actions)
         OutlinedButton(onClick = actions::undo, enabled = state.canUndo) { Text("Undo") }
-    }
-}
-
-/**
- * The one panel of a single-panel comic is the whole comic, so its proportions are the only shape
- * choice there is to make.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SinglePanelControls(sizing: PageSizing, onChange: (PageSizing) -> Unit) {
-    val ratio = (sizing as? PageSizing.Ratio)?.value
-    // Whether the slider is open cannot be read back off the ratio alone: a custom ratio is free
-    // to land exactly on a preset, and asking for one must still open the slider.
-    var custom by rememberSaveable { mutableStateOf(false) }
-    val sliderRatio = ratio?.takeIf { custom || PanelProportions.none { preset -> preset.ratio == it } }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Panel shape", style = MaterialTheme.typography.labelSmall)
-        // These wrap rather than scroll: an option the user cannot see is an option they do not
-        // know they have, and there are few enough to show all at once.
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            PanelProportions.forEach { proportion ->
-                ProportionButton(
-                    label = proportion.label,
-                    selected = sliderRatio == null && proportion.ratio == ratio,
-                    onClick = {
-                        custom = false
-                        onChange(PageSizing.Ratio(proportion.ratio))
-                    },
-                )
-            }
-            ProportionButton(
-                label = "Custom",
-                selected = sliderRatio != null,
-                onClick = {
-                    custom = true
-                    // Starts from the shape on screen, so the slider has somewhere to begin.
-                    onChange(PageSizing.Ratio(ratio ?: SQUARE_RATIO))
-                },
-            )
-            ProportionButton(
-                label = "Auto",
-                selected = sizing is PageSizing.FromImage,
-                onClick = {
-                    custom = false
-                    onChange(PageSizing.FromImage)
-                },
-            )
-        }
-        if (sliderRatio != null) {
-            StyleSlider("Ratio", sliderRatio, MIN_CUSTOM_RATIO, MAX_CUSTOM_RATIO) {
-                onChange(PageSizing.Ratio(it))
-            }
-        }
-        if (sizing is PageSizing.FromImage) {
-            Text(
-                "The panel takes the shape of the image you choose next.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ProportionButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    if (selected) {
-        Button(onClick = onClick) { Text(label, style = MaterialTheme.typography.labelSmall) }
-    } else {
-        OutlinedButton(onClick = onClick) { Text(label, style = MaterialTheme.typography.labelSmall) }
     }
 }
 
@@ -617,17 +549,6 @@ private val LayoutKind.label: String
         LayoutKind.GRID -> "Grid"
         LayoutKind.CUSTOM -> "Custom"
     }
-
-private data class PanelProportion(val label: String, val ratio: Float)
-
-private val PanelProportions = listOf(
-    PanelProportion("Square", SQUARE_RATIO),
-    PanelProportion("2:3", TALL_RATIO),
-    PanelProportion("3:2", WIDE_RATIO),
-)
-
-private const val MIN_CUSTOM_RATIO = 0.4f
-private const val MAX_CUSTOM_RATIO = 2.5f
 
 private data class LayoutPreset(val label: String, val rows: Int, val columns: Int)
 

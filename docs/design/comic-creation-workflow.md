@@ -82,13 +82,16 @@ the page needs, though, because grid weights only divide whatever height they ar
 are stored in normalized coordinates — both describe proportions *between* panels, never an
 absolute size. So the reference panel supplies it.
 
-For a **Single** comic the choices are the shape of the one panel:
+For a **Single** comic the choices are the shape of the one panel, shown as four tiles over a
+live preview:
 
-- **Square**
-- **2:3** — upright
-- **3:2** — on its side
-- **Custom** — any ratio, on a slider
+- **Square** — 1:1
+- **Ratio** — 3:2, with a control that turns it on its side to 2:3
+- **Custom** — two sliders, width and height in whole units from 1 to 24
 - **Auto** — the shape of the image chosen in the Placement step
+
+The preview draws the panel as it will really be rather than the number that was asked for, so a
+ratio the page cannot reach shows what it actually becomes.
 
 Because the height is solved for every time rather than stored, a panel promised a shape keeps
 it: moving the margin or gutter slider re-solves the page instead of quietly breaking the

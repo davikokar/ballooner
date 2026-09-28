@@ -95,7 +95,16 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Layout kind**: The choice a Layout preset card stands for: **Single**, **Strip**, **Grid**, or
   **Custom**. Read back off the comic rather than stored.
 - **Preset options**: The second view of the Layout step, opened by tapping a Layout preset card.
-  Shows the Canvas with that preset's options beneath it, and returns to the Preset picker.
+  Reached and left by the **Breadcrumb** ("Presets / <name>"), never by a separate screen.
+- **Single panel shape**: The Single preset's options. Four **Shape tiles** — **Square**,
+  **Ratio**, **Custom**, **Auto** — over a **Panel preview**.
+- **Shape tile**: One shape choice. Shows a miniature of the shape it makes, its name, and its
+  numbers; the chosen one carries an ACTIVE badge. The Ratio tile carries a **rotate control**
+  that turns the shape on its side (3:2 becomes 2:3).
+- **Custom dimensions**: The Custom tile's two sliders, **Width (W)** and **Height (H)**, in whole
+  units from 1 to 24. The ratio between them is the shape.
+- **Panel preview**: The shape drawn on a drafting ground, showing the panel as it will really be
+  rather than the number that was asked for.
 - **Reference panel**: The panel that gives the Page its height, which is the first panel of the
   Grid. For a Single comic that is the only panel.
 - **Panel shape**: The proportions the Reference panel is held at. Offered as **Square**, **2:3**,
