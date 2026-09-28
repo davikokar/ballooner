@@ -42,6 +42,21 @@ import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.TALL_RATIO
 import com.ballooner.domain.comic.WIDE_RATIO
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import com.ballooner.domain.comic.PageRect
+import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.transformed
+import com.ballooner.ui.comic.PageViewport
+import com.ballooner.ui.comic.PanelImageSource
+import com.ballooner.ui.comic.imageDrawSpec
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -59,6 +74,8 @@ private enum class ShapeTile { SQUARE, RATIO, CUSTOM, AUTO }
 fun SinglePanelShapeScreen(
     sizing: PageSizing,
     panelRatio: Float,
+    image: PanelImage?,
+    images: PanelImageSource,
     onChange: (PageSizing) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -172,8 +189,11 @@ fun SinglePanelShapeScreen(
 
         PanelPreview(
             // The panel as it will really be: a ratio the page cannot reach is held back, and
-            // the preview has to say so rather than promise the number on the slider.
-            ratio = panelRatio.takeIf { tile != ShapeTile.AUTO },
+            // the preview has to say so rather than promise the number on the slider. An auto
+            // panel has no shape to show until an image gives it one.
+            ratio = panelRatio.takeIf { tile != ShapeTile.AUTO || image != null },
+            image = image,
+            images = images,
             modifier = Modifier.weight(1f),
         )
     }
@@ -448,8 +468,14 @@ private fun FilledTrack(fraction: Float) {
 
 /** The shape itself, on a drafting ground, so the numbers above are never the only feedback. */
 @Composable
-private fun PanelPreview(ratio: Float?, modifier: Modifier = Modifier) {
+private fun PanelPreview(
+    ratio: Float?,
+    image: PanelImage?,
+    images: PanelImageSource,
+    modifier: Modifier = Modifier,
+) {
     val scheme = MaterialTheme.colorScheme
+    val bitmap = image?.let { images.bitmapFor(it.sourceUri) }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -462,11 +488,24 @@ private fun PanelPreview(ratio: Float?, modifier: Modifier = Modifier) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = "Panel preview",
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurface,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Panel preview",
+                style = MaterialTheme.typography.labelMedium,
+                color = scheme.onSurface,
+            )
+            if (bitmap != null) {
+                Text(
+                    text = "Pinch and drag to look around",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = scheme.outline,
+                )
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -493,8 +532,65 @@ private fun PanelPreview(ratio: Float?, modifier: Modifier = Modifier) {
                         .aspectRatio(ratio)
                         .background(scheme.surfaceContainerLowest)
                         .border(BorderStroke(3.dp, scheme.onSurface)),
-                )
+                ) {
+                    if (bitmap != null) {
+                        PreviewImage(ratio = ratio, placement = image, bitmap = bitmap)
+                    }
+                }
             }
+        }
+    }
+}
+
+/**
+ * The image inside the preview frame, with pinch, drag, and twist.
+ *
+ * Nothing here is written back to the comic: this is a way of looking at how an image sits in a
+ * shape while choosing that shape, and the Placement step remains the only place a panel image is
+ * actually positioned.
+ */
+@Composable
+private fun PreviewImage(ratio: Float, placement: PanelImage, bitmap: ImageBitmap) {
+    val imageAspect = bitmap.width.toFloat() / bitmap.height
+    // Starts from where the Placement step left it, then drifts freely and is thrown away.
+    var looking by remember(placement.sourceUri) { mutableStateOf(placement) }
+    val latest = rememberUpdatedState(ratio to imageAspect)
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds()
+            // Keyed on nothing: keying on what the gesture edits would tear the handler down on
+            // the first move and the drag would barely travel.
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, rotation ->
+                    val (currentRatio, aspect) = latest.value
+                    val frame = PageRect(0f, 0f, currentRatio, 1f)
+                    val scale = size.height.toFloat()
+                    if (scale <= 0f) return@detectTransformGestures
+                    looking = looking.transformed(
+                        panel = frame,
+                        imageAspect = aspect,
+                        panX = pan.x / scale,
+                        panY = pan.y / scale,
+                        zoomBy = zoom,
+                        rotateBy = rotation,
+                    )
+                }
+            },
+    ) {
+        val spec = imageDrawSpec(
+            panel = PageRect(0f, 0f, ratio, 1f),
+            image = looking,
+            imageAspect = imageAspect,
+            viewport = PageViewport(0f, 0f, size.height),
+        )
+        withTransform({ rotate(spec.angleDegrees, spec.pivot) }) {
+            drawImage(
+                image = bitmap,
+                dstOffset = IntOffset(spec.topLeft.x.roundToInt(), spec.topLeft.y.roundToInt()),
+                dstSize = IntSize(spec.size.width.roundToInt(), spec.size.height.roundToInt()),
+            )
         }
     }
 }

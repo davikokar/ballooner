@@ -106,7 +106,9 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Custom dimensions**: The Custom tile's two sliders, **Width (W)** and **Height (H)**, in whole
   units from 1 to 24. The ratio between them is the shape.
 - **Panel preview**: The shape drawn on a drafting ground, showing the panel as it will really be
-  rather than the number that was asked for.
+  rather than the number that was asked for. Once the panel has an image it is drawn inside the
+  frame and can be pinched, dragged, and twisted. That is **looking, not placing**: nothing there
+  is written to the comic, and the Placement step remains the only place an image is positioned.
 - **Reference panel**: The panel that gives the Page its height, which is the first panel of the
   Grid. For a Single comic that is the only panel.
 - **Panel shape**: The proportions the Reference panel is held at. Offered as **Square**, **2:3**,

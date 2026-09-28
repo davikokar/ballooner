@@ -101,6 +101,8 @@ fun ComicEditorScreen(
                         sizing = state.comic.sizing,
                         panelRatio = panel?.takeIf { it.height > 0f }
                             ?.let { it.width / it.height } ?: 1f,
+                        image = state.comic.panels.firstOrNull()?.image,
+                        images = images,
                         onChange = actions::setSizing,
                         onBack = actions::closeLayoutKind,
                     )
