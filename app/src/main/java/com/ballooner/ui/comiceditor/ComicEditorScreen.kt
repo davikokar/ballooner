@@ -251,6 +251,8 @@ private fun PlacementStepControls(
 @Composable
 private fun BalloonStepControls(state: ComicEditorUiState.Content, actions: ComicEditorActions) {
     val selected = state.comic.balloons.firstOrNull { it.id == state.selectedBalloon }
+    // Focusing follows the balloon being lettered, falling back to the last panel tapped.
+    val panelToFocus = selected?.panelIndex ?: state.activePanel
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -260,6 +262,14 @@ private fun BalloonStepControls(state: ComicEditorUiState.Content, actions: Comi
                 OutlinedButton(onClick = { actions.addBalloon(type, state.activePanel ?: 0) }) {
                     Text(type.name.lowercase(), style = MaterialTheme.typography.labelSmall)
                 }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { actions.focusPanel(if (state.focusedPanel == null) panelToFocus else null) },
+                enabled = state.focusedPanel != null || panelToFocus != null,
+            ) {
+                Text(if (state.focusedPanel == null) "Focus" else "Show all")
             }
         }
         if (selected == null) {

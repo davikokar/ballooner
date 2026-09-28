@@ -1,31 +1,43 @@
 package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateRotation
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.toSize
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.Polygon
 import com.ballooner.domain.comic.panelShapes
+import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.comicViewport
 import com.ballooner.ui.comic.toPath
+import kotlin.math.abs
+import kotlin.math.sqrt
 
 /**
- * The Placement step's editing surface: pick a panel and fit its image, or press and hold to
- * carry an image to another panel and trade places with it.
+ * The Placement step's editing surface: fit an image inside its panel, or press and hold to carry
+ * it to another panel and trade places.
  *
  * The gesture only ever reports what the fingers did; keeping the image over its panel is the
  * document's job, not this composable's.
@@ -40,37 +52,39 @@ internal fun PlacementStepOverlay(
     modifier: Modifier = Modifier,
 ) {
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageShape, comic.style) }
-    val aspect = remember(comic, activePanel) {
-        val uri = activePanel?.let { comic.panels.getOrNull(it)?.image?.sourceUri }
-        uri?.let { images.bitmapFor(it) }?.let { it.width.toFloat() / it.height } ?: 1f
-    }
     var carrying by remember { mutableStateOf<Int?>(null) }
     var over by remember { mutableStateOf<Int?>(null) }
 
-    fun panelAt(point: PagePoint) = shapes.indexOfFirst { it.contains(point) }.takeIf { it >= 0 }
+    // A gesture edits the comic, so keying the gesture on the comic would cancel it on its own
+    // first move. These let a running gesture see current values without being restarted.
+    val latest by rememberUpdatedState(PlacementInputs(comic, shapes, focus, images))
+
+    fun panelAt(point: PagePoint) =
+        latest.shapes.indexOfFirst { it.contains(point) }.takeIf { it >= 0 }
 
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(shapes, focus) {
-                val viewport = comicViewport(size.toSize(), comic.pageShape, focus?.bounds)
-                detectTapGestures(
-                    onTap = { actions.selectPanel(panelAt(viewport.toPage(it))) },
-                    // Double tap is the quick way in and out of a closer look.
-                    onDoubleTap = {
-                        actions.focusPanel(if (focus != null) null else panelAt(viewport.toPage(it)))
-                    },
-                )
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val viewport = comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                    awaitFirstDown(requireUnconsumed = false)
+                    // Nothing is consumed here: consuming the press would cancel the pinch
+                    // before it began, and a tap is only a tap if no one else claimed it.
+                    val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                    actions.selectPanel(panelAt(viewport.toPage(up.position)))
+                }
             }
-            .pointerInput(shapes, focus) {
-                val viewport = comicViewport(size.toSize(), comic.pageShape, focus?.bounds)
+            .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { start ->
+                        val viewport = comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
                         carrying = panelAt(viewport.toPage(start))
                         over = carrying
                     },
                     onDrag = { change, _ ->
                         change.consume()
+                        val viewport = comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
                         over = panelAt(viewport.toPage(change.position))
                     },
                     onDragEnd = {
@@ -86,29 +100,20 @@ internal fun PlacementStepOverlay(
                     },
                 )
             }
-            .pointerInput(activePanel, comic, aspect, focus) {
-                if (activePanel == null) return@pointerInput
-                val viewport = comicViewport(size.toSize(), comic.pageShape, focus?.bounds)
-                var gesturing = false
-                detectTransformGestures { _, pan, zoom, rotation ->
-                    // A carried image is being moved between panels, not fitted inside one.
-                    if (carrying != null) return@detectTransformGestures
-                    if (!gesturing) {
-                        gesturing = true
-                        actions.startPlacementGesture()
-                    }
-                    if (viewport.scale <= 0f) return@detectTransformGestures
-                    actions.transformPanelImage(
-                        index = activePanel,
-                        imageAspect = aspect,
-                        // Fingers move in pixels; the document thinks in page units.
-                        panX = pan.x / viewport.scale,
-                        panY = pan.y / viewport.scale,
-                        zoomBy = zoom,
-                        rotateBy = rotation,
-                    )
-                }
-                if (gesturing) actions.endPlacementGesture()
+            .pointerInput(Unit) {
+                detectPanelTransform(
+                    viewportOf = {
+                        comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                    },
+                    panelAt = { panelAt(it) },
+                    isCarrying = { carrying != null },
+                    imageAspect = { index ->
+                        latest.comic.panels.getOrNull(index)?.image?.sourceUri
+                            ?.let { latest.images.bitmapFor(it) }
+                            ?.let { it.width.toFloat() / it.height }
+                    },
+                    actions = actions,
+                )
             },
     ) {
         val viewport = comicViewport(size, comic.pageShape, focus?.bounds)
@@ -123,6 +128,87 @@ internal fun PlacementStepOverlay(
                 comic.panels.getOrNull(index)?.image == null -> drawPath(path, color = EmptyHint)
             }
         }
+    }
+}
+
+/** The values a running placement gesture needs to keep reading as the comic changes. */
+private data class PlacementInputs(
+    val comic: Comic,
+    val shapes: List<Polygon>,
+    val focus: Polygon?,
+    val images: PanelImageSource,
+)
+
+/**
+ * Pinch, drag, and twist the image in whichever panel the gesture starts over.
+ *
+ * Compose's own `detectTransformGestures` never returns, so it cannot say when a gesture ended,
+ * and a whole pinch has to count as one undo step. This reports the start and the end as well as
+ * the movement between them.
+ */
+private suspend fun PointerInputScope.detectPanelTransform(
+    viewportOf: () -> PageViewport,
+    panelAt: (PagePoint) -> Int?,
+    isCarrying: () -> Boolean,
+    imageAspect: (Int) -> Float?,
+    actions: ComicEditorActions,
+) {
+    awaitEachGesture {
+        val viewport = viewportOf()
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val panel = panelAt(viewport.toPage(down.position)) ?: return@awaitEachGesture
+        val aspect = imageAspect(panel) ?: return@awaitEachGesture
+        if (viewport.scale <= 0f) return@awaitEachGesture
+
+        var started = false
+        var pastSlop = false
+        var panSoFar = Offset.Zero
+        var zoomSoFar = 1f
+        var rotationSoFar = 0f
+
+        do {
+            val event = awaitPointerEvent()
+            if (event.changes.any { it.isConsumed } || isCarrying()) break
+
+            val zoom = event.calculateZoom()
+            val rotation = event.calculateRotation()
+            val pan = event.calculatePan()
+
+            if (!pastSlop) {
+                panSoFar += pan
+                zoomSoFar *= zoom
+                rotationSoFar += rotation
+                val size = event.calculateCentroidSize(useCurrent = false)
+                val zoomMotion = abs(1f - zoomSoFar) * size
+                val rotationMotion = abs(rotationSoFar * kotlin.math.PI.toFloat() * size / 180f)
+                val panMotion = panSoFar.getDistance()
+                if (sqrt(zoomMotion * zoomMotion + rotationMotion * rotationMotion + panMotion * panMotion) >
+                    viewConfiguration.touchSlop
+                ) {
+                    pastSlop = true
+                }
+            }
+
+            if (pastSlop && (zoom != 1f || rotation != 0f || pan != Offset.Zero)) {
+                if (!started) {
+                    started = true
+                    actions.selectPanel(panel)
+                    actions.startPlacementGesture()
+                }
+                actions.transformPanelImage(
+                    index = panel,
+                    imageAspect = aspect,
+                    // Fingers move in pixels; the document thinks in page units.
+                    panX = pan.x / viewport.scale,
+                    panY = pan.y / viewport.scale,
+                    zoomBy = zoom,
+                    rotateBy = rotation,
+                )
+                event.changes.forEach { if (it.positionChanged()) it.consume() }
+            }
+        } while (event.changes.any { it.pressed })
+
+        if (started) actions.endPlacementGesture(panel, aspect)
     }
 }
 

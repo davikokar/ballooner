@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -23,7 +24,9 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.GridAxis
 import com.ballooner.domain.comic.GridBoundary
+import com.ballooner.domain.comic.GridPanel
 import com.ballooner.domain.comic.NormalizedPoint
+import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.contentRect
 import com.ballooner.domain.comic.gridBoundaries
@@ -55,23 +58,30 @@ internal fun LayoutStepOverlay(
     var dragging by remember { mutableStateOf<GridBoundary?>(null) }
     var dragOrigin by remember { mutableStateOf(Offset.Zero) }
 
+    // A boundary drag edits the comic on every move, so keying the gesture on the comic would
+    // cancel the drag on its own first step. This lets a running gesture read current values.
+    val latest by rememberUpdatedState(
+        LayoutInputs(comic, tool, panels, boundaries, content),
+    )
+
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(tool, panels) {
+            .pointerInput(Unit) {
                 detectTapGestures { offset ->
-                    if (tool != LayoutTool.SELECT) return@detectTapGestures
-                    val point = pageViewport(size.toSize(), comic.pageShape).toPage(offset)
-                    panels.firstOrNull { it.shape.contains(point) }?.let { actions.toggleSelection(it.span) }
+                    if (latest.tool != LayoutTool.SELECT) return@detectTapGestures
+                    val point = pageViewport(size.toSize(), latest.comic.pageShape).toPage(offset)
+                    latest.panels.firstOrNull { it.shape.contains(point) }
+                        ?.let { actions.toggleSelection(it.span) }
                 }
             }
-            .pointerInput(tool, comic) {
-                val viewport = pageViewport(size.toSize(), comic.pageShape)
+            .pointerInput(Unit) {
+                fun viewport() = pageViewport(size.toSize(), latest.comic.pageShape)
                 detectDragGestures(
                     onDragStart = { start ->
                         dragOrigin = start
-                        if (tool == LayoutTool.SELECT) {
-                            dragging = boundaries.nearestTo(start, viewport, grabRadius)
+                        if (latest.tool == LayoutTool.SELECT) {
+                            dragging = latest.boundaries.nearestTo(start, viewport(), grabRadius)
                             if (dragging != null) actions.startBoundaryDrag()
                         } else {
                             tracing = start to start
@@ -82,14 +92,16 @@ internal fun LayoutStepOverlay(
                         val current = change.position
                         val line = dragging
                         if (line != null) {
-                            val extent = if (line.axis == GridAxis.COLUMN) content.width else content.height
+                            val box = latest.content
+                            val extent = if (line.axis == GridAxis.COLUMN) box.width else box.height
                             val moved = if (line.axis == GridAxis.COLUMN) {
                                 current.x - dragOrigin.x
                             } else {
                                 current.y - dragOrigin.y
                             }
-                            val delta = if (viewport.scale > 0f && extent > 0f) {
-                                moved / viewport.scale / extent
+                            val scale = viewport().scale
+                            val delta = if (scale > 0f && extent > 0f) {
+                                moved / scale / extent
                             } else {
                                 0f
                             }
@@ -100,7 +112,9 @@ internal fun LayoutStepOverlay(
                     },
                     onDragEnd = {
                         if (dragging != null) actions.endBoundaryDrag()
-                        tracing?.let { (start, end) -> actions.traceCut(start, end, viewport, tool, comic) }
+                        tracing?.let { (start, end) ->
+                            actions.traceCut(start, end, viewport(), latest.tool, latest.comic)
+                        }
                         dragging = null
                         tracing = null
                     },
@@ -138,6 +152,15 @@ private fun DrawScope.drawBoundary(boundary: GridBoundary, viewport: PageViewpor
     }
     drawLine(color = BoundaryColour, start = start, end = end, strokeWidth = 2f, pathEffect = dashes)
 }
+
+/** The values a running layout gesture needs to keep reading as the comic changes. */
+private data class LayoutInputs(
+    val comic: Comic,
+    val tool: LayoutTool,
+    val panels: List<GridPanel>,
+    val boundaries: List<GridBoundary>,
+    val content: PageRect,
+)
 
 private fun List<GridBoundary>.nearestTo(
     position: Offset,

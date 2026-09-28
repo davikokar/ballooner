@@ -37,7 +37,7 @@ interface ComicEditorActions {
         zoomBy: Float,
         rotateBy: Float,
     )
-    fun endPlacementGesture()
+    fun endPlacementGesture(index: Int, imageAspect: Float)
     fun addBalloon(type: BalloonType, panelIndex: Int?)
     fun selectBalloon(id: Long?)
     fun deleteBalloon(id: Long)
@@ -87,7 +87,8 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
         zoomBy: Float,
         rotateBy: Float,
     ) = this@asActions.transformPanelImage(index, imageAspect, panX, panY, zoomBy, rotateBy)
-    override fun endPlacementGesture() = this@asActions.endPlacementGesture()
+    override fun endPlacementGesture(index: Int, imageAspect: Float) =
+        this@asActions.endPlacementGesture(index, imageAspect)
     override fun addBalloon(type: BalloonType, panelIndex: Int?) =
         this@asActions.addBalloon(type, panelIndex)
     override fun selectBalloon(id: Long?) = this@asActions.selectBalloon(id)

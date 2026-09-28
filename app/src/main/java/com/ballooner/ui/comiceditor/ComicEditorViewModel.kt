@@ -29,6 +29,7 @@ import com.ballooner.domain.comic.mergedFrom
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.comic.resizedTo
+import com.ballooner.domain.comic.straightened
 import com.ballooner.domain.comic.transformed
 import com.ballooner.domain.comic.unmergedAt
 import com.ballooner.domain.comic.withBoundaryMoved
@@ -283,7 +284,25 @@ class ComicEditorViewModel @Inject constructor(
         commit(comic.copy(panels = panels), undoable = false)
     }
 
-    fun endPlacementGesture() = endDragAsOneUndoStep()
+    /** Lets the quarter-turn magnet bite, then closes the gesture as one undoable change. */
+    fun endPlacementGesture(index: Int, imageAspect: Float) {
+        val content = contentOrNull()
+        val comic = content?.comic
+        val panel = comic?.panels?.getOrNull(index)
+        val image = panel?.image
+        val bounds = comic?.let {
+            panelShapes(it.layout, it.pageShape, it.style).getOrNull(index)?.bounds
+        }
+        if (image != null && bounds != null) {
+            val straight = image.straightened(bounds, imageAspect)
+            if (straight != image) {
+                val panels = comic.panels.toMutableList()
+                    .also { it[index] = panel.copy(image = straight) }
+                commit(comic.copy(panels = panels), undoable = false)
+            }
+        }
+        endDragAsOneUndoStep()
+    }
 
     /** Adds or removes a grid panel from the Layout step selection. */
     fun toggleSelection(span: Span) = updateContent { content ->

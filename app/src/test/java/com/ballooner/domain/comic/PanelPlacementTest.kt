@@ -122,9 +122,27 @@ class PanelPlacementTest {
 
     @Test
     fun `a turn is applied with its magnet`() {
-        val turned = image.transformed(square, imageAspect = 1f, rotateBy = 88f)
+        val turned = image.straightened(square, imageAspect = 1f, rotateBy = 88f)
 
         assertEquals(90f, turned.angleDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun `a twist delivered one frame at a time still turns the image`() {
+        // A real gesture reports a fraction of a degree per frame, never a whole turn at once.
+        var twisting = image
+        repeat(90) { twisting = twisting.transformed(square, imageAspect = 1f, rotateBy = 1f) }
+
+        assertEquals(90f, twisting.angleDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun `the magnet only bites when the twist is let go of`() {
+        var twisting = image
+        repeat(88) { twisting = twisting.transformed(square, imageAspect = 1f, rotateBy = 1f) }
+        assertEquals(88f, twisting.angleDegrees, TOLERANCE)
+
+        assertEquals(90f, twisting.straightened(square, imageAspect = 1f).angleDegrees, TOLERANCE)
     }
 
     @Test

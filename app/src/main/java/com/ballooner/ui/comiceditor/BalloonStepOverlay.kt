@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -58,64 +59,84 @@ internal fun BalloonStepOverlay(
     fun panelOf(balloon: Balloon): PageRect? = balloon.panelIndex?.let { shapes.getOrNull(it)?.bounds }
 
     var grab by remember { mutableStateOf<BalloonGrab?>(null) }
+    var held by remember { mutableStateOf<Balloon?>(null) }
+
+    // Dragging a balloon edits the comic on every move, so keying the gesture on the comic would
+    // cancel the drag on its own first step. This lets a running gesture read current values.
+    val latest by rememberUpdatedState(BalloonInputs(comic, shapes, focus, selected))
 
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(comic, focus) {
-                val viewport = comicViewport(size.toSize(), comic.pageShape, focus?.bounds)
+            .pointerInput(Unit) {
                 detectTapGestures { offset ->
+                    val viewport =
+                        comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
                     val point = viewport.toPage(offset)
+                    val height = latest.comic.pageShape.pageHeight
                     // Topmost first, so the balloon you can see is the one you get.
-                    val hit = comic.balloons.inDrawingOrder().lastOrNull {
-                        it.contains(PagePoint(point.x, point.y), panelOf(it), pageHeight)
+                    val hit = latest.comic.balloons.inDrawingOrder().lastOrNull {
+                        it.contains(PagePoint(point.x, point.y), panelOf(it), height)
                     }
                     actions.selectBalloon(hit?.id)
                     // Tapping bare panel also aims where the next balloon will be added.
                     if (hit == null) {
-                        actions.selectPanel(shapes.indexOfFirst { it.contains(point) }.takeIf { it >= 0 })
+                        actions.selectPanel(
+                            latest.shapes.indexOfFirst { it.contains(point) }.takeIf { it >= 0 },
+                        )
                     }
                 }
             }
-            .pointerInput(selected?.id, comic, focus) {
-                if (selected == null) return@pointerInput
-                val viewport = comicViewport(size.toSize(), comic.pageShape, focus?.bounds)
-                val panel = panelOf(selected)
+            .pointerInput(Unit) {
+                fun viewport() =
+                    comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
                 detectDragGestures(
                     onDragStart = { start ->
-                        val point = viewport.toPage(start)
-                        val tail = selected.tailTip(panel, pageHeight)
-                        val tailBase = selected.tailWidthHandle(panel, pageHeight)
-                        val corner = selected.resizeHandle(panel, pageHeight)
-                        val hasTail = selected.tailLength > 0f
-                        grab = when {
-                            hasTail && near(viewport, point, tail, grabRadius) -> BalloonGrab.TAIL
-                            hasTail && near(viewport, point, tailBase, grabRadius) -> BalloonGrab.TAIL_WIDTH
-                            near(viewport, point, corner, grabRadius) -> BalloonGrab.RESIZE
-                            selected.contains(point, panel, pageHeight) -> BalloonGrab.BODY
-                            else -> null
+                        val balloon = latest.selected
+                        if (balloon == null) {
+                            grab = null
+                        } else {
+                            val height = latest.comic.pageShape.pageHeight
+                            val panel = panelOf(balloon)
+                            val point = viewport().toPage(start)
+                            val tail = balloon.tailTip(panel, height)
+                            val tailBase = balloon.tailWidthHandle(panel, height)
+                            val corner = balloon.resizeHandle(panel, height)
+                            val hasTail = balloon.tailLength > 0f
+                            grab = when {
+                                hasTail && near(viewport(), point, tail, grabRadius) -> BalloonGrab.TAIL
+                                hasTail && near(viewport(), point, tailBase, grabRadius) ->
+                                    BalloonGrab.TAIL_WIDTH
+                                near(viewport(), point, corner, grabRadius) -> BalloonGrab.RESIZE
+                                balloon.contains(point, panel, height) -> BalloonGrab.BODY
+                                else -> null
+                            }
+                            held = balloon.takeIf { grab != null }
+                            if (grab != null) actions.startBalloonGesture()
                         }
-                        if (grab != null) actions.startBalloonGesture()
                     },
                     onDrag = { change, _ ->
-                        val held = grab ?: return@detectDragGestures
+                        val how = grab ?: return@detectDragGestures
+                        val balloon = held ?: return@detectDragGestures
                         change.consume()
-                        val point = viewport.toPage(change.position)
-                        when (held) {
-                            BalloonGrab.BODY -> actions.moveBalloon(selected.id, point.x, point.y)
-                            BalloonGrab.RESIZE -> actions.resizeBalloon(selected.id, point.x, point.y)
-                            BalloonGrab.TAIL -> actions.pointBalloonTail(selected.id, point.x, point.y)
+                        val point = viewport().toPage(change.position)
+                        when (how) {
+                            BalloonGrab.BODY -> actions.moveBalloon(balloon.id, point.x, point.y)
+                            BalloonGrab.RESIZE -> actions.resizeBalloon(balloon.id, point.x, point.y)
+                            BalloonGrab.TAIL -> actions.pointBalloonTail(balloon.id, point.x, point.y)
                             BalloonGrab.TAIL_WIDTH ->
-                                actions.setBalloonTailWidth(selected.id, point.x, point.y)
+                                actions.setBalloonTailWidth(balloon.id, point.x, point.y)
                         }
                     },
                     onDragEnd = {
                         if (grab != null) actions.endBalloonGesture()
                         grab = null
+                        held = null
                     },
                     onDragCancel = {
                         if (grab != null) actions.endBalloonGesture()
                         grab = null
+                        held = null
                     },
                 )
             },
@@ -140,12 +161,19 @@ internal fun BalloonStepOverlay(
     }
 }
 
+/** The values a running balloon gesture needs to keep reading as the comic changes. */
+private data class BalloonInputs(
+    val comic: Comic,
+    val shapes: List<Polygon>,
+    val focus: Polygon?,
+    val selected: Balloon?,
+)
+
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHandle(
     viewport: PageViewport,
     at: PagePoint,
     small: Boolean = false,
-) {
-    val centre = viewport.toScreen(at.x, at.y)
+) {    val centre = viewport.toScreen(at.x, at.y)
     val radius = if (small) 13f else 18f
     drawCircle(color = HandleFill, radius = radius, center = centre)
     drawCircle(color = SelectionStroke, radius = radius, center = centre, style = Stroke(width = 3f))

@@ -23,6 +23,10 @@ fun snapToQuarterTurn(angleDegrees: Float, thresholdDegrees: Float = QUARTER_TUR
  * and [rotateBy] are the pinch and twist since the last step. The result always still covers the
  * panel: zoom is a multiple of the covering scale so it cannot go below it, and the centre is
  * clamped so no corner of the panel can be left empty.
+ *
+ * The quarter-turn magnet is deliberately NOT applied here. A twist arrives a fraction of a
+ * degree at a time, so snapping every step would pull each one straight back and the image could
+ * never leave a quarter turn. Call [straightened] when the gesture ends.
  */
 fun PanelImage.transformed(
     panel: PageRect,
@@ -35,7 +39,7 @@ fun PanelImage.transformed(
     if (!panX.isFinite() || !panY.isFinite() || !zoomBy.isFinite() || !rotateBy.isFinite()) return this
     if (panel.width <= 0f || panel.height <= 0f || imageAspect <= 0f) return this
 
-    val angle = snapToQuarterTurn(angleDegrees + rotateBy)
+    val angle = (angleDegrees + rotateBy).mod(360f)
     val zoomed = (zoom * zoomBy).coerceIn(MIN_PANEL_ZOOM, MAX_PANEL_ZOOM)
     val turned = copy(angleDegrees = angle, zoom = zoomed)
 
@@ -53,6 +57,23 @@ fun PanelImage.transformed(
     return turned
         .copy(centre = NormalizedPoint(centre.u - localX / width, centre.v - localY / height))
         .clampedTo(panel, imageAspect)
+}
+
+/**
+ * Finishes a placement gesture by letting the quarter-turn magnet bite.
+ *
+ * Straightening changes how much of the image the panel needs, so the placement is re-clamped
+ * against the new angle rather than simply rewritten.
+ */
+fun PanelImage.straightened(
+    panel: PageRect,
+    imageAspect: Float,
+    rotateBy: Float = 0f,
+): PanelImage {
+    if (!rotateBy.isFinite()) return this
+    val angle = snapToQuarterTurn(angleDegrees + rotateBy)
+    if (angle == angleDegrees) return this
+    return copy(angleDegrees = angle).clampedTo(panel, imageAspect)
 }
 
 /** Pulls the looked-at point back inside the range that keeps the panel covered. */

@@ -128,7 +128,7 @@ class PlacementStepTest {
 
         viewModel.startPlacementGesture()
         viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f)
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertEquals(2f, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
@@ -142,7 +142,7 @@ class PlacementStepTest {
 
         viewModel.startPlacementGesture()
         repeat(5) { viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 1.1f) }
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
         assertTrue(content(viewModel).canUndo)
 
@@ -160,7 +160,7 @@ class PlacementStepTest {
 
         viewModel.startPlacementGesture()
         repeat(10) { viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 0.5f) }
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertEquals(MIN_PANEL_ZOOM, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
@@ -173,7 +173,7 @@ class PlacementStepTest {
 
         viewModel.startPlacementGesture()
         repeat(20) { viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f) }
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertEquals(MAX_PANEL_ZOOM, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
@@ -187,7 +187,7 @@ class PlacementStepTest {
         viewModel.startPlacementGesture()
         viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f)
         viewModel.transformPanelImage(0, imageAspect = 1f, panX = 0.05f)
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertTrue(imageOf(viewModel, 0)!!.centre.u < 0.5f)
@@ -199,8 +199,10 @@ class PlacementStepTest {
         advanceUntilIdle()
 
         viewModel.startPlacementGesture()
-        viewModel.transformPanelImage(0, imageAspect = 1f, rotateBy = 88f)
-        viewModel.endPlacementGesture()
+        // A real twist arrives a degree at a time, so the magnet must wait for the fingers to lift.
+        repeat(88) { viewModel.transformPanelImage(0, imageAspect = 1f, rotateBy = 1f) }
+        assertEquals(88f, imageOf(viewModel, 0)!!.angleDegrees, TOLERANCE)
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertEquals(90f, imageOf(viewModel, 0)!!.angleDegrees, TOLERANCE)
@@ -214,7 +216,7 @@ class PlacementStepTest {
 
         viewModel.startPlacementGesture()
         viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 3f, rotateBy = 20f)
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertEquals(before, imageOf(viewModel, 1))
@@ -227,7 +229,7 @@ class PlacementStepTest {
 
         viewModel.startPlacementGesture()
         viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f)
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertNull(imageOf(viewModel, 0))
@@ -242,7 +244,7 @@ class PlacementStepTest {
 
         viewModel.startPlacementGesture()
         viewModel.transformPanelImage(0, imageAspect = 1f, zoomBy = 2f, rotateBy = 33f)
-        viewModel.endPlacementGesture()
+        viewModel.endPlacementGesture(0, imageAspect = 1f)
         advanceUntilIdle()
 
         assertEquals(layout, content(viewModel).comic.layout)
