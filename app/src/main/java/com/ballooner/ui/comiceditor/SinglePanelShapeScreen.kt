@@ -9,13 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -92,8 +91,7 @@ fun SinglePanelShapeScreen(
 
     Column(
         modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+            .fillMaxSize()
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -176,6 +174,7 @@ fun SinglePanelShapeScreen(
             // The panel as it will really be: a ratio the page cannot reach is held back, and
             // the preview has to say so rather than promise the number on the slider.
             ratio = panelRatio.takeIf { tile != ShapeTile.AUTO },
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -449,10 +448,10 @@ private fun FilledTrack(fraction: Float) {
 
 /** The shape itself, on a drafting ground, so the numbers above are never the only feedback. */
 @Composable
-private fun PanelPreview(ratio: Float?) {
+private fun PanelPreview(ratio: Float?, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(scheme.surfaceContainerLowest)
@@ -471,7 +470,7 @@ private fun PanelPreview(ratio: Float?) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(150.dp)
+                .weight(1f)
                 .clip(RoundedCornerShape(8.dp))
                 .background(scheme.surfaceContainer)
                 .border(
@@ -502,7 +501,7 @@ private fun PanelPreview(ratio: Float?) {
 
 @Composable
 private fun DraftingDots(colour: Color) {
-    Canvas(modifier = Modifier.fillMaxWidth().height(134.dp)) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
         val step = 12.dp.toPx()
         var y = step / 2f
         while (y < size.height) {
