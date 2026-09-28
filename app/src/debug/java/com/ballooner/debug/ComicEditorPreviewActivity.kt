@@ -19,7 +19,8 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
+import com.ballooner.domain.comic.TALL_RATIO
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.ui.comic.PanelImageSource
@@ -71,7 +72,7 @@ private class InMemoryComicRepository : ComicRepository {
     private val comic = MutableStateFlow(
         Comic(
             name = "Debug comic",
-            pageShape = PageShape.PORTRAIT,
+            sizing = PageSizing.Ratio(TALL_RATIO),
             style = ComicStyle(pageMargin = 0.03f, gutter = 0.025f, borderThickness = 0.006f),
             layout = Layout(Grid(rows = 3, columns = 2)),
             panels = List(6) { index -> Panel(if (index % 2 == 0) PanelImage("sample") else null) },

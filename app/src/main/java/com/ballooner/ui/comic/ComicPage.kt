@@ -58,7 +58,7 @@ fun ComicPage(
     Box(modifier = modifier.clipToBounds()) {
         val textMeasurer = rememberTextMeasurer()
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val viewport = comicViewport(size, comic.pageShape, focus?.bounds)
+            val viewport = comicViewport(size, comic.pageHeight, focus?.bounds)
             if (viewport.scale <= 0f) return@Canvas
             drawComicPage(comic, images, viewport, textMeasurer, imageAlpha, balloonAlpha, focus)
         }
@@ -83,7 +83,7 @@ fun DrawScope.drawComicPage(
     if (viewport.scale <= 0f) return
     val drawEverything = {
         drawPage(comic, viewport)
-        val shapes = panelShapes(comic.layout, comic.pageShape, comic.style)
+        val shapes = panelShapes(comic.layout, comic.pageHeight, comic.style)
         shapes.forEachIndexed { index, shape ->
             drawPanelImage(comic, index, shape, viewport, images, imageAlpha)
         }
@@ -114,7 +114,7 @@ private fun DrawScope.drawBalloons(
         if ((panelIndex != null) != panelScoped) return@forEach
         val panel = panelIndex?.let { shapes.getOrNull(it) }
         if (panelIndex != null && panel == null) return@forEach
-        val geometry = balloonGeometry(balloon, panel?.bounds, comic.pageShape.pageHeight, viewport)
+        val geometry = balloonGeometry(balloon, panel?.bounds, comic.pageHeight, viewport)
         val draw = {
             drawBalloon(
                 geometry = geometry,
@@ -162,7 +162,7 @@ private fun DrawScope.drawPage(comic: Comic, viewport: PageViewport) {
     drawRect(
         color = PaperWhite,
         topLeft = Offset(viewport.originX, viewport.originY),
-        size = Size(viewport.scale, viewport.scale * comic.pageShape.pageHeight),
+        size = Size(viewport.scale, viewport.scale * comic.pageHeight),
     )
 }
 

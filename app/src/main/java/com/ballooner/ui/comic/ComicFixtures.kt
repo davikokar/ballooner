@@ -9,10 +9,14 @@ import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.TALL_RATIO
+import com.ballooner.domain.comic.WIDE_RATIO
+import com.ballooner.domain.comic.pageHeightOf
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.model.BalloonType
 
@@ -26,13 +30,13 @@ private const val SAMPLE = "sample"
  * before any editing UI exists to explain away a wrong result.
  */
 fun comicFixtures(): List<ComicFixture> = listOf(
-    ComicFixture("Single panel", fixture(PageShape.SQUARE, Layout(Grid(1, 1)))),
-    ComicFixture("Strip of three", fixture(PageShape.LANDSCAPE, Layout(Grid(rows = 1, columns = 3)))),
-    ComicFixture("Grid 3x3", fixture(PageShape.PORTRAIT, Layout(Grid(rows = 3, columns = 3)))),
+    ComicFixture("Single panel", fixture(SQUARE_RATIO, Layout(Grid(1, 1)))),
+    ComicFixture("Strip of three", fixture(WIDE_RATIO, Layout(Grid(rows = 1, columns = 3)))),
+    ComicFixture("Grid 3x3", fixture(TALL_RATIO, Layout(Grid(rows = 3, columns = 3)))),
     ComicFixture(
         name = "Merged top row and tall left panel",
         comic = fixture(
-            PageShape.PORTRAIT,
+            TALL_RATIO,
             Layout(
                 Grid(
                     rows = 3,
@@ -48,21 +52,21 @@ fun comicFixtures(): List<ComicFixture> = listOf(
     ComicFixture(
         name = "Uneven weights",
         comic = fixture(
-            PageShape.SQUARE,
+            SQUARE_RATIO,
             Layout(Grid(rows = 2, columns = 2, rowWeights = listOf(2f, 1f), columnWeights = listOf(1f, 3f))),
         ),
     ),
     ComicFixture(
         name = "Diagonal page cut",
         comic = fixture(
-            PageShape.SQUARE,
+            SQUARE_RATIO,
             Layout(Grid(1, 1), listOf(Cut(NormalizedPoint(0f, 0.2f), NormalizedPoint(1f, 0.8f), CutScope.WholePage))),
         ),
     ),
     ComicFixture(
         name = "Panel cut: two above, three below",
         comic = fixture(
-            PageShape.SQUARE,
+            SQUARE_RATIO,
             Layout(
                 grid = Grid(rows = 2, columns = 1),
                 cuts = listOf(
@@ -88,7 +92,7 @@ fun comicFixtures(): List<ComicFixture> = listOf(
     ComicFixture(
         name = "Diagonal panel cut inside a grid",
         comic = fixture(
-            PageShape.SQUARE,
+            SQUARE_RATIO,
             Layout(
                 grid = Grid(rows = 2, columns = 2),
                 cuts = listOf(
@@ -104,7 +108,7 @@ fun comicFixtures(): List<ComicFixture> = listOf(
     ComicFixture(
         name = "Turned and zoomed images",
         comic = fixture(
-            pageShape = PageShape.SQUARE,
+            ratio = SQUARE_RATIO,
             layout = Layout(Grid(rows = 2, columns = 2)),
             images = listOf(
                 PanelImage(SAMPLE),
@@ -117,7 +121,7 @@ fun comicFixtures(): List<ComicFixture> = listOf(
     ComicFixture(
         name = "Wide gutter and margin",
         comic = fixture(
-            pageShape = PageShape.SQUARE,
+            ratio = SQUARE_RATIO,
             layout = Layout(Grid(rows = 2, columns = 2)),
             style = ComicStyle(pageMargin = 0.08f, gutter = 0.06f, borderThickness = 0.008f),
         ),
@@ -125,7 +129,7 @@ fun comicFixtures(): List<ComicFixture> = listOf(
     ComicFixture(
         name = "Balloon types, one per panel",
         comic = fixture(
-            pageShape = PageShape.SQUARE,
+            ratio = SQUARE_RATIO,
             layout = Layout(Grid(rows = 2, columns = 3)),
         ).copy(
             balloons = BalloonType.entries.mapIndexed { index, type ->
@@ -145,7 +149,7 @@ fun comicFixtures(): List<ComicFixture> = listOf(
     ComicFixture(
         name = "Panel balloon clipped, comic balloon free",
         comic = fixture(
-            pageShape = PageShape.SQUARE,
+            ratio = SQUARE_RATIO,
             layout = Layout(Grid(rows = 2, columns = 2)),
         ).copy(
             balloons = listOf(
@@ -175,17 +179,18 @@ fun comicFixtures(): List<ComicFixture> = listOf(
 )
 
 private fun fixture(
-    pageShape: PageShape,
+    ratio: Float,
     layout: Layout,
     style: ComicStyle = ComicStyle(),
     images: List<PanelImage>? = null,
 ): Comic {
-    val panelCount = panelShapes(layout, pageShape, style).size
+    val sizing = PageSizing.Ratio(ratio)
+    val panels = panelShapes(layout, pageHeightOf(sizing, layout, style, emptyList()), style).size
     return Comic(
-        pageShape = pageShape,
+        sizing = sizing,
         style = style,
         layout = layout,
-        panels = List(panelCount) { index ->
+        panels = List(panels) { index ->
             Panel(images?.getOrNull(index) ?: PanelImage(SAMPLE))
         },
     )

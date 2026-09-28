@@ -3,7 +3,6 @@ package com.ballooner.ui.comic
 import androidx.compose.ui.geometry.Size
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageRect
-import com.ballooner.domain.comic.PageShape
 import com.ballooner.domain.comic.PanelImage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -17,7 +16,7 @@ class PageViewportTest {
 
     @Test
     fun `a square page fills a square space`() {
-        val viewport = pageViewport(Size(400f, 400f), PageShape.SQUARE)
+        val viewport = pageViewport(Size(400f, 400f), 1f)
 
         assertEquals(400f, viewport.scale, TOLERANCE)
         assertEquals(0f, viewport.originX, TOLERANCE)
@@ -26,7 +25,7 @@ class PageViewportTest {
 
     @Test
     fun `a page taller than the space is limited by the height and centred`() {
-        val viewport = pageViewport(Size(400f, 400f), PageShape.PORTRAIT)
+        val viewport = pageViewport(Size(400f, 400f), 4f / 3f)
 
         assertEquals(300f, viewport.scale, TOLERANCE)
         assertEquals(50f, viewport.originX, TOLERANCE)
@@ -35,7 +34,7 @@ class PageViewportTest {
 
     @Test
     fun `a page wider than the space is limited by the width and centred`() {
-        val viewport = pageViewport(Size(400f, 400f), PageShape.LANDSCAPE)
+        val viewport = pageViewport(Size(400f, 400f), 0.75f)
 
         assertEquals(400f, viewport.scale, TOLERANCE)
         assertEquals(0f, viewport.originX, TOLERANCE)
@@ -44,7 +43,7 @@ class PageViewportTest {
 
     @Test
     fun `an empty space has no viewport`() {
-        assertEquals(0f, pageViewport(Size(0f, 100f), PageShape.SQUARE).scale, TOLERANCE)
+        assertEquals(0f, pageViewport(Size(0f, 100f), 1f).scale, TOLERANCE)
     }
 
     @Test
@@ -134,7 +133,7 @@ class PageViewportTest {
     fun `focusing a panel fills the space with it`() {
         val panel = PageRect(0.5f, 0f, 0.5f, 0.5f)
 
-        val viewport = comicViewport(Size(400f, 400f), PageShape.SQUARE, panel)
+        val viewport = comicViewport(Size(400f, 400f), 1f, panel)
 
         // The panel is a quarter of the page, so it is drawn at four times the scale.
         assertEquals(800f, viewport.scale, TOLERANCE)
@@ -147,7 +146,7 @@ class PageViewportTest {
     fun `a focused panel is centred when its shape differs from the space`() {
         val panel = PageRect(0f, 0f, 1f, 0.25f)
 
-        val viewport = comicViewport(Size(400f, 400f), PageShape.SQUARE, panel)
+        val viewport = comicViewport(Size(400f, 400f), 1f, panel)
 
         assertEquals(400f, viewport.scale, TOLERANCE)
         assertEquals(0f, viewport.toScreen(0f, 0f).x, TOLERANCE)
@@ -156,14 +155,14 @@ class PageViewportTest {
 
     @Test
     fun `no focus means the whole page`() {
-        val focused = comicViewport(Size(400f, 400f), PageShape.PORTRAIT, null)
+        val focused = comicViewport(Size(400f, 400f), 4f / 3f, null)
 
-        assertEquals(pageViewport(Size(400f, 400f), PageShape.PORTRAIT), focused)
+        assertEquals(pageViewport(Size(400f, 400f), 4f / 3f), focused)
     }
 
     @Test
     fun `focusing a panel with no area falls back to the whole page`() {
-        val viewport = comicViewport(Size(400f, 400f), PageShape.SQUARE, PageRect(0f, 0f, 0f, 0f))
+        val viewport = comicViewport(Size(400f, 400f), 1f, PageRect(0f, 0f, 0f, 0f))
 
         assertEquals(400f, viewport.scale, TOLERANCE)
     }

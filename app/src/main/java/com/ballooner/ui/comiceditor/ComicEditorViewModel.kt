@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ballooner.data.comic.ComicRepository
+import com.ballooner.data.comic.ImportedImage
 import com.ballooner.data.comic.PanelImageImporter
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.BalloonScope
@@ -20,7 +21,7 @@ import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.PageRect
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.PanelMatching
 import com.ballooner.domain.comic.Span
@@ -67,7 +68,7 @@ class ComicEditorViewModel @Inject constructor(
      * uris are already local, so importing them is a no-op.
      */
     constructor(comicId: Long, repository: ComicRepository) :
-        this(SavedStateHandle(mapOf(COMIC_ID_KEY to comicId)), repository, PanelImageImporter { it })
+        this(SavedStateHandle(mapOf(COMIC_ID_KEY to comicId)), repository, PanelImageImporter { ImportedImage(it, null) })
 
     private val comicId: Long = savedStateHandle.get<Long>(COMIC_ID_KEY) ?: 0L
 
@@ -91,7 +92,13 @@ class ComicEditorViewModel @Inject constructor(
     }
 
     fun selectStep(step: EditorStep) = updateContent {
-        it.copy(step = step, selection = emptyList(), activePanel = null, focusedPanel = null)
+        it.copy(
+            step = step,
+            layoutKind = null,
+            selection = emptyList(),
+            activePanel = null,
+            focusedPanel = null,
+        )
     }
 
     /** Fills the canvas with one panel. Focus is a way of looking, not a change to the comic. */
@@ -194,11 +201,11 @@ class ComicEditorViewModel @Inject constructor(
         val content = contentOrNull() ?: return
         val comic = content.comic
         val balloon = comic.balloons.firstOrNull { it.id == id } ?: return
-        val shapes = panelShapes(comic.layout, comic.pageShape, comic.style)
+        val shapes = panelShapes(comic.layout, comic.pageHeight, comic.style)
         val currentPanel = balloon.panelIndex?.let { shapes.getOrNull(it)?.bounds }
         val newScope = if (balloon.scope is BalloonScope.Comic) {
             val owner = shapes.indexOfFirst {
-                it.contains(balloon.centreOnPage(null, comic.pageShape.pageHeight))
+                it.contains(balloon.centreOnPage(null, comic.pageHeight))
             }
             if (owner < 0) return
             BalloonScope.Panel(owner)
@@ -206,7 +213,7 @@ class ComicEditorViewModel @Inject constructor(
             BalloonScope.Comic
         }
         val newPanel = (newScope as? BalloonScope.Panel)?.let { shapes.getOrNull(it.panelIndex)?.bounds }
-        val moved = balloon.withScope(newScope, currentPanel, newPanel, comic.pageShape.pageHeight)
+        val moved = balloon.withScope(newScope, currentPanel, newPanel, comic.pageHeight)
         commit(comic.copy(balloons = comic.balloons.map { if (it.id == id) moved else it }))
     }
 
@@ -221,8 +228,8 @@ class ComicEditorViewModel @Inject constructor(
         val comic = content.comic
         val balloon = comic.balloons.firstOrNull { it.id == id } ?: return
         val panel = balloon.panelIndex
-            ?.let { panelShapes(comic.layout, comic.pageShape, comic.style).getOrNull(it)?.bounds }
-        val moved = transform(balloon, panel, comic.pageShape.pageHeight)
+            ?.let { panelShapes(comic.layout, comic.pageHeight, comic.style).getOrNull(it)?.bounds }
+        val moved = transform(balloon, panel, comic.pageHeight)
         if (moved == balloon) return
         commit(comic.copy(balloons = comic.balloons.map { if (it.id == id) moved else it }), undoable = false)
     }
@@ -244,10 +251,10 @@ class ComicEditorViewModel @Inject constructor(
         content.copy(activePanel = index?.takeIf { it in content.comic.panels.indices })
     }
 
-    fun setPanelImage(index: Int, sourceUri: String?) {
+    fun setPanelImage(index: Int, sourceUri: String?, sourceAspect: Float? = null) {
         val content = contentOrNull() ?: return
         val panel = content.comic.panels.getOrNull(index) ?: return
-        val replaced = panel.copy(image = sourceUri?.let { PanelImage(it) })
+        val replaced = panel.copy(image = sourceUri?.let { PanelImage(it, sourceAspect = sourceAspect) })
         commit(content.comic.copy(panels = content.comic.panels.toMutableList().also { it[index] = replaced }))
     }
 
@@ -255,7 +262,7 @@ class ComicEditorViewModel @Inject constructor(
     fun importPanelImage(index: Int, pickedUri: String) {
         viewModelScope.launch {
             val imported = imageImporter.import(pickedUri) ?: return@launch
-            setPanelImage(index, imported)
+            setPanelImage(index, imported.uri, imported.aspect)
         }
     }
 
@@ -276,7 +283,7 @@ class ComicEditorViewModel @Inject constructor(
         val comic = content.comic
         val panel = comic.panels.getOrNull(index) ?: return
         val image = panel.image ?: return
-        val bounds = panelShapes(comic.layout, comic.pageShape, comic.style)
+        val bounds = panelShapes(comic.layout, comic.pageHeight, comic.style)
             .getOrNull(index)?.bounds ?: return
         val moved = image.transformed(bounds, imageAspect, panX, panY, zoomBy, rotateBy)
         if (moved == image) return
@@ -291,7 +298,7 @@ class ComicEditorViewModel @Inject constructor(
         val panel = comic?.panels?.getOrNull(index)
         val image = panel?.image
         val bounds = comic?.let {
-            panelShapes(it.layout, it.pageShape, it.style).getOrNull(index)?.bounds
+            panelShapes(it.layout, it.pageHeight, it.style).getOrNull(index)?.bounds
         }
         if (image != null && bounds != null) {
             val straight = image.straightened(bounds, imageAspect)
@@ -330,14 +337,33 @@ class ComicEditorViewModel @Inject constructor(
         applyLayout(Layout(Grid(rows = rows, columns = columns)), PanelMatching.BY_INDEX)
     }
 
+    /**
+     * Opens one kind of layout's options. Choosing a single panel is itself a layout change; the
+     * other kinds only decide which options are on show.
+     */
+    fun selectLayoutKind(kind: LayoutKind) {
+        updateContent { it.copy(layoutKind = kind).withSelection(emptyList()) }
+        if (kind == LayoutKind.SINGLE) applyPreset(rows = 1, columns = 1)
+    }
+
+    /** Returns to the preset picker, leaving the comic as it is. */
+    fun closeLayoutKind() = updateContent {
+        it.copy(layoutKind = null).withSelection(emptyList())
+    }
+
     fun setRowWeights(weights: List<Float>) = withGrid { it.copy(rowWeights = weights) }
 
     fun setColumnWeights(weights: List<Float>) = withGrid { it.copy(columnWeights = weights) }
 
-    fun setPageShape(pageShape: PageShape) {
+    /**
+     * Changes what gives the page its height.
+     *
+     * The page is shaped by the reference panel, so this reshapes every panel at once but never
+     * changes how many there are.
+     */
+    fun setSizing(sizing: PageSizing) {
         val content = contentOrNull() ?: return
-        // The page shape changes every panel's proportions but never how many there are.
-        commit(content.comic.copy(pageShape = pageShape))
+        commit(content.comic.copy(sizing = sizing))
     }
 
     /** Remembers where a grid line started, so the whole drag counts as one undoable change. */
@@ -378,8 +404,8 @@ class ComicEditorViewModel @Inject constructor(
         val content = contentOrNull() ?: return
         val comic = content.comic
         val layout = comic.layout.withCut(Cut(from, to, scope))
-        val before = panelShapes(comic.layout, comic.pageShape, comic.style).size
-        val after = panelShapes(layout, comic.pageShape, comic.style).size
+        val before = panelShapes(comic.layout, comic.pageHeight, comic.style).size
+        val after = panelShapes(layout, comic.pageHeight, comic.style).size
         if (after <= before) return
         applyLayout(layout, PanelMatching.BY_OVERLAP)
     }

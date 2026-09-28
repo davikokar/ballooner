@@ -49,9 +49,9 @@ internal fun LayoutStepOverlay(
     actions: ComicEditorActions,
     modifier: Modifier = Modifier,
 ) {
-    val panels = remember(comic) { gridPanels(comic.layout.grid, comic.pageShape, comic.style) }
-    val boundaries = remember(comic) { gridBoundaries(comic.layout.grid, comic.pageShape, comic.style) }
-    val content = remember(comic) { contentRect(comic.pageShape, comic.style) }
+    val panels = remember(comic) { gridPanels(comic.layout.grid, comic.pageHeight, comic.style) }
+    val boundaries = remember(comic) { gridBoundaries(comic.layout.grid, comic.pageHeight, comic.style) }
+    val content = remember(comic) { contentRect(comic.pageHeight, comic.style) }
     val grabRadius = with(LocalDensity.current) { GRAB_RADIUS.toPx() }
 
     var tracing by remember { mutableStateOf<Pair<Offset, Offset>?>(null) }
@@ -70,13 +70,13 @@ internal fun LayoutStepOverlay(
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     if (latest.tool != LayoutTool.SELECT) return@detectTapGestures
-                    val point = pageViewport(size.toSize(), latest.comic.pageShape).toPage(offset)
+                    val point = pageViewport(size.toSize(), latest.comic.pageHeight).toPage(offset)
                     latest.panels.firstOrNull { it.shape.contains(point) }
                         ?.let { actions.toggleSelection(it.span) }
                 }
             }
             .pointerInput(Unit) {
-                fun viewport() = pageViewport(size.toSize(), latest.comic.pageShape)
+                fun viewport() = pageViewport(size.toSize(), latest.comic.pageHeight)
                 detectDragGestures(
                     onDragStart = { start ->
                         dragOrigin = start
@@ -126,7 +126,7 @@ internal fun LayoutStepOverlay(
                 )
             },
     ) {
-        val viewport = pageViewport(size, comic.pageShape)
+        val viewport = pageViewport(size, comic.pageHeight)
         if (viewport.scale <= 0f) return@Canvas
         if (tool == LayoutTool.SELECT) {
             panels.filter { it.span in selection }.forEach { panel ->
@@ -144,7 +144,7 @@ internal fun LayoutStepOverlay(
 
 private fun DrawScope.drawBoundary(boundary: GridBoundary, viewport: PageViewport, comic: Comic) {
     val dashes = PathEffect.dashPathEffect(floatArrayOf(12f, 12f))
-    val pageHeight = comic.pageShape.pageHeight
+    val pageHeight = comic.pageHeight
     val (start, end) = if (boundary.axis == GridAxis.COLUMN) {
         viewport.toScreen(boundary.position, 0f) to viewport.toScreen(boundary.position, pageHeight)
     } else {
@@ -191,7 +191,7 @@ private fun ComicEditorActions.traceCut(
     comic: Comic,
 ) {
     if ((end - start).getDistance() < MIN_TRACE_PIXELS) return
-    val pageHeight = comic.pageShape.pageHeight
+    val pageHeight = comic.pageHeight
     fun normalized(offset: Offset): NormalizedPoint {
         val point = viewport.toPage(offset)
         return NormalizedPoint(point.x, if (pageHeight > 0f) point.y / pageHeight else 0f)

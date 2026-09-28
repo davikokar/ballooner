@@ -9,7 +9,7 @@ import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.Span
@@ -18,7 +18,7 @@ import com.ballooner.domain.model.BalloonType
 
 fun ComicWithParts.toDomain(): Comic = Comic(
     name = comic.name,
-    pageShape = enumValueOrDefault(comic.pageShape, PageShape.PORTRAIT),
+    sizing = comic.pageRatio?.takeIf { it > 0f }?.let { PageSizing.Ratio(it) } ?: PageSizing.FromImage,
     style = ComicStyle(
         pageMargin = comic.pageMargin,
         gutter = comic.gutter,
@@ -45,7 +45,7 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
         name = name,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        pageShape = pageShape.name,
+        pageRatio = (sizing as? PageSizing.Ratio)?.value,
         pageMargin = style.pageMargin,
         gutter = style.gutter,
         borderThickness = style.borderThickness,
@@ -87,6 +87,7 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
             centreV = panel.image?.centre?.v ?: 0.5f,
             zoom = panel.image?.zoom ?: 1f,
             angleDegrees = panel.image?.angleDegrees ?: 0f,
+            sourceAspect = panel.image?.sourceAspect,
         )
     },
     balloons = balloons.map { balloon ->
@@ -129,6 +130,7 @@ private fun ComicPanelEntity.toDomain() = Panel(
             centre = NormalizedPoint(centreU, centreV),
             zoom = zoom,
             angleDegrees = angleDegrees,
+            sourceAspect = sourceAspect,
         )
     },
 )

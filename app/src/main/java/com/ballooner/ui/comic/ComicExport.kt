@@ -22,7 +22,7 @@ import kotlin.math.roundToInt
  * size of a decoded image, or null while it is still loading.
  */
 fun comicPixelWidth(comic: Comic, sizeOf: (String) -> IntSize?): Int {
-    val shapes = panelShapes(comic.layout, comic.pageShape, comic.style)
+    val shapes = panelShapes(comic.layout, comic.pageHeight, comic.style)
     val requested = comic.panels.mapIndexedNotNull { index, panel ->
         val image = panel.image ?: return@mapIndexedNotNull null
         val size = sizeOf(image.sourceUri) ?: return@mapIndexedNotNull null
@@ -45,7 +45,7 @@ fun renderComic(
     fontFamilyResolver: FontFamily.Resolver,
 ): ImageBitmap {
     val width = pixelWidth.coerceIn(MIN_EXPORT_WIDTH, MAX_EXPORT_WIDTH)
-    val height = (width * comic.pageShape.pageHeight).roundToInt().coerceAtLeast(1)
+    val height = (width * comic.pageHeight).roundToInt().coerceAtLeast(1)
     val bitmap = ImageBitmap(width, height)
     val size = Size(width.toFloat(), height.toFloat())
     CanvasDrawScope().draw(density, LayoutDirection.Ltr, Canvas(bitmap), size) {

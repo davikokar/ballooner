@@ -9,7 +9,7 @@ class ReadingOrderTest {
 
     @Test
     fun `a grid reads left to right then top to bottom`() {
-        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 3)), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 3)), 1f, noStyle)
 
         val centres = shapes.map { it.bounds.centre }
         centres.take(3).forEach { assertEquals(0.25f, it.y, TOLERANCE) }
@@ -23,7 +23,7 @@ class ReadingOrderTest {
     fun `panels within a row are ordered even when their heights differ`() {
         val grid = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 1, rowCount = 2, columnCount = 1)))
 
-        val shapes = panelShapes(Layout(grid), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(grid), 1f, noStyle)
 
         assertEquals(3, shapes.size)
         assertEquals(0.25f, shapes[0].bounds.centre.x, TOLERANCE)
@@ -38,7 +38,7 @@ class ReadingOrderTest {
         // second rather than first.
         val grid = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, rowCount = 2, columnCount = 1)))
 
-        val shapes = panelShapes(Layout(grid), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(grid), 1f, noStyle)
 
         assertEquals(0.25f, shapes[0].bounds.centre.y, TOLERANCE)
         assertEquals(0.5f, shapes[1].bounds.centre.y, TOLERANCE)

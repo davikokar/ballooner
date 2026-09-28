@@ -8,9 +8,10 @@ import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,7 +33,8 @@ class FocusAndSwapTest {
     private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
 
     private fun comic(panels: Int = 4, withImages: Boolean = true) = Comic(
-        pageShape = PageShape.SQUARE,
+        // A two by two grid of square panels, which makes the page square too.
+        sizing = PageSizing.Ratio(SQUARE_RATIO),
         style = style,
         layout = Layout(Grid(rows = 2, columns = 2)),
         panels = List(panels) { Panel(if (withImages) PanelImage("image$it") else null) },

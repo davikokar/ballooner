@@ -10,12 +10,12 @@ class GridBoundariesTest {
 
     @Test
     fun `a single panel has no grid lines`() {
-        assertEquals(emptyList<GridBoundary>(), gridBoundaries(Grid(1, 1), PageShape.SQUARE, noStyle))
+        assertEquals(emptyList<GridBoundary>(), gridBoundaries(Grid(1, 1), 1f, noStyle))
     }
 
     @Test
     fun `an even grid puts its lines at even intervals`() {
-        val boundaries = gridBoundaries(Grid(rows = 2, columns = 3), PageShape.SQUARE, noStyle)
+        val boundaries = gridBoundaries(Grid(rows = 2, columns = 3), 1f, noStyle)
 
         val columns = boundaries.filter { it.axis == GridAxis.COLUMN }
         val rows = boundaries.filter { it.axis == GridAxis.ROW }
@@ -30,7 +30,7 @@ class GridBoundariesTest {
     fun `the page margin shifts the grid lines inwards`() {
         val style = ComicStyle(pageMargin = 0.1f, gutter = 0f, borderThickness = 0f)
 
-        val boundaries = gridBoundaries(Grid(rows = 1, columns = 2), PageShape.SQUARE, style)
+        val boundaries = gridBoundaries(Grid(rows = 1, columns = 2), 1f, style)
 
         assertEquals(0.5f, boundaries.single().position, TOLERANCE)
     }
@@ -94,7 +94,7 @@ class GridBoundariesTest {
     fun `moving a line moves the panels it separates`() {
         val grid = Grid(rows = 1, columns = 2).withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.25f)
 
-        val shapes = panelShapes(Layout(grid), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(grid), 1f, noStyle)
 
         assertEquals(0.75f, shapes[0].bounds.width, TOLERANCE)
         assertEquals(0.25f, shapes[1].bounds.width, TOLERANCE)

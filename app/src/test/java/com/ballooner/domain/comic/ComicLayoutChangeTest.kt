@@ -12,14 +12,9 @@ class ComicLayoutChangeTest {
     private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
 
     private fun comicWith(grid: Grid, cuts: List<Cut> = emptyList()): Comic {
-        val layout = Layout(grid, cuts)
-        val panelCount = panelShapes(layout, PageShape.SQUARE, style).size
-        return Comic(
-            pageShape = PageShape.SQUARE,
-            style = style,
-            layout = layout,
-            panels = List(panelCount) { Panel(PanelImage(sourceUri = "image$it")) },
-        )
+        val comic = Comic(sizing = PageSizing.Ratio(SQUARE_RATIO), style = style, layout = Layout(grid, cuts))
+        val panelCount = panelShapes(comic.layout, comic.pageHeight, style).size
+        return comic.copy(panels = List(panelCount) { Panel(PanelImage(sourceUri = "image$it")) })
     }
 
     private fun uris(comic: Comic) = comic.panels.map { it.image?.sourceUri }
@@ -174,10 +169,10 @@ class ComicLayoutChangeTest {
     }
 
     @Test
-    fun `changing the page shape keeps every panel`() {
+    fun `changing the page sizing keeps every panel`() {
         val comic = comicWith(Grid(rows = 2, columns = 2))
 
-        val change = comic.copy(pageShape = PageShape.LANDSCAPE).withLayout(comic.layout)
+        val change = comic.copy(sizing = PageSizing.Ratio(WIDE_RATIO)).withLayout(comic.layout)
 
         assertEquals(listOf("image0", "image1", "image2", "image3"), uris(change.comic))
         assertFalse(change.isDestructive)

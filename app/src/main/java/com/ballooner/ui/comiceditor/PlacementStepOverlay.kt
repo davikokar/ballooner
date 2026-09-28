@@ -51,7 +51,7 @@ internal fun PlacementStepOverlay(
     actions: ComicEditorActions,
     modifier: Modifier = Modifier,
 ) {
-    val shapes = remember(comic) { panelShapes(comic.layout, comic.pageShape, comic.style) }
+    val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
     var carrying by remember { mutableStateOf<Int?>(null) }
     var over by remember { mutableStateOf<Int?>(null) }
 
@@ -67,7 +67,7 @@ internal fun PlacementStepOverlay(
             .fillMaxSize()
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    val viewport = comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                    val viewport = comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
                     awaitFirstDown(requireUnconsumed = false)
                     // Nothing is consumed here: consuming the press would cancel the pinch
                     // before it began, and a tap is only a tap if no one else claimed it.
@@ -78,13 +78,13 @@ internal fun PlacementStepOverlay(
             .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { start ->
-                        val viewport = comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                        val viewport = comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
                         carrying = panelAt(viewport.toPage(start))
                         over = carrying
                     },
                     onDrag = { change, _ ->
                         change.consume()
-                        val viewport = comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                        val viewport = comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
                         over = panelAt(viewport.toPage(change.position))
                     },
                     onDragEnd = {
@@ -103,7 +103,7 @@ internal fun PlacementStepOverlay(
             .pointerInput(Unit) {
                 detectPanelTransform(
                     viewportOf = {
-                        comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                        comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
                     },
                     panelAt = { panelAt(it) },
                     isCarrying = { carrying != null },
@@ -116,7 +116,7 @@ internal fun PlacementStepOverlay(
                 )
             },
     ) {
-        val viewport = comicViewport(size, comic.pageShape, focus?.bounds)
+        val viewport = comicViewport(size, comic.pageHeight, focus?.bounds)
         if (viewport.scale <= 0f) return@Canvas
         shapes.forEachIndexed { index, shape ->
             val path = shape.toPath(viewport)

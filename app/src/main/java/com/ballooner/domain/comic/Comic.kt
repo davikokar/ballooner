@@ -18,6 +18,12 @@ data class PanelImage(
      */
     val zoom: Float = 1f,
     val angleDegrees: Float = 0f,
+    /**
+     * The image file's own width divided by its height, recorded when it was imported so the page
+     * can take its shape from the image without decoding it. Null for an image imported before
+     * this was kept.
+     */
+    val sourceAspect: Float? = null,
 )
 
 /** One panel's content. The panel's shape is derived from the layout and is not stored here. */
@@ -62,11 +68,14 @@ data class Balloon(
  */
 data class Comic(
     val name: String = "",
-    val pageShape: PageShape = PageShape.PORTRAIT,
+    val sizing: PageSizing = PageSizing.Ratio(TALL_RATIO),
     val style: ComicStyle = ComicStyle(),
     val layout: Layout = Layout(Grid(rows = 1, columns = 1)),
     val panels: List<Panel> = listOf(Panel()),
     val balloons: List<Balloon> = emptyList(),
-)
+) {
+    /** Derived, never stored: the page is shaped by its panels rather than the other way round. */
+    val pageHeight: Float get() = pageHeightOf(sizing, layout, style, panels)
+}
 
-fun Comic.panelShapes(): List<Polygon> = panelShapes(layout, pageShape, style)
+fun Comic.panelShapes(): List<Polygon> = panelShapes(layout, pageHeight, style)

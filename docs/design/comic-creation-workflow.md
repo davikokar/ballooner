@@ -38,7 +38,7 @@ edited in place.
 
 Comic creation is divided into three steps:
 
-1. **Layout** — choose the page shape and how it is divided into panels.
+1. **Layout** — choose the shape of the panels and how the page is divided into them.
 2. **Placement** — choose an image for each panel and adjust how it sits in its frame.
 3. **Balloons** — add and edit balloons.
 
@@ -62,12 +62,37 @@ not interactive:
 
 ## Step 1 — Layout
 
-### Page shape
+### Layout kind
 
-The user first chooses the page shape: square, portrait, landscape, or strip. The page shape is
-chosen for *every* layout type, including custom. This keeps the canvas size an input to the
-design rather than something derived from the images, which is what makes the rest of the
-workflow simple.
+The Layout step opens on a preset picker: four cards — **Single**, **Strip**, **Grid**,
+**Custom** — each showing the arrangement it makes, filling the step in place of the canvas. The
+card matching what the comic already is carries an ACTIVE badge, read back off the document
+rather than stored alongside it. Tapping a card opens that preset's options over the canvas, and
+a back control returns to the picker.
+
+### Panel shape, and why there is no page shape
+
+The user never chooses a page shape. The page is always one unit wide, and its height is derived
+from the shape of the **reference panel** — the first panel of the grid.
+
+This is because a page shape is the wrong question for a single-panel comic: the panel *is* the
+page, less its margin, so asking for a page shape and then showing a panel asks the same thing
+twice and invites the two answers to disagree. Something still has to supply the one measurement
+the page needs, though, because grid weights only divide whatever height they are given and cuts
+are stored in normalized coordinates — both describe proportions *between* panels, never an
+absolute size. So the reference panel supplies it.
+
+For a **Single** comic the choices are the shape of the one panel:
+
+- **Square**
+- **2:3** — upright
+- **3:2** — on its side
+- **Custom** — any ratio, on a slider
+- **Auto** — the shape of the image chosen in the Placement step
+
+Because the height is solved for every time rather than stored, a panel promised a shape keeps
+it: moving the margin or gutter slider re-solves the page instead of quietly breaking the
+promise. See [ADR-0009](../architecture/decisions/0009-the-page-takes-its-height-from-a-reference-panel.md).
 
 ### Layout type
 
@@ -287,11 +312,12 @@ the model has one layout kind to support even though the user picks from several
 ### Panel shapes are derived, never stored
 
 ```
-panelShapes(layout, pageShape, style): List<Polygon>
+panelShapes(layout, pageHeight, style): List<Polygon>
 ```
 
-is a pure function returning one convex polygon per panel, in reading order. Panels are produced
-in two stages:
+is a pure function returning one convex polygon per panel, in reading order. `pageHeight` is
+itself derived, from the sizing rule and the reference panel, so nothing about the page's
+geometry is stored either. Panels are produced in two stages:
 
 1. **The grid.** Each span becomes a rectangle, inset by the page margin where it meets a page
    edge and by half the gutter on every side it shares with a neighbour.
@@ -307,7 +333,7 @@ needed, and every panel stays convex however many cuts are made.
 No panel shape is ever persisted. This is the single most important
 consequence of the redesign:
 
-- Changing the gutter, margin, page shape, or panel proportions is a one-field edit. Nothing
+- Changing the gutter, margin, panel shape, or panel proportions is a one-field edit. Nothing
   cascades, because there is nothing stored to keep in sync.
 - A layout change cannot corrupt panel geometry, because panel geometry is recomputed from
   scratch every time.
@@ -404,10 +430,11 @@ the exported PNG cannot drift apart.
 
 ## Persistence
 
-Room stores the document. Tables: comics (page shape, style, layout), panels (image reference and
-transform), balloons (scope and geometry). A layout persists as its grid dimensions, weights, and
-merged spans, plus its ordered list of cuts. No bitmap is ever stored for a comic;
-only the imported source images, which are reference-counted and deleted when no panel uses them.
+Room stores the document. Tables: comics (sizing rule, style, layout), panels (image reference,
+its own proportions, and transform), balloons (scope and geometry). A layout persists as its grid
+dimensions, weights, and merged spans, plus its ordered list of cuts. No bitmap is ever stored for
+a comic; only the imported source images, which are reference-counted and deleted when no panel
+uses them.
 
 `ImageStore` shrinks to two responsibilities: import a source image, and export a rendered comic.
 
@@ -435,19 +462,21 @@ The decisions in this document are recorded as ADRs:
 1. [ADR-0004](../architecture/decisions/0004-a-comic-is-a-declarative-document-rendered-on-demand.md)
    — a comic is a declarative document rendered on demand. Supersedes ADR-0002 and ADR-0003.
 2. [ADR-0005](../architecture/decisions/0005-panel-shapes-are-derived-from-the-layout.md) — panel
-   shapes are derived from the layout, page shape, and style.
+   shapes are derived from the layout, page height, and style.
 3. [ADR-0006](../architecture/decisions/0006-balloon-scope-and-coordinate-spaces.md) — balloon
    scope, z-order, and coordinate spaces.
 4. [ADR-0007](../architecture/decisions/0007-the-comic-editor-is-a-three-step-workflow.md) — the
    three-step editor workflow.
 5. [ADR-0008](../architecture/decisions/0008-a-layout-is-a-grid-plus-ordered-cuts.md) — a layout
    is a grid with merged spans plus an ordered list of cuts.
+6. [ADR-0009](../architecture/decisions/0009-the-page-takes-its-height-from-a-reference-panel.md)
+   — the page takes its height from a reference panel, so there is no page shape to choose.
 
 The UI vocabulary in
 [.github/instructions/ui-vocabulary.instructions.md](../../.github/instructions/ui-vocabulary.instructions.md)
-also needs new canonical terms: Page, Page shape, Step switch, Layout step, Placement step,
-Balloon step, Gutter, Cut, Merged panel, Panel image transform, Panel balloon, and Comic balloon.
-It has been updated alongside this document.
+also needs new canonical terms: Page, Layout kind, Reference panel, Panel shape, Step switch,
+Layout step, Placement step, Balloon step, Gutter, Cut, Merged panel, Panel image transform,
+Panel balloon, and Comic balloon. It has been updated alongside this document.
 
 ## Deferred
 

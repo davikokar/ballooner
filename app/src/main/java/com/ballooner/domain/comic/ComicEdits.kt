@@ -34,9 +34,15 @@ data class LayoutChange(
  * and the count of what it would discard, so a destructive change can be confirmed first.
  */
 fun Comic.withLayout(layout: Layout, matching: PanelMatching = PanelMatching.BY_OVERLAP): LayoutChange {
-    val newShapes = panelShapes(layout, pageShape, style)
+    // The new layout can reshape the reference panel, and so the page, before anything is matched.
+    val newHeight = pageHeightOf(sizing, layout, style, panels)
+    val newShapes = panelShapes(layout, newHeight, style)
     val sources = when (matching) {
-        PanelMatching.BY_OVERLAP -> panelMapping(panelShapes(), newShapes)
+        // Both layouts are measured on the same page. Measured on their own pages instead, a
+        // change that alters the page's height would slide every panel out from under the one it
+        // ought to inherit from.
+        PanelMatching.BY_OVERLAP ->
+            panelMapping(panelShapes(this.layout, newHeight, style), newShapes)
         PanelMatching.BY_INDEX -> List(newShapes.size) { index -> index.takeIf { it < panels.size } }
     }
 

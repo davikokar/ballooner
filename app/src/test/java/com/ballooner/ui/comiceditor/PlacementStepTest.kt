@@ -7,7 +7,7 @@ import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.MAX_PANEL_ZOOM
 import com.ballooner.domain.comic.MIN_PANEL_ZOOM
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.util.MainDispatcherRule
@@ -32,7 +32,8 @@ class PlacementStepTest {
     private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
 
     private fun comic(withImages: Boolean = true) = Comic(
-        pageShape = PageShape.SQUARE,
+        // Two panels side by side, each held at half as wide as it is tall, so the page is square.
+        sizing = PageSizing.Ratio(0.5f),
         style = style,
         layout = Layout(Grid(rows = 1, columns = 2)),
         panels = List(2) { Panel(if (withImages) PanelImage("image$it") else null) },

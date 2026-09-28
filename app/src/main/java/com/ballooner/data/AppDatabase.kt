@@ -19,7 +19,7 @@ import com.ballooner.data.comic.FloatListConverter
         ComicPanelEntity::class,
         ComicBalloonEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 @TypeConverters(FloatListConverter::class)

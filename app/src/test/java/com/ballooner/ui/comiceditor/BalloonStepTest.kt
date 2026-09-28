@@ -11,9 +11,10 @@ import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MIN_TAIL_WIDTH
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
@@ -39,7 +40,8 @@ class BalloonStepTest {
     private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
 
     private fun comic(balloons: List<Balloon> = emptyList()) = Comic(
-        pageShape = PageShape.SQUARE,
+        // Two panels side by side, each held at half as wide as it is tall, so the page is square.
+        sizing = PageSizing.Ratio(0.5f),
         style = style,
         layout = Layout(Grid(rows = 1, columns = 2)),
         panels = List(2) { Panel() },
@@ -302,7 +304,7 @@ class BalloonStepTest {
         advanceUntilIdle()
 
         viewModel.setStyle(ComicStyle(pageMargin = 0.05f, gutter = 0.04f, borderThickness = 0.01f))
-        viewModel.setPageShape(PageShape.LANDSCAPE)
+        viewModel.setSizing(PageSizing.Ratio(WIDE_RATIO))
         advanceUntilIdle()
 
         assertEquals(balloon, balloons(viewModel).single())

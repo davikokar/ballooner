@@ -1,38 +1,58 @@
 package com.ballooner.ui.comiceditor
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
+import com.ballooner.domain.comic.SQUARE_RATIO
+import com.ballooner.domain.comic.TALL_RATIO
+import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.model.BalloonFont
@@ -42,6 +62,7 @@ import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.theme.toFontFamily
 
 /** The comic editor: one page, three steps over it. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComicEditorScreen(
     state: ComicEditorUiState,
@@ -50,27 +71,53 @@ fun ComicEditorScreen(
     modifier: Modifier = Modifier,
     onPickImage: (Int) -> Unit = {},
 ) {
+    var showOptions by rememberSaveable { mutableStateOf(false) }
     when (state) {
         ComicEditorUiState.Loading -> Box(modifier.fillMaxSize(), Alignment.Center) {
             CircularProgressIndicator()
         }
-        is ComicEditorUiState.Content -> Column(
-            modifier = modifier.fillMaxSize().padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            StepSwitch(state.step, actions::selectStep)
-            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                Page(state, images, actions)
-            }
-            // The controls scroll rather than squeezing the page, which is the thing being edited.
+        is ComicEditorUiState.Content -> Column(modifier = modifier.fillMaxSize()) {
+            EditorHeader(
+                step = state.step,
+                onSelectStep = actions::selectStep,
+                onOptions = { showOptions = true },
+            )
+            // The workspace sits on its own ground so the chrome above it reads as a separate
+            // surface rather than as the top of the canvas.
             Column(
-                modifier = Modifier.heightIn(max = 260.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                when (state.step) {
-                    EditorStep.LAYOUT -> LayoutStepControls(state, actions)
-                    EditorStep.PLACEMENT -> PlacementStepControls(state, actions, onPickImage)
-                    EditorStep.BALLOONS -> BalloonStepControls(state, actions)
+                // Before a preset is opened the picker is the whole step: there is nothing to
+                // look at on the canvas that the cards do not already say.
+                if (state.step == EditorStep.LAYOUT && state.layoutKind == null) {
+                    LayoutPresetPicker(
+                        active = layoutKindOf(state.comic),
+                        onSelect = actions::selectLayoutKind,
+                    )
+                    return@Column
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Page(state, images, actions)
+                }
+                // The controls scroll rather than squeezing the page, which is being edited.
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    when (state.step) {
+                        EditorStep.LAYOUT -> LayoutStepControls(state, actions)
+                        EditorStep.PLACEMENT -> PlacementStepControls(state, actions, onPickImage)
+                        EditorStep.BALLOONS -> BalloonStepControls(state, actions)
+                    }
                 }
             }
         }
@@ -79,12 +126,76 @@ fun ComicEditorScreen(
     if (warning != null) {
         LayoutChangeDialog(warning, actions::confirmLayoutChange, actions::cancelLayoutChange)
     }
+    val content = state as? ComicEditorUiState.Content
+    if (showOptions && content != null) {
+        ComicOptionsSheet(
+            style = content.comic.style,
+            onChange = actions::setStyle,
+            onDismiss = { showOptions = false },
+        )
+    }
+}
+
+/**
+ * The editor's chrome: which step is being worked on, and the actions that apply whichever it is.
+ *
+ * It sits on its own paper surface, above the workspace rather than on it.
+ */
+@Composable
+private fun EditorHeader(
+    step: EditorStep,
+    onSelectStep: (EditorStep) -> Unit,
+    onOptions: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(scheme.surfaceContainerLowest)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    ) {
+        StepSwitch(step, onSelectStep, modifier = Modifier.padding(bottom = 8.dp))
+        HorizontalDivider(color = scheme.surfaceContainerHigh)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onOptions, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Options",
+                    tint = scheme.onSurface,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Comic-wide styling, kept off the controls area so it never crowds the step being worked on. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ComicOptionsSheet(
+    style: ComicStyle,
+    onChange: (ComicStyle) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Comic style", style = MaterialTheme.typography.headlineSmall)
+            StyleControls(style, onChange)
+        }
+    }
 }
 
 @Composable
 private fun Page(state: ComicEditorUiState.Content, images: PanelImageSource, actions: ComicEditorActions) {
     val shapes = remember(state.comic) {
-        panelShapes(state.comic.layout, state.comic.pageShape, state.comic.style)
+        panelShapes(state.comic.layout, state.comic.pageHeight, state.comic.style)
     }
     val focus = state.focusedPanel?.let { shapes.getOrNull(it) }
     Box(modifier = Modifier.fillMaxSize()) {
@@ -154,15 +265,50 @@ private fun FocusNavigation(actions: ComicEditorActions, modifier: Modifier = Mo
 }
 
 @Composable
-private fun StepSwitch(step: EditorStep, onSelect: (EditorStep) -> Unit) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        EditorStep.entries.forEachIndexed { index, entry ->
-            SegmentedButton(
-                selected = entry == step,
-                onClick = { onSelect(entry) },
-                shape = SegmentedButtonDefaults.itemShape(index, EditorStep.entries.size),
+private fun StepSwitch(step: EditorStep, onSelect: (EditorStep) -> Unit, modifier: Modifier = Modifier) {
+    PillSwitch(
+        options = EditorStep.entries,
+        selected = step,
+        label = { index, entry -> "${index + 1}. ${entry.label}" },
+        onSelect = onSelect,
+        modifier = modifier,
+    )
+}
+
+/** A flat segmented pill: the active segment is lifted out in paper, not filled with colour. */
+@Composable
+private fun <T> PillSwitch(
+    options: List<T>,
+    selected: T,
+    label: (Int, T) -> String,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(scheme.surfaceContainer)
+            .padding(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        options.forEachIndexed { index, entry ->
+            val active = entry == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (active) scheme.surfaceContainerLowest else Color.Transparent)
+                    .clickable { onSelect(entry) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(entry.label)
+                Text(
+                    text = label(index, entry),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (active) scheme.primary else scheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -170,28 +316,105 @@ private fun StepSwitch(step: EditorStep, onSelect: (EditorStep) -> Unit) {
 
 @Composable
 private fun LayoutStepControls(state: ComicEditorUiState.Content, actions: ComicEditorActions) {
+    val kind = state.layoutKind ?: return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            LayoutTool.entries.forEachIndexed { index, entry ->
-                SegmentedButton(
-                    selected = entry == state.tool,
-                    onClick = { actions.selectTool(entry) },
-                    shape = SegmentedButtonDefaults.itemShape(index, LayoutTool.entries.size),
-                ) {
-                    Text(entry.label, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
         Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            PageShape.entries.forEach { shape ->
-                OutlinedButton(onClick = { actions.setPageShape(shape) }) {
-                    Text(shape.name.lowercase(), style = MaterialTheme.typography.labelSmall)
-                }
+            TextButton(onClick = actions::closeLayoutKind) { Text("\u2039 Presets") }
+            Text(kind.label, style = MaterialTheme.typography.headlineSmall)
+        }
+        when (kind) {
+            LayoutKind.SINGLE -> SinglePanelControls(state.comic.sizing, actions::setSizing)
+            // The other three kinds keep the tools they have always had until each is designed.
+            else -> MultiPanelControls(state, actions)
+        }
+        OutlinedButton(onClick = actions::undo, enabled = state.canUndo) { Text("Undo") }
+    }
+}
+
+/**
+ * The one panel of a single-panel comic is the whole comic, so its proportions are the only shape
+ * choice there is to make.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SinglePanelControls(sizing: PageSizing, onChange: (PageSizing) -> Unit) {
+    val ratio = (sizing as? PageSizing.Ratio)?.value
+    // Whether the slider is open cannot be read back off the ratio alone: a custom ratio is free
+    // to land exactly on a preset, and asking for one must still open the slider.
+    var custom by rememberSaveable { mutableStateOf(false) }
+    val sliderRatio = ratio?.takeIf { custom || PanelProportions.none { preset -> preset.ratio == it } }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Panel shape", style = MaterialTheme.typography.labelSmall)
+        // These wrap rather than scroll: an option the user cannot see is an option they do not
+        // know they have, and there are few enough to show all at once.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            PanelProportions.forEach { proportion ->
+                ProportionButton(
+                    label = proportion.label,
+                    selected = sliderRatio == null && proportion.ratio == ratio,
+                    onClick = {
+                        custom = false
+                        onChange(PageSizing.Ratio(proportion.ratio))
+                    },
+                )
+            }
+            ProportionButton(
+                label = "Custom",
+                selected = sliderRatio != null,
+                onClick = {
+                    custom = true
+                    // Starts from the shape on screen, so the slider has somewhere to begin.
+                    onChange(PageSizing.Ratio(ratio ?: SQUARE_RATIO))
+                },
+            )
+            ProportionButton(
+                label = "Auto",
+                selected = sizing is PageSizing.FromImage,
+                onClick = {
+                    custom = false
+                    onChange(PageSizing.FromImage)
+                },
+            )
+        }
+        if (sliderRatio != null) {
+            StyleSlider("Ratio", sliderRatio, MIN_CUSTOM_RATIO, MAX_CUSTOM_RATIO) {
+                onChange(PageSizing.Ratio(it))
             }
         }
+        if (sizing is PageSizing.FromImage) {
+            Text(
+                "The panel takes the shape of the image you choose next.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProportionButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    if (selected) {
+        Button(onClick = onClick) { Text(label, style = MaterialTheme.typography.labelSmall) }
+    } else {
+        OutlinedButton(onClick = onClick) { Text(label, style = MaterialTheme.typography.labelSmall) }
+    }
+}
+
+@Composable
+private fun MultiPanelControls(state: ComicEditorUiState.Content, actions: ComicEditorActions) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PillSwitch(
+            options = LayoutTool.entries,
+            selected = state.tool,
+            label = { _, entry -> entry.label },
+            onSelect = actions::selectTool,
+        )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -205,9 +428,7 @@ private fun LayoutStepControls(state: ComicEditorUiState.Content, actions: Comic
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = actions::mergeSelection, enabled = state.canMerge) { Text("Merge") }
             Button(onClick = actions::unmergeSelection, enabled = state.canUnmerge) { Text("Unmerge") }
-            OutlinedButton(onClick = actions::undo, enabled = state.canUndo) { Text("Undo") }
         }
-        StyleControls(state.comic.style, actions::setStyle)
     }
 }
 
@@ -335,12 +556,20 @@ private fun StyleControls(style: ComicStyle, onChange: (ComicStyle) -> Unit) {
 
 @Composable
 private fun StyleSlider(label: String, value: Float, from: Float, to: Float, onChange: (Float) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(56.dp))
         Slider(
             value = value.coerceIn(from, to),
             onValueChange = onChange,
             valueRange = from..to,
+            // Material's defaults take the track from the secondary role, which is crimson here
+            // and reads as an error rather than as a measurement.
+            colors = SliderDefaults.colors(
+                thumbColor = scheme.primary,
+                activeTrackColor = scheme.primary,
+                inactiveTrackColor = scheme.surfaceContainerHighest,
+            ),
             modifier = Modifier.weight(1f),
         )
     }
@@ -380,6 +609,25 @@ private val LayoutTool.label: String
         LayoutTool.CUT_PAGE -> "Cut page"
         LayoutTool.CUT_PANEL -> "Cut panel"
     }
+
+private val LayoutKind.label: String
+    get() = when (this) {
+        LayoutKind.SINGLE -> "Single"
+        LayoutKind.STRIP -> "Strip"
+        LayoutKind.GRID -> "Grid"
+        LayoutKind.CUSTOM -> "Custom"
+    }
+
+private data class PanelProportion(val label: String, val ratio: Float)
+
+private val PanelProportions = listOf(
+    PanelProportion("Square", SQUARE_RATIO),
+    PanelProportion("2:3", TALL_RATIO),
+    PanelProportion("3:2", WIDE_RATIO),
+)
+
+private const val MIN_CUSTOM_RATIO = 0.4f
+private const val MAX_CUSTOM_RATIO = 2.5f
 
 private data class LayoutPreset(val label: String, val rows: Int, val columns: Int)
 

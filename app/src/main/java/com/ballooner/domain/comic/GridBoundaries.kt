@@ -11,8 +11,8 @@ enum class GridAxis { ROW, COLUMN }
 data class GridBoundary(val axis: GridAxis, val index: Int, val position: Float)
 
 /** Every grid line on the page, edges excluded because the page margin owns those. */
-fun gridBoundaries(grid: Grid, pageShape: PageShape, style: ComicStyle): List<GridBoundary> {
-    val content = contentRect(pageShape, style)
+fun gridBoundaries(grid: Grid, pageHeight: Float, style: ComicStyle): List<GridBoundary> {
+    val content = contentRect(pageHeight, style)
     val columns = boundaryPositions(grid.columnWeights, content.left, content.width)
         .mapIndexed { index, position -> GridBoundary(GridAxis.COLUMN, index + 1, position) }
     val rows = boundaryPositions(grid.rowWeights, content.top, content.height)

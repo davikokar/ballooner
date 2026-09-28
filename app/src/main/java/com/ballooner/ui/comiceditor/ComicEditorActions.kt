@@ -4,7 +4,7 @@ import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.GridAxis
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
@@ -17,7 +17,9 @@ interface ComicEditorActions {
     fun mergeSelection()
     fun unmergeSelection()
     fun applyPreset(rows: Int, columns: Int)
-    fun setPageShape(pageShape: PageShape)
+    fun selectLayoutKind(kind: LayoutKind)
+    fun closeLayoutKind()
+    fun setSizing(sizing: PageSizing)
     fun setStyle(style: ComicStyle)
     fun startBoundaryDrag()
     fun moveBoundary(axis: GridAxis, index: Int, delta: Float)
@@ -64,7 +66,9 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun mergeSelection() = this@asActions.mergeSelection()
     override fun unmergeSelection() = this@asActions.unmergeSelection()
     override fun applyPreset(rows: Int, columns: Int) = this@asActions.applyPreset(rows, columns)
-    override fun setPageShape(pageShape: PageShape) = this@asActions.setPageShape(pageShape)
+    override fun selectLayoutKind(kind: LayoutKind) = this@asActions.selectLayoutKind(kind)
+    override fun closeLayoutKind() = this@asActions.closeLayoutKind()
+    override fun setSizing(sizing: PageSizing) = this@asActions.setSizing(sizing)
     override fun setStyle(style: ComicStyle) = this@asActions.setStyle(style)
     override fun startBoundaryDrag() = this@asActions.startBoundaryDrag()
     override fun moveBoundary(axis: GridAxis, index: Int, delta: Float) =

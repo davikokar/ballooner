@@ -4,7 +4,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import com.ballooner.domain.comic.PageRect
-import com.ballooner.domain.comic.PageShape
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.Polygon
@@ -32,10 +31,11 @@ data class PageViewport(val originX: Float, val originY: Float, val scale: Float
         }
 }
 
-/** Fits a page of [pageShape] inside [available], centred, without cropping it. */
-fun pageViewport(available: Size, pageShape: PageShape): PageViewport {
-    if (available.width <= 0f || available.height <= 0f) return PageViewport(0f, 0f, 0f)
-    val pageHeight = pageShape.pageHeight
+/** Fits a page [pageHeight] tall inside [available], centred, without cropping it. */
+fun pageViewport(available: Size, pageHeight: Float): PageViewport {
+    if (available.width <= 0f || available.height <= 0f || pageHeight <= 0f) {
+        return PageViewport(0f, 0f, 0f)
+    }
     val scale = minOf(available.width, available.height / pageHeight)
     return PageViewport(
         originX = (available.width - scale) / 2f,
@@ -51,9 +51,9 @@ fun pageViewport(available: Size, pageShape: PageShape): PageViewport {
  * Everything drawn over the page works this out for itself from the same inputs, so no part of
  * the editor has to be told where anything ended up.
  */
-fun comicViewport(available: Size, pageShape: PageShape, focus: PageRect?): PageViewport {
+fun comicViewport(available: Size, pageHeight: Float, focus: PageRect?): PageViewport {
     if (focus == null || focus.width <= 0f || focus.height <= 0f) {
-        return pageViewport(available, pageShape)
+        return pageViewport(available, pageHeight)
     }
     if (available.width <= 0f || available.height <= 0f) return PageViewport(0f, 0f, 0f)
     val scale = minOf(available.width / focus.width, available.height / focus.height)

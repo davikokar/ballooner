@@ -51,8 +51,8 @@ internal fun BalloonStepOverlay(
     actions: ComicEditorActions,
     modifier: Modifier = Modifier,
 ) {
-    val shapes = remember(comic) { panelShapes(comic.layout, comic.pageShape, comic.style) }
-    val pageHeight = comic.pageShape.pageHeight
+    val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
+    val pageHeight = comic.pageHeight
     val grabRadius = with(LocalDensity.current) { GRAB_RADIUS.toPx() }
     val selected = comic.balloons.firstOrNull { it.id == selectedBalloon }
 
@@ -71,9 +71,9 @@ internal fun BalloonStepOverlay(
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val viewport =
-                        comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                        comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
                     val point = viewport.toPage(offset)
-                    val height = latest.comic.pageShape.pageHeight
+                    val height = latest.comic.pageHeight
                     // Topmost first, so the balloon you can see is the one you get.
                     val hit = latest.comic.balloons.inDrawingOrder().lastOrNull {
                         it.contains(PagePoint(point.x, point.y), panelOf(it), height)
@@ -89,14 +89,14 @@ internal fun BalloonStepOverlay(
             }
             .pointerInput(Unit) {
                 fun viewport() =
-                    comicViewport(size.toSize(), latest.comic.pageShape, latest.focus?.bounds)
+                    comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
                 detectDragGestures(
                     onDragStart = { start ->
                         val balloon = latest.selected
                         if (balloon == null) {
                             grab = null
                         } else {
-                            val height = latest.comic.pageShape.pageHeight
+                            val height = latest.comic.pageHeight
                             val panel = panelOf(balloon)
                             val point = viewport().toPage(start)
                             val tail = balloon.tailTip(panel, height)
@@ -141,7 +141,7 @@ internal fun BalloonStepOverlay(
                 )
             },
     ) {
-        val viewport = comicViewport(size, comic.pageShape, focus?.bounds)
+        val viewport = comicViewport(size, comic.pageHeight, focus?.bounds)
         if (viewport.scale <= 0f || selected == null) return@Canvas
         val panel = panelOf(selected)
         val centre = selected.centreOnPage(panel, pageHeight)

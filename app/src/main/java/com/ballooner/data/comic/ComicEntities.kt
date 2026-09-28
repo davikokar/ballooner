@@ -13,7 +13,8 @@ data class ComicEntity(
     val name: String,
     val createdAt: Long,
     val updatedAt: Long,
-    val pageShape: String,
+    // The ratio the reference panel is held at, or null when it follows that panel's image.
+    val pageRatio: Float?,
     val pageMargin: Float,
     val gutter: Float,
     val borderThickness: Float,
@@ -95,6 +96,8 @@ data class ComicPanelEntity(
     val centreV: Float,
     val zoom: Float,
     val angleDegrees: Float,
+    // The image file's own proportions, unknown for an image imported before these were kept.
+    val sourceAspect: Float?,
 )
 
 /** One balloon. [balloonId] rises with each balloon added, so it is also the drawing order. */

@@ -175,3 +175,49 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("DROP TABLE IF EXISTS `project`")
     }
 }
+
+/**
+ * Makes the page's height derived rather than chosen.
+ *
+ * The page shape is replaced by the ratio its reference panel is held at, and every panel image
+ * gains room for the proportions of its own file. An existing comic's page shape is carried over
+ * as that ratio, which is exact for a single-panel comic and reshapes a multi-panel one, because
+ * the old column reads as a page measurement and the new one as a panel measurement.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "`updatedAt` INTEGER NOT NULL, " +
+                "`pageRatio` REAL, " +
+                "`pageMargin` REAL NOT NULL, " +
+                "`gutter` REAL NOT NULL, " +
+                "`borderThickness` REAL NOT NULL, " +
+                "`cornerRadius` REAL NOT NULL, " +
+                "`rows` INTEGER NOT NULL, " +
+                "`columns` INTEGER NOT NULL, " +
+                "`rowWeights` TEXT NOT NULL, " +
+                "`columnWeights` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "INSERT INTO `comic_new` (`id`, `name`, `createdAt`, `updatedAt`, `pageRatio`, " +
+                "`pageMargin`, `gutter`, `borderThickness`, `cornerRadius`, `rows`, `columns`, " +
+                "`rowWeights`, `columnWeights`) " +
+                "SELECT `id`, `name`, `createdAt`, `updatedAt`, " +
+                "CASE `pageShape` " +
+                "WHEN 'SQUARE' THEN 1.0 " +
+                "WHEN 'PORTRAIT' THEN 0.75 " +
+                "WHEN 'LANDSCAPE' THEN 1.3333334 " +
+                "WHEN 'STRIP' THEN 3.0 " +
+                "ELSE 0.75 END, " +
+                "`pageMargin`, `gutter`, `borderThickness`, `cornerRadius`, `rows`, `columns`, " +
+                "`rowWeights`, `columnWeights` FROM `comic`",
+        )
+        db.execSQL("DROP TABLE `comic`")
+        db.execSQL("ALTER TABLE `comic_new` RENAME TO `comic`")
+        db.execSQL("ALTER TABLE `comic_panel` ADD COLUMN `sourceAspect` REAL")
+    }
+}

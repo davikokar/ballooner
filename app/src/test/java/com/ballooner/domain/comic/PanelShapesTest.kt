@@ -9,7 +9,7 @@ class PanelShapesTest {
 
     @Test
     fun `a single panel layout fills the page`() {
-        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 1)), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 1)), 1f, noStyle)
 
         assertEquals(1, shapes.size)
         assertRect(PageRect(0f, 0f, 1f, 1f), shapes[0].bounds)
@@ -17,14 +17,14 @@ class PanelShapesTest {
 
     @Test
     fun `a page shape taller than it is wide makes taller panels`() {
-        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 1)), PageShape.PORTRAIT, noStyle)
+        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 1)), 4f / 3f, noStyle)
 
         assertRect(PageRect(0f, 0f, 1f, 4f / 3f), shapes[0].bounds)
     }
 
     @Test
     fun `a grid divides the page evenly`() {
-        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 2)), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 2)), 1f, noStyle)
 
         assertEquals(4, shapes.size)
         assertRect(PageRect(0f, 0f, 0.5f, 0.5f), shapes[0].bounds)
@@ -37,7 +37,7 @@ class PanelShapesTest {
     fun `the margin insets the page and the gutter separates neighbours`() {
         val style = ComicStyle(pageMargin = 0.1f, gutter = 0.1f, borderThickness = 0f)
 
-        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 2)), PageShape.SQUARE, style)
+        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 2)), 1f, style)
 
         assertRect(PageRect(0.1f, 0.1f, 0.35f, 0.8f), shapes[0].bounds)
         assertRect(PageRect(0.55f, 0.1f, 0.35f, 0.8f), shapes[1].bounds)
@@ -47,7 +47,7 @@ class PanelShapesTest {
     fun `column weights change panel proportions`() {
         val grid = Grid(rows = 1, columns = 2, columnWeights = listOf(3f, 1f))
 
-        val shapes = panelShapes(Layout(grid), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(grid), 1f, noStyle)
 
         assertRect(PageRect(0f, 0f, 0.75f, 1f), shapes[0].bounds)
         assertRect(PageRect(0.75f, 0f, 0.25f, 1f), shapes[1].bounds)
@@ -57,7 +57,7 @@ class PanelShapesTest {
     fun `merging the top row of a grid makes one wide panel`() {
         val grid = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, rowCount = 1, columnCount = 2)))
 
-        val shapes = panelShapes(Layout(grid), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(grid), 1f, noStyle)
 
         assertEquals(3, shapes.size)
         assertRect(PageRect(0f, 0f, 1f, 0.5f), shapes[0].bounds)
@@ -69,7 +69,7 @@ class PanelShapesTest {
     fun `merging a column of a grid makes one tall panel`() {
         val grid = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, rowCount = 2, columnCount = 1)))
 
-        val shapes = panelShapes(Layout(grid), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(grid), 1f, noStyle)
 
         assertEquals(3, shapes.size)
         assertEquals(1, shapes.count { it.bounds.height > 0.9f })
@@ -79,7 +79,7 @@ class PanelShapesTest {
     fun `a page cut splits every panel it crosses`() {
         val cut = Cut(NormalizedPoint(0.5f, 0f), NormalizedPoint(0.5f, 1f), CutScope.WholePage)
 
-        val shapes = panelShapes(Layout(Grid(1, 1), listOf(cut)), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(Grid(1, 1), listOf(cut)), 1f, noStyle)
 
         assertEquals(2, shapes.size)
         assertRect(PageRect(0f, 0f, 0.5f, 1f), shapes[0].bounds)
@@ -90,7 +90,7 @@ class PanelShapesTest {
     fun `a page cut crossing a two row grid splits both rows`() {
         val cut = Cut(NormalizedPoint(0.5f, 0f), NormalizedPoint(0.5f, 1f), CutScope.WholePage)
 
-        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 1), listOf(cut)), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 1), listOf(cut)), 1f, noStyle)
 
         assertEquals(4, shapes.size)
     }
@@ -103,7 +103,7 @@ class PanelShapesTest {
             scope = CutScope.AtPoint(NormalizedPoint(0.25f, 0.25f)),
         )
 
-        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 1), listOf(cut)), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(Grid(rows = 2, columns = 1), listOf(cut)), 1f, noStyle)
 
         assertEquals(3, shapes.size)
         assertRect(PageRect(0f, 0f, 0.5f, 0.5f), shapes[0].bounds)
@@ -115,7 +115,7 @@ class PanelShapesTest {
     fun `a diagonal cut produces angled panels that still cover the page`() {
         val cut = Cut(NormalizedPoint(0f, 0f), NormalizedPoint(1f, 1f), CutScope.WholePage)
 
-        val shapes = panelShapes(Layout(Grid(1, 1), listOf(cut)), PageShape.SQUARE, noStyle)
+        val shapes = panelShapes(Layout(Grid(1, 1), listOf(cut)), 1f, noStyle)
 
         assertEquals(2, shapes.size)
         assertEquals(1f, shapes.sumOf { it.area.toDouble() }.toFloat(), TOLERANCE)
@@ -131,7 +131,7 @@ class PanelShapesTest {
             scope = CutScope.AtPoint(NormalizedPoint(0.5f, 0.5f)),
         )
 
-        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 2), listOf(cut)), PageShape.SQUARE, style)
+        val shapes = panelShapes(Layout(Grid(rows = 1, columns = 2), listOf(cut)), 1f, style)
 
         assertEquals(2, shapes.size)
     }
@@ -145,8 +145,8 @@ class PanelShapesTest {
             scope = CutScope.AtPoint(NormalizedPoint(0.25f, 0.25f)),
         )
 
-        val withBoth = panelShapes(Layout(Grid(1, 1), listOf(first, second)), PageShape.SQUARE, noStyle)
-        val withoutFirst = panelShapes(Layout(Grid(1, 1), listOf(second)), PageShape.SQUARE, noStyle)
+        val withBoth = panelShapes(Layout(Grid(1, 1), listOf(first, second)), 1f, noStyle)
+        val withoutFirst = panelShapes(Layout(Grid(1, 1), listOf(second)), 1f, noStyle)
 
         assertEquals(3, withBoth.size)
         assertEquals(2, withoutFirst.size)

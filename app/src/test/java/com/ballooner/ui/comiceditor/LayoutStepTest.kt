@@ -8,7 +8,7 @@ import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.GridAxis
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.Span
@@ -33,7 +33,8 @@ class LayoutStepTest {
     private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
 
     private fun comic(rows: Int, columns: Int, withImages: Boolean = false) = Comic(
-        pageShape = PageShape.SQUARE,
+        // Holding a panel at its share of a square page keeps the page square for any grid.
+        sizing = PageSizing.Ratio(rows.toFloat() / columns),
         style = style,
         layout = Layout(Grid(rows = rows, columns = columns)),
         panels = List(rows * columns) { Panel(if (withImages) PanelImage("image$it") else null) },

@@ -5,7 +5,7 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import org.junit.Assert.assertEquals
@@ -22,7 +22,8 @@ class ComicExportTest {
     }
 
     private fun comic(panels: List<Panel>, columns: Int = panels.size) = Comic(
-        pageShape = PageShape.SQUARE,
+        // Each panel is a column of a square page, so it is held at one over the column count.
+        sizing = PageSizing.Ratio(1f / columns),
         style = style,
         layout = Layout(Grid(rows = 1, columns = columns)),
         panels = panels,

@@ -7,10 +7,12 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,7 +38,7 @@ class ComicEditorViewModelTest {
         val panelCount = rows * columns
         return Comic(
             name = "Test",
-            pageShape = PageShape.SQUARE,
+            sizing = PageSizing.Ratio(SQUARE_RATIO),
             style = style,
             layout = Layout(Grid(rows = rows, columns = columns)),
             panels = List(panelCount) { Panel(if (withImages) PanelImage("image$it") else null) },
@@ -216,14 +218,14 @@ class ComicEditorViewModelTest {
     }
 
     @Test
-    fun `changing the page shape keeps every panel and its image`() = runTest {
+    fun `changing the page sizing keeps every panel and its image`() = runTest {
         val (viewModel, _) = editorFor(comic(2, 2, withImages = true))
         advanceUntilIdle()
 
-        viewModel.setPageShape(PageShape.LANDSCAPE)
+        viewModel.setSizing(PageSizing.Ratio(WIDE_RATIO))
         advanceUntilIdle()
 
-        assertEquals(PageShape.LANDSCAPE, content(viewModel).comic.pageShape)
+        assertEquals(PageSizing.Ratio(WIDE_RATIO), content(viewModel).comic.sizing)
         assertEquals(4, content(viewModel).comic.panels.count { it.image != null })
     }
 

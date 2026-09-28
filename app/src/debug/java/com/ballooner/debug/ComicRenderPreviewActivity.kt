@@ -66,7 +66,7 @@ private fun FixtureCard(fixture: ComicFixture, images: PanelImageSource) {
             images = images,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(fixture.comic.pageShape.aspectRatio)
+                .aspectRatio(1f / fixture.comic.pageHeight)
                 .background(Color(0xFFDDDDDD)),
         )
     }

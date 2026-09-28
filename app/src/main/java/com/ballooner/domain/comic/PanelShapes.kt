@@ -3,17 +3,17 @@ package com.ballooner.domain.comic
 /**
  * The shape of every panel on the page, in reading order.
  *
- * Panel geometry is never stored: it is computed from the layout, the page shape, and the style
+ * Panel geometry is never stored: it is computed from the layout, the page height, and the style
  * every time it is needed, so there is nothing to keep in sync after an edit.
  */
 fun panelShapes(
     layout: Layout,
-    pageShape: PageShape,
+    pageHeight: Float,
     style: ComicStyle,
     rowTolerance: Float = READING_ORDER_ROW_TOLERANCE,
 ): List<Polygon> {
-    var panels = gridPanels(layout.grid, pageShape, style).map { it.shape }
-    layout.cuts.forEach { cut -> panels = cut.applyTo(panels, pageShape, style.gutter / 2f) }
+    var panels = gridPanels(layout.grid, pageHeight, style).map { it.shape }
+    layout.cuts.forEach { cut -> panels = cut.applyTo(panels, pageHeight, style.gutter / 2f) }
     return panels.inReadingOrder(rowTolerance)
 }
 
@@ -26,8 +26,8 @@ data class GridPanel(val span: Span, val shape: Polygon)
  * Merging and unmerging work on cells rather than on the panels a cut leaves behind, so the
  * Layout step selects against these rather than against the final shapes.
  */
-fun gridPanels(grid: Grid, pageShape: PageShape, style: ComicStyle): List<GridPanel> {
-    val content = contentRect(pageShape, style)
+fun gridPanels(grid: Grid, pageHeight: Float, style: ComicStyle): List<GridPanel> {
+    val content = contentRect(pageHeight, style)
     val halfGutter = style.gutter / 2f
     return grid.panelSpans().map { span ->
         GridPanel(span, Polygon.of(grid.rectOf(span, content, halfGutter)))
@@ -35,11 +35,11 @@ fun gridPanels(grid: Grid, pageShape: PageShape, style: ComicStyle): List<GridPa
 }
 
 /** The area panels are laid out in: the page, less its margin. */
-fun contentRect(pageShape: PageShape, style: ComicStyle): PageRect = PageRect(
+fun contentRect(pageHeight: Float, style: ComicStyle): PageRect = PageRect(
     left = style.pageMargin,
     top = style.pageMargin,
     width = (1f - 2f * style.pageMargin).coerceAtLeast(0f),
-    height = (pageShape.pageHeight - 2f * style.pageMargin).coerceAtLeast(0f),
+    height = (pageHeight - 2f * style.pageMargin).coerceAtLeast(0f),
 )
 
 /**
@@ -60,14 +60,14 @@ fun List<Polygon>.inReadingOrder(rowTolerance: Float = READING_ORDER_ROW_TOLERAN
     return rows.flatMap { row -> row.sortedBy { (_, centroid) -> centroid.x }.map { (polygon, _) -> polygon } }
 }
 
-private fun Cut.applyTo(panels: List<Polygon>, pageShape: PageShape, inset: Float): List<Polygon> {
-    val line = Line(a.onPage(pageShape), b.onPage(pageShape))
+private fun Cut.applyTo(panels: List<Polygon>, pageHeight: Float, inset: Float): List<Polygon> {
+    val line = Line(a.onPage(pageHeight), b.onPage(pageHeight))
     return when (val scope = scope) {
         CutScope.WholePage -> panels.flatMap { panel ->
             splitConvex(panel, line, inset)?.toList() ?: listOf(panel)
         }
         is CutScope.AtPoint -> {
-            val anchor = scope.anchor.onPage(pageShape)
+            val anchor = scope.anchor.onPage(pageHeight)
             val index = panels.indexOfFirst { it.contains(anchor) }
             // An anchor stranded in a gutter leaves its cut inactive rather than guessing.
             if (index < 0) return panels

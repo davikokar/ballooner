@@ -9,10 +9,11 @@ import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import org.junit.Assert.assertEquals
@@ -32,10 +33,10 @@ class ComicMappingTest {
     }
 
     @Test
-    fun `page shape and style survive a round trip`() {
+    fun `page sizing and style survive a round trip`() {
         val comic = Comic(
             name = "Styled",
-            pageShape = PageShape.STRIP,
+            sizing = PageSizing.Ratio(WIDE_RATIO),
             style = ComicStyle(pageMargin = 0.05f, gutter = 0.03f, borderThickness = 0.01f, cornerRadius = 0.02f),
         )
 
@@ -168,12 +169,12 @@ class ComicMappingTest {
     }
 
     @Test
-    fun `an unknown enum name falls back instead of throwing`() {
+    fun `a comic with no stored page ratio takes its shape from its image`() {
         val parts = Comic(name = "Odd").toParts(id = 1, createdAt = 0, updatedAt = 0)
 
-        val corrupted = parts.copy(comic = parts.comic.copy(pageShape = "HEXAGON"))
+        val unset = parts.copy(comic = parts.comic.copy(pageRatio = null))
 
-        assertEquals(PageShape.PORTRAIT, corrupted.toDomain().pageShape)
+        assertEquals(PageSizing.FromImage, unset.toDomain().sizing)
     }
 
     @Test

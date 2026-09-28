@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.ballooner.data.AppDatabase
 import com.ballooner.data.MIGRATION_6_7
 import com.ballooner.data.MIGRATION_7_8
+import com.ballooner.data.MIGRATION_8_9
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.BalloonScope
 import com.ballooner.domain.comic.Comic
@@ -14,10 +15,11 @@ import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.NormalizedPoint
-import com.ballooner.domain.comic.PageShape
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.model.BalloonType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -56,7 +58,7 @@ class ComicDatabaseTest {
 
     private fun openDatabase(): AppDatabase {
         database = Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         repository = RoomComicRepository(database.comicDao())
         return database
@@ -95,7 +97,7 @@ class ComicDatabaseTest {
         openDatabase()
         val comic = Comic(
             name = "Round trip",
-            pageShape = PageShape.LANDSCAPE,
+            sizing = PageSizing.Ratio(WIDE_RATIO),
             style = ComicStyle(pageMargin = 0.04f, gutter = 0.02f, borderThickness = 0.008f, cornerRadius = 0.01f),
             layout = Layout(
                 grid = Grid(

@@ -47,12 +47,17 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Editor top bar**: The top bar containing the Back button, Comic title field, and Editor
   overflow menu.
 - **Comic title field** (`EditableTitle`): The editable comic name in the Editor top bar.
-- **Editor toolbar**: The row below the Editor top bar containing the Step switch and file
-  actions.
+- **Editor toolbar**: The band below the Editor top bar, on its own paper surface, containing the
+  Step switch and — under a divider — the **Editor action row**.
+- **Editor action row**: The row of icon buttons beneath the Step switch, right-aligned. Holds the
+  Options button.
+- **Workspace**: Everything below the Editor toolbar. It sits on a tinted ground so the toolbar
+  reads as a separate surface above it rather than as the top of the Canvas.
 - **Canvas**: The editing area that displays the Page. The Editor toolbar and Comic kit are
   outside the Canvas.
-- **Page**: The fixed surface a comic is drawn on. One comic is exactly one page.
-- **Page shape**: The page's proportions: square, portrait, landscape, or strip.
+- **Page**: The fixed surface a comic is drawn on. One comic is exactly one page. The page is
+  always one unit wide; its height is derived from the Reference panel and is never chosen
+  directly, so "page shape" is not a term the user is shown.
 - **Comic kit** (`ComicKit`): The collapsible bottom area containing balloon creation and
   text controls. Aliases: **balloon buttons area**, **bottom bar**
 
@@ -61,15 +66,19 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 Comic creation is divided into three steps. Each step edits a different part of the comic, and
 the parts owned by later steps are shown dimmed and are not interactive.
 
-- **Layout step**: The step for choosing the Page shape and dividing the Page into panels.
+- **Layout step**: The step for choosing the Layout kind, the Panel shape, and how the Page is
+  divided into panels.
 - **Placement step**: The step for choosing each panel's image and adjusting it in its frame.
 - **Balloon step**: The step for adding and editing balloons.
 - **Step switch**: The persistent control that moves between the three steps. It replaces the
-  former Edit / View mode toggle.
+  former Edit / View mode toggle. Drawn as a **pill switch**: a flat tinted track in which the
+  active segment is lifted out in paper, rather than filled with colour.
 - **Preview**: The comic shown without any editing affordances.
 
 ### Editor toolbar controls
 
+- **Options button**: The gear in the Editor action row. Opens the Comic style controls in a
+  bottom sheet, so comic-wide settings never crowd the step being worked on.
 - **Comic style button**: Opens the Comic style controls.
 - **Focus panel button**: Focuses the selected panel, or the first panel when none is selected.
 - **Show all panels button**: Leaves the focused view and displays the whole Page.
@@ -78,6 +87,20 @@ the parts owned by later steps are shown dimmed and are not interactive.
 
 ### Layout step
 
+- **Preset picker**: The Layout step's landing view. A two-by-two grid of **Layout preset cards**
+  under the heading "Select panel preset", filling the step in place of the Canvas.
+- **Layout preset card**: One card in the Preset picker. Shows the arrangement it makes, its name,
+  and a one-line description. The card matching the comic's current Layout kind is the **active
+  preset** and carries an ACTIVE badge.
+- **Layout kind**: The choice a Layout preset card stands for: **Single**, **Strip**, **Grid**, or
+  **Custom**. Read back off the comic rather than stored.
+- **Preset options**: The second view of the Layout step, opened by tapping a Layout preset card.
+  Shows the Canvas with that preset's options beneath it, and returns to the Preset picker.
+- **Reference panel**: The panel that gives the Page its height, which is the first panel of the
+  Grid. For a Single comic that is the only panel.
+- **Panel shape**: The proportions the Reference panel is held at. Offered as **Square**, **2:3**,
+  **3:2**, **Custom** (a ratio slider), and **Auto** (the shape of the image chosen in the
+  Placement step).
 - **Grid**: The rows and columns a page is divided into. A single panel is a 1×1 grid and a
   strip is a 1×n or n×1 grid.
 - **Cell**: One row-and-column position in the Grid.

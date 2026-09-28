@@ -4,8 +4,8 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
- * A point on the page in page units: the page is always 1 wide and [PageShape.pageHeight] tall,
- * so the same number means the same distance on both axes.
+ * A point on the page in page units: the page is always 1 wide and [Comic.pageHeight] tall, so the
+ * same number means the same distance on both axes.
  */
 data class PagePoint(val x: Float, val y: Float)
 
