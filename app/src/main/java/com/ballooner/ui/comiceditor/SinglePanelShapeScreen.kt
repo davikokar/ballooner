@@ -18,10 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,7 +32,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +44,7 @@ import com.ballooner.domain.comic.TALL_RATIO
 import com.ballooner.domain.comic.WIDE_RATIO
 import androidx.compose.foundation.Canvas
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** The smallest and largest a custom side may be, in whole units. */
 internal const val MIN_UNITS = 1
@@ -66,15 +69,17 @@ fun SinglePanelShapeScreen(
     // Custom cannot be read back off the ratio alone, because a custom ratio is free to land
     // exactly on a preset and must still keep its sliders open.
     var custom by rememberSaveable { mutableStateOf(false) }
-    var width by rememberSaveable { mutableIntStateOf(0) }
-    var height by rememberSaveable { mutableIntStateOf(0) }
-    if (width == 0 || height == 0) {
-        val (w, h) = unitsFor(ratio ?: SQUARE_RATIO)
-        width = w
-        height = h
+    var width by rememberSaveable { mutableIntStateOf(unitsFor(ratio ?: SQUARE_RATIO).first) }
+    var height by rememberSaveable { mutableIntStateOf(unitsFor(ratio ?: SQUARE_RATIO).second) }
+
+    // Only consulted while some other tile is chosen; whenever the comic is one of the two, the
+    // comic decides which way round the tile is showing.
+    var preferUpright by rememberSaveable { mutableStateOf(false) }
+    val upright = when (ratio) {
+        TALL_RATIO -> true
+        WIDE_RATIO -> false
+        else -> preferUpright
     }
-    var upright by rememberSaveable { mutableStateOf(false) }
-    if (ratio == TALL_RATIO) upright = true
 
     val tile = when {
         sizing is PageSizing.FromImage -> ShapeTile.AUTO
@@ -119,10 +124,10 @@ fun SinglePanelShapeScreen(
                 action = {
                     RotateButton(
                         onClick = {
-                            upright = !upright
-                            val flipped = if (upright) WIDE_RATIO else TALL_RATIO
+                            val turned = !upright
+                            preferUpright = turned
                             custom = false
-                            onChange(PageSizing.Ratio(flipped))
+                            onChange(PageSizing.Ratio(if (turned) TALL_RATIO else WIDE_RATIO))
                         },
                     )
                 },
@@ -383,6 +388,7 @@ private fun CustomDimensions(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UnitSlider(label: String, value: Int, onChange: (Int) -> Unit) {
     val scheme = MaterialTheme.colorScheme
@@ -412,16 +418,31 @@ private fun UnitSlider(label: String, value: Int, onChange: (Int) -> Unit) {
         }
         Slider(
             value = value.toFloat(),
-            onValueChange = { onChange(it.toInt().coerceIn(MIN_UNITS, MAX_UNITS)) },
+            // Rounding, not truncating: a snapped step lands on 15.999999 as readily as on 16,
+            // and truncating it drops whole numbers out of the range.
+            onValueChange = { onChange(it.roundToInt().coerceIn(MIN_UNITS, MAX_UNITS)) },
             valueRange = MIN_UNITS.toFloat()..MAX_UNITS.toFloat(),
             steps = MAX_UNITS - MIN_UNITS - 1,
-            colors = SliderDefaults.colors(
-                thumbColor = scheme.primary,
-                activeTrackColor = scheme.primary,
-                inactiveTrackColor = scheme.surfaceContainerHighest,
-                activeTickColor = Color.Transparent,
-                inactiveTickColor = Color.Transparent,
-            ),
+            modifier = Modifier.height(20.dp),
+            // No thumb at all: the filled track says where the value is, and the number above
+            // says it exactly. A thumb would only cost height.
+            thumb = {},
+            track = { FilledTrack(fraction = (value - MIN_UNITS).toFloat() / (MAX_UNITS - MIN_UNITS)) },
+        )
+    }
+}
+
+/** A plain filled bar, without Material's gaps, tick marks, or end stop. */
+@Composable
+private fun FilledTrack(fraction: Float) {
+    val scheme = MaterialTheme.colorScheme
+    Canvas(modifier = Modifier.fillMaxWidth().height(6.dp)) {
+        val radius = CornerRadius(size.height / 2f)
+        drawRoundRect(color = scheme.surfaceContainerHighest, cornerRadius = radius)
+        drawRoundRect(
+            color = scheme.primary,
+            size = Size(size.width * fraction.coerceIn(0f, 1f), size.height),
+            cornerRadius = radius,
         )
     }
 }

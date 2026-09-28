@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class PanelUnitsTest {
 
@@ -59,5 +60,29 @@ class PanelUnitsTest {
         }
 
         assertEquals(emptyList<String>(), lost)
+    }
+
+    @Test
+    fun `every whole number in the range is reachable on a stepped slider`() {
+        val steps = MAX_UNITS - MIN_UNITS
+        // What the slider hands back at each of its stops, which is rarely an exact whole number.
+        val landed = (0..steps).map { step ->
+            val raw = MIN_UNITS + (MAX_UNITS - MIN_UNITS) * (step.toFloat() / steps)
+            raw.roundToInt()
+        }
+
+        assertEquals((MIN_UNITS..MAX_UNITS).toList(), landed)
+    }
+
+    @Test
+    fun `truncating a slider stop would drop whole numbers`() {
+        val steps = MAX_UNITS - MIN_UNITS
+        val truncated = (0..steps).map { step ->
+            val raw = MIN_UNITS + (MAX_UNITS - MIN_UNITS) * (step.toFloat() / steps)
+            raw.toInt()
+        }
+
+        // Pins the bug this rounding replaced: 16 was unreachable on the width slider.
+        assertTrue(truncated != (MIN_UNITS..MAX_UNITS).toList())
     }
 }
