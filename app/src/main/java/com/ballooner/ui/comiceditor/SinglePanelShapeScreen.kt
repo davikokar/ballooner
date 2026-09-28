@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -33,11 +32,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.PageSizing
@@ -65,7 +61,6 @@ fun SinglePanelShapeScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scheme = MaterialTheme.colorScheme
     val ratio = (sizing as? PageSizing.Ratio)?.value
 
     // Custom cannot be read back off the ratio alone, because a custom ratio is free to land
@@ -95,140 +90,111 @@ fun SinglePanelShapeScreen(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(scheme.surfaceContainerLowest)
-                .border(
-                    border = BorderStroke(2.dp, scheme.primary.copy(alpha = 0.2f)),
-                    shape = RoundedCornerShape(12.dp),
-                )
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Breadcrumb(onBack = onBack)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Breadcrumb(onBack = onBack)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                ShapeTileCard(
-                    title = "Square",
-                    caption = "1:1",
-                    active = tile == ShapeTile.SQUARE,
-                    onClick = {
-                        custom = false
-                        onChange(PageSizing.Ratio(SQUARE_RATIO))
-                    },
-                    modifier = Modifier.weight(1f),
-                ) { active -> RatioSwatch(1f, active) }
+            ShapeTileCard(
+                title = "Square",
+                caption = "1:1",
+                active = tile == ShapeTile.SQUARE,
+                onClick = {
+                    custom = false
+                    onChange(PageSizing.Ratio(SQUARE_RATIO))
+                },
+                modifier = Modifier.weight(1f),
+            ) { active -> RatioSwatch(1f, active) }
 
-                ShapeTileCard(
-                    title = if (upright) "2:3" else "3:2",
-                    caption = "Classic",
-                    active = tile == ShapeTile.RATIO,
-                    onClick = {
-                        custom = false
-                        onChange(PageSizing.Ratio(orientedRatio))
-                    },
-                    action = {
-                        RotateButton(
-                            onClick = {
-                                upright = !upright
-                                val flipped = if (upright) WIDE_RATIO else TALL_RATIO
-                                custom = false
-                                onChange(PageSizing.Ratio(flipped))
-                            },
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                ) { active -> RatioSwatch(orientedRatio, active) }
+            ShapeTileCard(
+                title = if (upright) "2:3" else "3:2",
+                caption = "Classic",
+                active = tile == ShapeTile.RATIO,
+                onClick = {
+                    custom = false
+                    onChange(PageSizing.Ratio(orientedRatio))
+                },
+                action = {
+                    RotateButton(
+                        onClick = {
+                            upright = !upright
+                            val flipped = if (upright) WIDE_RATIO else TALL_RATIO
+                            custom = false
+                            onChange(PageSizing.Ratio(flipped))
+                        },
+                    )
+                },
+                modifier = Modifier.weight(1f),
+            ) { active -> RatioSwatch(orientedRatio, active) }
 
-                ShapeTileCard(
-                    title = "Custom",
-                    caption = "$width : $height",
-                    active = tile == ShapeTile.CUSTOM,
-                    onClick = {
-                        custom = true
-                        onChange(PageSizing.Ratio(width.toFloat() / height))
-                    },
-                    modifier = Modifier.weight(1f),
-                ) { active -> RatioSwatch(width.toFloat() / height, active, filled = true) }
+            ShapeTileCard(
+                title = "Custom",
+                caption = "$width : $height",
+                active = tile == ShapeTile.CUSTOM,
+                onClick = {
+                    custom = true
+                    onChange(PageSizing.Ratio(width.toFloat() / height))
+                },
+                modifier = Modifier.weight(1f),
+            ) { active -> RatioSwatch(width.toFloat() / height, active, filled = true) }
 
-                ShapeTileCard(
-                    title = "Auto",
-                    caption = "Fit image",
-                    active = tile == ShapeTile.AUTO,
-                    onClick = {
-                        custom = false
-                        onChange(PageSizing.FromImage)
-                    },
-                    modifier = Modifier.weight(1f),
-                ) { AutoSwatch() }
-            }
+            ShapeTileCard(
+                title = "Auto",
+                caption = "Fit image",
+                active = tile == ShapeTile.AUTO,
+                onClick = {
+                    custom = false
+                    onChange(PageSizing.FromImage)
+                },
+                modifier = Modifier.weight(1f),
+            ) { AutoSwatch() }
+        }
 
-            if (tile == ShapeTile.CUSTOM) {
-                CustomDimensions(
-                    width = width,
-                    height = height,
-                    onWidth = {
-                        width = it
-                        onChange(PageSizing.Ratio(it.toFloat() / height))
-                    },
-                    onHeight = {
-                        height = it
-                        onChange(PageSizing.Ratio(width.toFloat() / it))
-                    },
-                )
-            }
-
-            PanelPreview(
-                // The panel as it will really be: a ratio the page cannot reach is held back, and
-                // the preview has to say so rather than promise the number on the slider.
-                ratio = panelRatio.takeIf { tile != ShapeTile.AUTO },
+        if (tile == ShapeTile.CUSTOM) {
+            CustomDimensions(
+                width = width,
+                height = height,
+                onWidth = {
+                    width = it
+                    onChange(PageSizing.Ratio(it.toFloat() / height))
+                },
+                onHeight = {
+                    height = it
+                    onChange(PageSizing.Ratio(width.toFloat() / it))
+                },
             )
         }
+
+        PanelPreview(
+            // The panel as it will really be: a ratio the page cannot reach is held back, and
+            // the preview has to say so rather than promise the number on the slider.
+            ratio = panelRatio.takeIf { tile != ShapeTile.AUTO },
+        )
     }
 }
 
+/** Carries the picker's own heading forward, so the step reads as one place the user is inside. */
 @Composable
 private fun Breadcrumb(onBack: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FrameGlyph(tint = scheme.primary)
-            Text(
-                text = "Presets",
-                style = MaterialTheme.typography.titleMedium,
-                color = scheme.primary,
-                modifier = Modifier.clickable(onClick = onBack),
-            )
-            Text("/", style = MaterialTheme.typography.bodyMedium, color = scheme.outline)
-            Text(
-                text = "Single Panel Shape",
-                style = MaterialTheme.typography.titleMedium,
-                color = scheme.onSurface,
-            )
-        }
-        HorizontalDivider(color = scheme.surfaceContainerHigh)
-    }
-}
-
-/** The "aspect ratio" mark, drawn rather than imported: the icon set in use has no glyph for it. */
-@Composable
-private fun FrameGlyph(tint: Color) {
-    Canvas(modifier = Modifier.size(18.dp)) {
-        val inset = size.minDimension * 0.1f
-        drawRoundRect(
-            color = tint,
-            topLeft = Offset(inset, inset),
-            size = Size(size.width - 2 * inset, size.height - 2 * inset),
-            cornerRadius = CornerRadius(inset * 1.5f),
-            style = Stroke(width = size.minDimension * 0.12f),
+    Row(
+        modifier = Modifier.padding(start = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = PRESET_PICKER_TITLE,
+            style = MaterialTheme.typography.labelLarge,
+            color = scheme.primary,
+            modifier = Modifier.clickable(onClick = onBack),
+        )
+        Text("/", style = MaterialTheme.typography.labelLarge, color = scheme.outline)
+        Text(
+            text = "SINGLE",
+            style = MaterialTheme.typography.labelLarge,
+            color = scheme.onSurface,
         )
     }
 }

@@ -95,7 +95,9 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Layout kind**: The choice a Layout preset card stands for: **Single**, **Strip**, **Grid**, or
   **Custom**. Read back off the comic rather than stored.
 - **Preset options**: The second view of the Layout step, opened by tapping a Layout preset card.
-  Reached and left by the **Breadcrumb** ("Presets / <name>"), never by a separate screen.
+  It is a continuation of the Preset picker, not an overlay: same ground, no frame of its own.
+  Reached and left by the **Breadcrumb**, which continues the picker's heading —
+  "Select panel preset / Single" — with the leading part tappable to go back.
 - **Single panel shape**: The Single preset's options. Four **Shape tiles** — **Square**,
   **Ratio**, **Custom**, **Auto** — over a **Panel preview**.
 - **Shape tile**: One shape choice. Shows a miniature of the shape it makes, its name, and its

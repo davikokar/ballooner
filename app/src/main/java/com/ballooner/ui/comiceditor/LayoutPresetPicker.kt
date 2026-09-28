@@ -29,6 +29,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+/** The Layout step's heading. The preset options continue it as a breadcrumb. */
+internal const val PRESET_PICKER_TITLE = "SELECT PANEL PRESET"
+
 /**
  * The Layout step's landing view: the four kinds of layout, each shown as the arrangement it
  * makes, with the one the comic already is marked as active.
@@ -44,7 +47,7 @@ fun LayoutPresetPicker(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = "SELECT PANEL PRESET",
+            text = PRESET_PICKER_TITLE,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp),

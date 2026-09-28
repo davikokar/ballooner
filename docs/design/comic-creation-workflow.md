@@ -67,8 +67,9 @@ not interactive:
 The Layout step opens on a preset picker: four cards — **Single**, **Strip**, **Grid**,
 **Custom** — each showing the arrangement it makes, filling the step in place of the canvas. The
 card matching what the comic already is carries an ACTIVE badge, read back off the document
-rather than stored alongside it. Tapping a card opens that preset's options over the canvas, and
-a back control returns to the picker.
+rather than stored alongside it. Tapping a card continues into that preset's options on the same
+ground — no frame, no overlay — with a breadcrumb that continues the heading, "Select panel
+preset / Single", whose leading part goes back.
 
 ### Panel shape, and why there is no page shape
 
