@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ballooner.data.comic.ComicRepository
 import com.ballooner.data.comic.ComicSummary
 import com.ballooner.domain.comic.Comic
+import com.ballooner.domain.comic.PageSizing
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,8 +38,12 @@ class ComicListViewModel @Inject constructor(
     fun createComic(onCreated: (Long) -> Unit) {
         viewModelScope.launch {
             val existing = repository.observeComics().first()
-            val id = repository.createComic(Comic(name = "My Comic ${existing.size + 1}"))
-            onCreated(id)
+            // One panel, shaped by whatever image goes in it: the fewest decisions to start.
+            val comic = Comic(
+                name = "My Comic ${existing.size + 1}",
+                sizing = PageSizing.FromImage,
+            )
+            onCreated(repository.createComic(comic))
         }
     }
 

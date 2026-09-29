@@ -122,7 +122,7 @@ class SinglePanelLayoutTest {
     }
 
     @Test
-    fun `choosing single leaves the comic with one panel`() = runTest {
+    fun `choosing single leaves one panel shaped by its image`() = runTest {
         val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
         advanceUntilIdle()
 
@@ -131,6 +131,7 @@ class SinglePanelLayoutTest {
 
         assertEquals(LayoutKind.SINGLE, content(viewModel).layoutKind)
         assertEquals(1, content(viewModel).comic.panels.size)
+        assertEquals(PageSizing.FromImage, content(viewModel).comic.sizing)
     }
 
     @Test

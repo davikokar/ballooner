@@ -154,9 +154,11 @@ private fun PresetPreview(kind: LayoutKind, active: Boolean) {
         LayoutKind.SINGLE -> PreviewCell("1", active, Modifier.fillMaxSize())
         LayoutKind.STRIP -> Row(
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            (1..3).forEach { PreviewCell("$it", active, Modifier.weight(1f).fillMaxHeight()) }
+            repeat(DEFAULT_STRIP_PANELS) {
+                PreviewCell("${it + 1}", active, Modifier.weight(1f).fillMaxHeight())
+            }
         }
         LayoutKind.GRID -> Column(
             modifier = Modifier.fillMaxSize(),
@@ -230,7 +232,12 @@ private data class LayoutPresetCard(
 
 private val LayoutKinds = listOf(
     LayoutPresetCard(LayoutKind.SINGLE, "Single", "Full splash (1 panel)"),
-    LayoutPresetCard(LayoutKind.STRIP, "Strip", "Horizontal strip (3)"),
-    LayoutPresetCard(LayoutKind.GRID, "Grid", "Classic 2x2 (4 panels)"),
+    LayoutPresetCard(LayoutKind.STRIP, "Strip", "Horizontal strip ($DEFAULT_STRIP_PANELS)"),
+    LayoutPresetCard(
+        kind = LayoutKind.GRID,
+        title = "Grid",
+        description = "Classic ${DEFAULT_GRID_SIDE}x$DEFAULT_GRID_SIDE " +
+            "(${DEFAULT_GRID_SIDE * DEFAULT_GRID_SIDE} panels)",
+    ),
     LayoutPresetCard(LayoutKind.CUSTOM, "Custom", "Asymmetric slice"),
 )

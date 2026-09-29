@@ -24,6 +24,7 @@ import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.PanelMatching
+import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.centreOnPage
 import com.ballooner.domain.comic.mergedFrom
@@ -340,16 +341,29 @@ class ComicEditorViewModel @Inject constructor(
 
     /**
      * Opens one kind of layout's options, starting the comic on that kind when it is not already.
-     * A comic that is already the chosen kind is left exactly as it is.
+     * A comic that is already the chosen kind keeps whatever the user has made of it.
      */
     fun selectLayoutKind(kind: LayoutKind) {
         updateContent { it.copy(layoutKind = kind).withSelection(emptyList()) }
         val comic = contentOrNull()?.comic ?: return
         if (layoutKindOf(comic) == kind) return
         when (kind) {
-            LayoutKind.SINGLE -> applyPreset(rows = 1, columns = 1)
-            LayoutKind.STRIP -> applyPreset(rows = 1, columns = DEFAULT_STRIP_PANELS)
-            LayoutKind.GRID -> applyPreset(rows = DEFAULT_GRID_SIDE, columns = DEFAULT_GRID_SIDE)
+            // One panel has no shape of its own to argue with, so it takes the image's.
+            LayoutKind.SINGLE -> applyLayout(
+                layout = Layout(Grid(rows = 1, columns = 1)),
+                matching = PanelMatching.BY_INDEX,
+                sizing = PageSizing.FromImage,
+            )
+            LayoutKind.STRIP -> applyLayout(
+                layout = Layout(Grid(rows = 1, columns = DEFAULT_STRIP_PANELS)),
+                matching = PanelMatching.BY_INDEX,
+                sizing = PageSizing.Ratio(SQUARE_RATIO),
+            )
+            LayoutKind.GRID -> applyLayout(
+                layout = Layout(Grid(rows = DEFAULT_GRID_SIDE, columns = DEFAULT_GRID_SIDE)),
+                matching = PanelMatching.BY_INDEX,
+                sizing = PageSizing.Ratio(SQUARE_RATIO),
+            )
             // A freely drawn layout starts from one whole panel and is cut up from there.
             LayoutKind.CUSTOM -> applyPreset(rows = 1, columns = 1)
         }
@@ -467,9 +481,16 @@ class ComicEditorViewModel @Inject constructor(
         applyLayout(layout.copy(grid = transform(layout.grid)), PanelMatching.BY_OVERLAP)
     }
 
-    private fun applyLayout(layout: Layout, matching: PanelMatching) {
+    /**
+     * Re-lays out the comic, optionally reshaping its panels in the same change.
+     *
+     * The two travel together because a destructive change is staged rather than applied: a shape
+     * committed separately would be dropped when the staged layout replaced it.
+     */
+    private fun applyLayout(layout: Layout, matching: PanelMatching, sizing: PageSizing? = null) {
         val content = contentOrNull() ?: return
-        val change: LayoutChange = content.comic.withLayout(layout, matching)
+        val base = if (sizing == null) content.comic else content.comic.copy(sizing = sizing)
+        val change: LayoutChange = base.withLayout(layout, matching)
         if (change.isDestructive) {
             pending = change.comic
             updateContent {
@@ -514,11 +535,11 @@ private fun ComicEditorUiState.Content.withSelection(selection: List<Span>): Com
 
 private const val UNDO_LIMIT = 50
 
-/** What a strip starts as, matching the arrangement its preset card shows. */
-private const val DEFAULT_STRIP_PANELS = 3
+/** What a strip starts as, and the arrangement its preset card shows. */
+internal const val DEFAULT_STRIP_PANELS = 4
 
-/** What a grid starts as, matching the arrangement its preset card shows. */
-private const val DEFAULT_GRID_SIDE = 2
+/** What a grid starts as, and the arrangement its preset card shows. */
+internal const val DEFAULT_GRID_SIDE = 2
 
 /** The navigation argument naming which comic the editor opens. */
 const val COMIC_ID_KEY = "comicId"

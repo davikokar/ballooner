@@ -56,6 +56,7 @@ class GridLayoutTest {
         assertEquals(2, grid(viewModel).rows)
         assertEquals(2, grid(viewModel).columns)
         assertEquals(4, content(viewModel).comic.panels.size)
+        assertEquals(PageSizing.Ratio(SQUARE_RATIO), content(viewModel).comic.sizing)
     }
 
     @Test

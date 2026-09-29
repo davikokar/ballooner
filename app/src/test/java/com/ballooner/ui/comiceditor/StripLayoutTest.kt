@@ -44,7 +44,7 @@ class StripLayoutTest {
     private fun grid(viewModel: ComicEditorViewModel) = content(viewModel).comic.layout.grid
 
     @Test
-    fun `choosing strip starts a comic that is not one on three panels across`() = runTest {
+    fun `choosing strip starts a comic that is not one on four square panels across`() = runTest {
         val viewModel = editorFor(comic(Grid(1, 1)))
         advanceUntilIdle()
 
@@ -52,7 +52,8 @@ class StripLayoutTest {
         advanceUntilIdle()
 
         assertEquals(1, grid(viewModel).rows)
-        assertEquals(3, grid(viewModel).columns)
+        assertEquals(4, grid(viewModel).columns)
+        assertEquals(PageSizing.Ratio(SQUARE_RATIO), content(viewModel).comic.sizing)
     }
 
     @Test
