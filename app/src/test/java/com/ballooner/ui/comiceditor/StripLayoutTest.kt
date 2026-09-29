@@ -9,6 +9,8 @@ import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.SQUARE_RATIO
+import com.ballooner.domain.comic.TALL_RATIO
+import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -127,5 +129,24 @@ class StripLayoutTest {
 
         val ratios = shapes.map { it.bounds.width / it.bounds.height }
         ratios.forEach { assertEquals(2f, it, 1e-4f) }
+    }
+
+    @Test
+    fun `a long strip still gets the shape it asked for`() {
+        // The panel count is open-ended, so the page has to stretch as far as the panels need
+        // rather than hit a limit and quietly reshape them.
+        listOf(12, 24, 40).forEach { count ->
+            val across = comic(Grid(rows = 1, columns = count))
+                .copy(sizing = PageSizing.Ratio(WIDE_RATIO))
+            val down = comic(Grid(rows = count, columns = 1))
+                .copy(sizing = PageSizing.Ratio(TALL_RATIO))
+
+            panelShapes(across.layout, across.pageHeight, across.style).forEach {
+                assertEquals("$count across", WIDE_RATIO, it.bounds.width / it.bounds.height, 1e-3f)
+            }
+            panelShapes(down.layout, down.pageHeight, down.style).forEach {
+                assertEquals("$count down", TALL_RATIO, it.bounds.width / it.bounds.height, 1e-3f)
+            }
+        }
     }
 }
