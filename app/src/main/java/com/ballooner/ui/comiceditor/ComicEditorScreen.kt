@@ -6,9 +6,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -76,6 +79,11 @@ fun ComicEditorScreen(
                 step = state.step,
                 onSelectStep = actions::selectStep,
                 onOptions = { showOptions = true },
+                // The preset's options are a decision in progress: they are taken or dropped as
+                // a whole, so they carry their own way forward and back.
+                inLayoutOptions = state.step == EditorStep.LAYOUT && state.layoutKind != null,
+                onBack = actions::discardLayoutKind,
+                onNext = { actions.selectStep(EditorStep.PLACEMENT) },
             )
             // The workspace sits on its own ground so the chrome above it reads as a separate
             // surface rather than as the top of the canvas.
@@ -103,7 +111,7 @@ fun ComicEditorScreen(
                         image = state.comic.panels.firstOrNull()?.image,
                         images = images,
                         onChange = actions::setSizing,
-                        onBack = actions::closeLayoutKind,
+                        onBack = actions::discardLayoutKind,
                     )
                     return@Column
                 }
@@ -120,7 +128,7 @@ fun ComicEditorScreen(
                         onStrip = { across, count ->
                             if (across) actions.applyPreset(1, count) else actions.applyPreset(count, 1)
                         },
-                        onBack = actions::closeLayoutKind,
+                        onBack = actions::discardLayoutKind,
                     )
                     return@Column
                 }
@@ -136,7 +144,7 @@ fun ComicEditorScreen(
                         onToggleSelection = actions::toggleSelection,
                         onMerge = actions::mergeSelection,
                         onUnmerge = actions::unmergeSelection,
-                        onBack = actions::closeLayoutKind,
+                        onBack = actions::discardLayoutKind,
                     )
                     return@Column
                 }
@@ -150,7 +158,7 @@ fun ComicEditorScreen(
                         onMoveCutEnd = actions::moveCutEnd,
                         onEndCutDrag = actions::endCutDrag,
                         onUndo = actions::undo,
-                        onBack = actions::closeLayoutKind,
+                        onBack = actions::discardLayoutKind,
                     )
                     return@Column
                 }
@@ -202,6 +210,9 @@ private fun EditorHeader(
     step: EditorStep,
     onSelectStep: (EditorStep) -> Unit,
     onOptions: () -> Unit,
+    inLayoutOptions: Boolean,
+    onBack: () -> Unit,
+    onNext: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -214,9 +225,27 @@ private fun EditorHeader(
         HorizontalDivider(color = scheme.surfaceContainerHigh)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (inLayoutOptions) {
+                TextButton(
+                    onClick = onBack,
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                ) {
+                    Text("Back", style = MaterialTheme.typography.labelLarge)
+                }
+                Button(
+                    onClick = onNext,
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    Text("Next", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            // Keeps the Options gear at the far end whether or not the preset buttons are there.
+            Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = onOptions, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.Default.Settings,

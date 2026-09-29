@@ -20,6 +20,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -93,18 +94,72 @@ class SinglePanelLayoutTest {
     }
 
     @Test
-    fun `going back to the picker leaves the comic alone`() = runTest {
+    fun `going back to the picker throws away what the preset changed`() = runTest {
         val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
         advanceUntilIdle()
-        viewModel.selectLayoutKind(LayoutKind.GRID)
-        advanceUntilIdle()
-        val opened = content(viewModel).comic
+        val before = content(viewModel).comic
 
-        viewModel.closeLayoutKind()
+        viewModel.selectLayoutKind(LayoutKind.SINGLE)
+        advanceUntilIdle()
+        viewModel.discardLayoutKind()
         advanceUntilIdle()
 
         assertNull(content(viewModel).layoutKind)
-        assertEquals(opened, content(viewModel).comic)
+        assertEquals(before, content(viewModel).comic)
+    }
+
+    @Test
+    fun `going back to the picker leaves the preset the comic already was active`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+        advanceUntilIdle()
+
+        viewModel.selectLayoutKind(LayoutKind.SINGLE)
+        advanceUntilIdle()
+        viewModel.discardLayoutKind()
+        advanceUntilIdle()
+
+        assertEquals(LayoutKind.GRID, layoutKindOf(content(viewModel).comic))
+    }
+
+    @Test
+    fun `going back to the picker throws away a shape chosen in the options`() = runTest {
+        val viewModel = editorFor(comic(Grid(1, 1)))
+        advanceUntilIdle()
+        val before = content(viewModel).comic
+
+        viewModel.selectLayoutKind(LayoutKind.SINGLE)
+        viewModel.setSizing(PageSizing.Ratio(WIDE_RATIO))
+        advanceUntilIdle()
+        viewModel.discardLayoutKind()
+        advanceUntilIdle()
+
+        assertEquals(before, content(viewModel).comic)
+    }
+
+    @Test
+    fun `going back to the picker leaves nothing of the preset to undo`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+        advanceUntilIdle()
+
+        viewModel.selectLayoutKind(LayoutKind.SINGLE)
+        advanceUntilIdle()
+        viewModel.discardLayoutKind()
+        advanceUntilIdle()
+
+        assertFalse(content(viewModel).canUndo)
+    }
+
+    @Test
+    fun `moving on to the images step keeps what the preset changed`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+        advanceUntilIdle()
+
+        viewModel.selectLayoutKind(LayoutKind.SINGLE)
+        advanceUntilIdle()
+        viewModel.selectStep(EditorStep.PLACEMENT)
+        advanceUntilIdle()
+
+        assertEquals(LayoutKind.SINGLE, layoutKindOf(content(viewModel).comic))
     }
 
     @Test

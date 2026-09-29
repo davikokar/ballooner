@@ -71,6 +71,12 @@ rather than stored alongside it. Tapping a card continues into that preset's opt
 ground — no frame, no overlay — with a breadcrumb that continues the heading, "Select panel
 preset / Single", whose leading part goes back.
 
+Opening a preset's options is not choosing it. The options are taken as a whole by moving on to
+the Images step — with **Next**, or by tapping the step itself — and thrown away as a whole by
+going back, with **Back** or with the breadcrumb, which leaves the comic as the picker found it
+and the preset it already was still active. So a user can look inside every preset in turn
+without changing anything.
+
 ### Panel shape, and why there is no page shape
 
 The user never chooses a page shape. The page is always one unit wide, and its height is derived

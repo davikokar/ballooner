@@ -81,6 +81,11 @@ class ComicEditorViewModel @Inject constructor(
     private var pending: Comic? = null
     private var beforeDrag: Comic? = null
 
+    // Opening a preset's options is not choosing it, so the comic it was opened from is kept
+    // until the user moves on, and everything the options did is thrown away if they go back.
+    private var beforeLayoutKind: Comic? = null
+    private var undoDepthBeforeLayoutKind = 0
+
     // Only ever counts up, so deleting a balloon cannot hand its id to a different one while the
     // undo stack and the selection still refer to it.
     private var nextBalloonId = 1L
@@ -93,14 +98,19 @@ class ComicEditorViewModel @Inject constructor(
         }
     }
 
-    fun selectStep(step: EditorStep) = updateContent {
-        it.copy(
-            step = step,
-            layoutKind = null,
-            selection = emptyList(),
-            activePanel = null,
-            focusedPanel = null,
-        )
+    fun selectStep(step: EditorStep) {
+        // Moving on to another step accepts whatever a preset's options changed. Only going back
+        // to the picker throws it away.
+        beforeLayoutKind = null
+        updateContent {
+            it.copy(
+                step = step,
+                layoutKind = null,
+                selection = emptyList(),
+                activePanel = null,
+                focusedPanel = null,
+            )
+        }
     }
 
     /** Fills the canvas with one panel. Focus is a way of looking, not a change to the comic. */
@@ -344,6 +354,9 @@ class ComicEditorViewModel @Inject constructor(
      * A comic that is already the chosen kind keeps whatever the user has made of it.
      */
     fun selectLayoutKind(kind: LayoutKind) {
+        val opened = contentOrNull()?.comic ?: return
+        beforeLayoutKind = opened
+        undoDepthBeforeLayoutKind = undoStack.size
         updateContent { it.copy(layoutKind = kind).withSelection(emptyList()) }
         val comic = contentOrNull()?.comic ?: return
         if (layoutKindOf(comic) == kind) return
@@ -369,9 +382,23 @@ class ComicEditorViewModel @Inject constructor(
         }
     }
 
-    /** Returns to the preset picker, leaving the comic as it is. */
-    fun closeLayoutKind() = updateContent {
-        it.copy(layoutKind = null).withSelection(emptyList())
+    /**
+     * Returns to the preset picker without choosing the preset, so the comic goes back to what it
+     * was before its options were opened and the picker still shows the kind it already was.
+     */
+    fun discardLayoutKind() {
+        val origin = beforeLayoutKind
+        beforeLayoutKind = null
+        pending = null
+        while (undoStack.size > undoDepthBeforeLayoutKind) undoStack.removeLast()
+        val content = contentOrNull() ?: return
+        val comic = origin ?: content.comic
+        // Set rather than committed: undoing back into options the user has left would be a step
+        // into a place they cannot see.
+        state.value = content
+            .copy(comic = comic, layoutKind = null, warning = null, canUndo = undoStack.isNotEmpty())
+            .withSelection(emptyList())
+        if (comic != content.comic) save(comic)
     }
 
     fun setRowWeights(weights: List<Float>) = withGrid { it.copy(rowWeights = weights) }
