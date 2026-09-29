@@ -656,50 +656,6 @@ private fun FilledTrack(fraction: Float) {
     }
 }
 
-/** A labelled row of choices, used for the strip's direction and its panel count. */
-@Composable
-internal fun ChoiceRow(
-    label: String,
-    options: List<String>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurface,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            options.forEachIndexed { index, option ->
-                val active = index == selectedIndex
-                Text(
-                    text = option,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (active) scheme.onPrimary else scheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(if (active) scheme.primary else scheme.surfaceContainerLowest)
-                        .border(
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (active) scheme.primary else scheme.outlineVariant,
-                            ),
-                            shape = RoundedCornerShape(4.dp),
-                        )
-                        .clickable { onSelect(index) }
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                )
-            }
-        }
-    }
-}
-
 /**
  * The whole-unit pair closest to [ratio], so reopening the sliders shows the sides that made the
  * shape rather than starting from scratch.
