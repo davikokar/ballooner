@@ -27,6 +27,7 @@ import com.ballooner.domain.comic.PanelMatching
 import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.centreOnPage
+import com.ballooner.domain.comic.cutDivides
 import com.ballooner.domain.comic.mergedFrom
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
@@ -39,6 +40,7 @@ import com.ballooner.domain.comic.withCentreOnPage
 import com.ballooner.domain.comic.withCut
 import com.ballooner.domain.comic.withCutEndMoved
 import com.ballooner.domain.comic.withLayout
+import com.ballooner.domain.comic.withoutCutAt
 import com.ballooner.domain.comic.withScope
 import com.ballooner.domain.comic.withTailAt
 import com.ballooner.domain.comic.withTailWidthAt
@@ -447,7 +449,21 @@ class ComicEditorViewModel @Inject constructor(
         commit(change.comic, undoable = false)
     }
 
-    fun endCutDrag() = endDragAsOneUndoStep()
+    /**
+     * Ends a drag of one end of the cut at [index].
+     *
+     * A cut swung clear of everything it divided is dropped rather than kept as an invisible
+     * line, which is how a cut is deleted: there is nothing else on the page to delete it with.
+     */
+    fun endCutDrag(index: Int) {
+        val comic = contentOrNull()?.comic
+        if (comic != null && !comic.layout.cutDivides(index, comic.pageHeight, comic.style)) {
+            // Dropping a cut that divides nothing leaves every panel exactly as it is, so there
+            // is nothing to discard and nothing to confirm.
+            commit(comic.copy(layout = comic.layout.withoutCutAt(index)), undoable = false)
+        }
+        endDragAsOneUndoStep()
+    }
 
     private fun endDragAsOneUndoStep() {
         val origin = beforeDrag ?: return

@@ -47,6 +47,18 @@ fun Layout.withoutCutAt(index: Int): Layout =
     if (index in cuts.indices) copy(cuts = cuts.filterIndexed { i, _ -> i != index }) else this
 
 /**
+ * Whether the cut at [index] still separates anything.
+ *
+ * A cut's ends only give its line a direction, so swinging both of them clear of the panel the
+ * cut was made in leaves a line that divides nothing and cannot be seen on the page.
+ */
+fun Layout.cutDivides(index: Int, pageHeight: Float, style: ComicStyle): Boolean {
+    if (index !in cuts.indices) return false
+    return panelShapes(this, pageHeight, style).size >
+        panelShapes(withoutCutAt(index), pageHeight, style).size
+}
+
+/**
  * Moves one end of the cut at [index], leaving the other where it is.
  *
  * The two ends only give the line its direction, so dragging one swings the cut about the other.

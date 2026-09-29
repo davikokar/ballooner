@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +26,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.NormalizedPoint
@@ -35,6 +35,7 @@ import com.ballooner.domain.comic.panelShapes
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.imageDrawSpec
+import com.ballooner.ui.comic.pageViewport
 import com.ballooner.ui.comic.toPath
 import com.ballooner.ui.theme.InkBlack
 import kotlin.math.roundToInt
@@ -56,7 +57,7 @@ fun CustomLayoutScreen(
     onCut: (from: NormalizedPoint, to: NormalizedPoint, scope: CutScope) -> Unit,
     onStartCutDrag: () -> Unit,
     onMoveCutEnd: (index: Int, start: Boolean, to: NormalizedPoint) -> Unit,
-    onEndCutDrag: () -> Unit,
+    onEndCutDrag: (index: Int) -> Unit,
     onUndo: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -73,7 +74,7 @@ fun CustomLayoutScreen(
             hint = if (comic.layout.cuts.isEmpty()) {
                 "Drag across a panel to cut it"
             } else {
-                "Drag a handle to adjust a cut"
+                "Drag both handles off the page to remove it"
             },
         ) {
             CuttingPage(
@@ -106,7 +107,7 @@ private fun CuttingPage(
     onCut: (NormalizedPoint, NormalizedPoint, CutScope) -> Unit,
     onStartCutDrag: () -> Unit,
     onMoveCutEnd: (Int, Boolean, NormalizedPoint) -> Unit,
-    onEndCutDrag: () -> Unit,
+    onEndCutDrag: (Int) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
@@ -125,13 +126,14 @@ private fun CuttingPage(
 
     Canvas(
         modifier = Modifier
-            .aspectRatio(1f / comic.pageHeight)
+            // The whole ground, not just the page: a handle swung off the page is still drawn
+            // here, and anything that can be seen has to be grabbable.
+            .fillMaxSize()
             // Keyed on nothing: keying on the comic would tear the handler down the moment a cut
             // moves and the rest of the drag would be lost.
             .pointerInput(Unit) {
                 val grabRadius = GRAB_RADIUS.toPx()
-                // The page fills this canvas exactly, so a page unit is its width.
-                fun viewport() = PageViewport(0f, 0f, size.width.toFloat())
+                fun viewport() = pageViewport(size.toSize(), latest.value.first)
                 fun normalised(offset: Offset): NormalizedPoint {
                     val point = viewport().toPage(offset)
                     val pageHeight = latest.value.first
@@ -163,9 +165,10 @@ private fun CuttingPage(
                         }
                     },
                     onDragEnd = {
-                        if (held != null) {
+                        val grabbed = held
+                        if (grabbed != null) {
                             held = null
-                            onEndCutDrag()
+                            onEndCutDrag(grabbed.index)
                             return@detectDragGestures
                         }
                         val from = start
@@ -179,9 +182,10 @@ private fun CuttingPage(
                         onCut(a, normalised(to), CutScope.AtPoint(a))
                     },
                     onDragCancel = {
-                        if (held != null) {
+                        val grabbed = held
+                        if (grabbed != null) {
                             held = null
-                            onEndCutDrag()
+                            onEndCutDrag(grabbed.index)
                         }
                         start = null
                         end = null
@@ -189,7 +193,7 @@ private fun CuttingPage(
                 )
             },
     ) {
-        val viewport = PageViewport(0f, 0f, size.width)
+        val viewport = pageViewport(size, comic.pageHeight)
         shapes.forEachIndexed { index, shape ->
             val path = shape.toPath(viewport)
             val image = comic.panels.getOrNull(index)?.image

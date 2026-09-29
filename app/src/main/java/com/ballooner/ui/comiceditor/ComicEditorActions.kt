@@ -25,7 +25,7 @@ interface ComicEditorActions {
     fun moveBoundary(axis: GridAxis, index: Int, delta: Float)
     fun endBoundaryDrag()
     fun moveCutEnd(index: Int, start: Boolean, to: NormalizedPoint)
-    fun endCutDrag()
+    fun endCutDrag(index: Int)
     fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope)
     fun selectPanel(index: Int?)
     fun focusPanel(index: Int?)
@@ -78,7 +78,7 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun endBoundaryDrag() = this@asActions.endBoundaryDrag()
     override fun moveCutEnd(index: Int, start: Boolean, to: NormalizedPoint) =
         this@asActions.moveCutEnd(index, start, to)
-    override fun endCutDrag() = this@asActions.endCutDrag()
+    override fun endCutDrag(index: Int) = this@asActions.endCutDrag(index)
     override fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope) =
         this@asActions.addCut(from, to, scope)
     override fun selectPanel(index: Int?) = this@asActions.selectPanel(index)

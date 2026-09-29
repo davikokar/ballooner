@@ -136,7 +136,9 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Grid line**: A draggable divider that changes row or column proportions.
 - **Merged panel**: One panel spanning a rectangular block of cells.
 - **Cut**: A straight line traced over the Page that splits the regions it crosses into separate
-  panels. A cut may be horizontal, vertical, or diagonal at any angle.
+  panels. A cut may be horizontal, vertical, or diagonal at any angle. A cut whose two **cut
+  handles** have both been dragged clear of the page divides nothing and is deleted, which is how
+  a cut is removed.
 - **Page cut**: A Cut that crosses the whole Page and splits every panel in its path.
 - **Panel cut**: A Cut that crosses a single panel and splits only that one.
 - **Layout preset**: A starting layout offered to the user, such as single panel, strip, grid, or

@@ -77,7 +77,7 @@ class CustomLayoutTest {
 
         viewModel.startBoundaryDrag()
         viewModel.moveCutEnd(index = 0, start = false, to = NormalizedPoint(1f, 0.8f))
-        viewModel.endCutDrag()
+        viewModel.endCutDrag(index = 0)
         advanceUntilIdle()
 
         val moved = content(viewModel).comic.layout.cuts.single()
@@ -96,7 +96,7 @@ class CustomLayoutTest {
         listOf(0.55f, 0.6f, 0.7f, 0.8f).forEach {
             viewModel.moveCutEnd(index = 0, start = false, to = NormalizedPoint(1f, it))
         }
-        viewModel.endCutDrag()
+        viewModel.endCutDrag(index = 0)
         advanceUntilIdle()
         viewModel.undo()
         advanceUntilIdle()
@@ -116,11 +116,68 @@ class CustomLayoutTest {
 
         viewModel.startBoundaryDrag()
         viewModel.moveCutEnd(index = 0, start = false, to = NormalizedPoint(1f, 0.62f))
-        viewModel.endCutDrag()
+        viewModel.endCutDrag(index = 0)
         advanceUntilIdle()
 
         val uris = content(viewModel).comic.panels.map { it.image?.sourceUri }
         assertEquals(listOf("top", "bottom"), uris)
+    }
+
+    @Test
+    fun `a cut swung clear of the page is deleted`() = runTest {
+        // Both ends sit off the page, so swinging one can sweep the line clear of it entirely.
+        // A cut's ends only give it a direction, so an end left on the page can never do that.
+        val cut = Cut(
+            a = NormalizedPoint(0.5f, 3f),
+            b = NormalizedPoint(0.5f, 4f),
+            scope = CutScope.WholePage,
+        )
+        val viewModel = editorFor(comic(cuts = listOf(cut)))
+        advanceUntilIdle()
+        assertEquals(2, content(viewModel).comic.panels.size)
+
+        viewModel.startBoundaryDrag()
+        viewModel.moveCutEnd(index = 0, start = false, to = NormalizedPoint(3f, 4f))
+        viewModel.endCutDrag(index = 0)
+        advanceUntilIdle()
+
+        assertEquals(emptyList<Cut>(), content(viewModel).comic.layout.cuts)
+        assertEquals(1, content(viewModel).comic.panels.size)
+    }
+
+    @Test
+    fun `deleting a cut is one undo step`() = runTest {
+        val cut = Cut(
+            a = NormalizedPoint(0.5f, 3f),
+            b = NormalizedPoint(0.5f, 4f),
+            scope = CutScope.WholePage,
+        )
+        val viewModel = editorFor(comic(cuts = listOf(cut)))
+        advanceUntilIdle()
+
+        viewModel.startBoundaryDrag()
+        viewModel.moveCutEnd(index = 0, start = false, to = NormalizedPoint(3f, 4f))
+        viewModel.endCutDrag(index = 0)
+        advanceUntilIdle()
+        viewModel.undo()
+        advanceUntilIdle()
+
+        assertEquals(cut, content(viewModel).comic.layout.cuts.single())
+        assertEquals(2, content(viewModel).comic.panels.size)
+    }
+
+    @Test
+    fun `a cut that still divides is kept`() = runTest {
+        val cut = Cut(NormalizedPoint(0f, 0.5f), NormalizedPoint(1f, 0.5f), CutScope.WholePage)
+        val viewModel = editorFor(comic(cuts = listOf(cut)))
+        advanceUntilIdle()
+
+        viewModel.startBoundaryDrag()
+        viewModel.moveCutEnd(index = 0, start = false, to = NormalizedPoint(1f, 0.8f))
+        viewModel.endCutDrag(index = 0)
+        advanceUntilIdle()
+
+        assertEquals(1, content(viewModel).comic.layout.cuts.size)
     }
 
     @Test
@@ -140,7 +197,7 @@ class CustomLayoutTest {
 
         viewModel.startBoundaryDrag()
         viewModel.moveCutEnd(index = 0, start = false, to = NormalizedPoint(3f, 4f))
-        viewModel.endCutDrag()
+        viewModel.endCutDrag(index = 0)
         advanceUntilIdle()
 
         assertEquals(2, content(viewModel).comic.panels.size)
@@ -155,7 +212,7 @@ class CustomLayoutTest {
 
         viewModel.startBoundaryDrag()
         viewModel.moveCutEnd(index = 0, start = true, to = NormalizedPoint(1f, 0.5f))
-        viewModel.endCutDrag()
+        viewModel.endCutDrag(index = 0)
         advanceUntilIdle()
 
         assertEquals(NormalizedPoint(0f, 0.5f), content(viewModel).comic.layout.cuts.single().a)

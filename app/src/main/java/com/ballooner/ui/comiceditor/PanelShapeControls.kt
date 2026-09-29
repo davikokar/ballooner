@@ -284,6 +284,9 @@ internal fun PreviewSurface(
                     text = hint,
                     style = MaterialTheme.typography.labelSmall,
                     color = scheme.outline,
+                    textAlign = TextAlign.End,
+                    // A hint too long for the row wraps under itself rather than over the label.
+                    modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp),
                 )
             }
         }

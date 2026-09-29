@@ -145,6 +145,12 @@ Cuts can be moved and re-angled after they are drawn, and deleting a cut merges 
 either side of it back together. Cuts do not depend on each other: removing one never invalidates
 another, however they were drawn.
 
+A cut is deleted by dragging it away rather than by a control of its own. Each end has a handle,
+and a cut whose two ends have both been swung clear of the page divides nothing: it is dropped
+instead of being kept as a line that cannot be seen. Because the ends only give the line its
+direction, one end left on the page always keeps the cut alive, so this cannot happen by
+accident.
+
 Cuts are the only source of non-rectangular panels; a grid on its own always produces rectangles.
 
 ### Comic style
