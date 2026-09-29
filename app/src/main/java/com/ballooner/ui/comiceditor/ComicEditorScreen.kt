@@ -75,15 +75,23 @@ fun ComicEditorScreen(
             CircularProgressIndicator()
         }
         is ComicEditorUiState.Content -> Column(modifier = modifier.fillMaxSize()) {
+            // A preset's options are a decision in progress: they are taken or dropped as a
+            // whole, so going back throws them away where everywhere else simply steps back.
+            val inLayoutOptions = state.step == EditorStep.LAYOUT && state.layoutKind != null
             EditorHeader(
                 step = state.step,
                 onSelectStep = actions::selectStep,
                 onOptions = { showOptions = true },
-                // The preset's options are a decision in progress: they are taken or dropped as
-                // a whole, so they carry their own way forward and back.
-                inLayoutOptions = state.step == EditorStep.LAYOUT && state.layoutKind != null,
-                onBack = actions::discardLayoutKind,
-                onNext = { actions.selectStep(EditorStep.PLACEMENT) },
+                onBack = when {
+                    inLayoutOptions -> actions::discardLayoutKind
+                    state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.LAYOUT) })
+                    else -> null
+                },
+                onNext = when {
+                    inLayoutOptions -> ({ actions.selectStep(EditorStep.PLACEMENT) })
+                    state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
+                    else -> null
+                },
             )
             // The workspace sits on its own ground so the chrome above it reads as a separate
             // surface rather than as the top of the canvas.
@@ -210,9 +218,8 @@ private fun EditorHeader(
     step: EditorStep,
     onSelectStep: (EditorStep) -> Unit,
     onOptions: () -> Unit,
-    inLayoutOptions: Boolean,
-    onBack: () -> Unit,
-    onNext: () -> Unit,
+    onBack: (() -> Unit)?,
+    onNext: (() -> Unit)?,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -228,7 +235,7 @@ private fun EditorHeader(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (inLayoutOptions) {
+            if (onBack != null) {
                 TextButton(
                     onClick = onBack,
                     modifier = Modifier.height(32.dp),
@@ -236,6 +243,8 @@ private fun EditorHeader(
                 ) {
                     Text("Back", style = MaterialTheme.typography.labelLarge)
                 }
+            }
+            if (onNext != null) {
                 Button(
                     onClick = onNext,
                     modifier = Modifier.height(32.dp),

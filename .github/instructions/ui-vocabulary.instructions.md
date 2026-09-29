@@ -50,8 +50,16 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Editor toolbar**: The band below the Editor top bar, on its own paper surface, containing the
   Step switch and — under a divider — the **Editor action row**.
 - **Editor action row**: The row beneath the Step switch. The Options button sits at its right
-  end; while Preset options are open the Preset back button and Preset next button sit at its
-  left.
+  end; the Step back button and Step next button sit at its left wherever there is somewhere to
+  go.
+- **Step next button**: The "Next" button at the left of the Editor action row. Moves to the step
+  after this one, exactly as tapping that step does. Shown while Preset options are open, where
+  it also takes the preset, and in the Placement step.
+- **Step back button**: The "Back" button beside it. Shown in the same places as the Step next
+  button. In the Placement step it returns to the Layout step. While Preset options are open it
+  returns to the Preset picker *without choosing the preset*, throwing away everything the
+  options changed, so the comic and its active preset are as they were before the options opened;
+  the Breadcrumb does the same.
 - **Workspace**: Everything below the Editor toolbar. It sits on a tinted ground so the toolbar
   reads as a separate surface above it rather than as the top of the Canvas.
 - **Canvas**: The editing area that displays the Page. The Editor toolbar and Comic kit are
@@ -97,15 +105,9 @@ the parts owned by later steps are shown dimmed and are not interactive.
   **Custom**. Read back off the comic rather than stored.
 - **Preset options**: The second view of the Layout step, opened by tapping a Layout preset card.
   It is a continuation of the Preset picker, not an overlay: same ground, no frame of its own.
-  Reached by tapping a card, and left by the **Preset next button**, the **Preset back button**,
-  or the **Breadcrumb**, which continues the picker's heading — "Select panel preset / Single" —
-  with the leading part tappable to go back.
-- **Preset next button**: The "Next" button at the left of the Editor action row while Preset
-  options are open. Takes the preset and its options and moves to the Placement step, exactly as
-  tapping that step does.
-- **Preset back button**: The "Back" button beside it. Returns to the Preset picker without
-  choosing the preset, throwing away everything the options changed, so the comic and its active
-  preset are as they were before the options opened. The Breadcrumb does the same.
+  Reached by tapping a card, and left by the **Step next button**, the **Step back button**, or
+  the **Breadcrumb**, which continues the picker's heading — "Select panel preset / Single" — with
+  the leading part tappable to go back.
 - **Single panel shape**: The Single preset's options. Four **Shape tiles** — **Square**,
   **Ratio**, **Custom**, **Auto** — over a **Panel preview**.
 - **Strip options**: The Strip preset's options. An **Orientation** pair of icon buttons and a

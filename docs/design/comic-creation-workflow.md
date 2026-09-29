@@ -75,7 +75,8 @@ Opening a preset's options is not choosing it. The options are taken as a whole 
 the Images step — with **Next**, or by tapping the step itself — and thrown away as a whole by
 going back, with **Back** or with the breadcrumb, which leaves the comic as the picker found it
 and the preset it already was still active. So a user can look inside every preset in turn
-without changing anything.
+without changing anything. The Images step carries the same pair, where they simply step between
+steps.
 
 ### Panel shape, and why there is no page shape
 
