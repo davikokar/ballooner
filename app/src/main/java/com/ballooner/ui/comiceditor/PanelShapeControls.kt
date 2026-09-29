@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -223,8 +224,36 @@ internal fun PanelPreview(
     columns: Int = 1,
     emptyMessage: String = "The panel takes the shape of the image you choose next.",
 ) {
-    val scheme = MaterialTheme.colorScheme
     val anyImage = panels.any { it != null && images.bitmapFor(it.sourceUri) != null }
+    PreviewSurface(
+        modifier = modifier,
+        hint = "Pinch and drag to look around".takeIf { anyImage },
+    ) {
+        if (ratio == null) {
+            Text(
+                text = emptyMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            PanelLattice(ratio, panels, images, rows, columns)
+        }
+    }
+}
+
+/**
+ * The bordered card and drafting ground every preset's preview sits on.
+ *
+ * What goes on the ground differs: a lattice of frames for the shape presets, the real page for
+ * the grid, which has merged panels to show.
+ */
+@Composable
+internal fun PreviewSurface(
+    modifier: Modifier = Modifier,
+    hint: String? = null,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -247,9 +276,9 @@ internal fun PanelPreview(
                 style = MaterialTheme.typography.labelMedium,
                 color = scheme.onSurface,
             )
-            if (anyImage) {
+            if (hint != null) {
                 Text(
-                    text = "Pinch and drag to look around",
+                    text = hint,
                     style = MaterialTheme.typography.labelSmall,
                     color = scheme.outline,
                 )
@@ -269,15 +298,7 @@ internal fun PanelPreview(
             contentAlignment = Alignment.Center,
         ) {
             DraftingDots(colour = scheme.outline)
-            if (ratio == null) {
-                Text(
-                    text = emptyMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
-                )
-            } else {
-                PanelLattice(ratio, panels, images, rows, columns)
-            }
+            content()
         }
     }
 }

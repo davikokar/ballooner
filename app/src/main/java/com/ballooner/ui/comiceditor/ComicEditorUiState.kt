@@ -18,8 +18,9 @@ enum class LayoutKind { SINGLE, STRIP, GRID, CUSTOM }
 fun layoutKindOf(comic: Comic): LayoutKind {
     val grid = comic.layout.grid
     return when {
-        // Cuts and merges are things only the custom layout can make.
-        comic.layout.cuts.isNotEmpty() || grid.spans.isNotEmpty() -> LayoutKind.CUSTOM
+        // Merging is a grid operation, so a merged grid is still a grid. Only a cut, which no
+        // grid can make, takes a comic out of the kind it was built as.
+        comic.layout.cuts.isNotEmpty() -> LayoutKind.CUSTOM
         grid.rows == 1 && grid.columns == 1 -> LayoutKind.SINGLE
         grid.rows == 1 || grid.columns == 1 -> LayoutKind.STRIP
         else -> LayoutKind.GRID

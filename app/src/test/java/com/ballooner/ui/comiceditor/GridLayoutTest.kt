@@ -9,6 +9,7 @@ import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.SQUARE_RATIO
+import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.TALL_RATIO
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.util.MainDispatcherRule
@@ -16,6 +17,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -128,5 +131,121 @@ class GridLayoutTest {
         shapes.forEach {
             assertEquals(SQUARE_RATIO, it.bounds.width / it.bounds.height, 1e-3f)
         }
+    }
+
+    @Test
+    fun `selecting one cell offers neither merge nor unmerge`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+        advanceUntilIdle()
+
+        viewModel.toggleSelection(Span(0, 0))
+        advanceUntilIdle()
+
+        assertFalse(content(viewModel).canMerge)
+        assertFalse(content(viewModel).canUnmerge)
+    }
+
+    @Test
+    fun `selecting two neighbours offers merge`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+        advanceUntilIdle()
+
+        viewModel.toggleSelection(Span(0, 0))
+        viewModel.toggleSelection(Span(0, 1))
+        advanceUntilIdle()
+
+        assertTrue(content(viewModel).canMerge)
+    }
+
+    @Test
+    fun `selecting cells that do not form a rectangle offers no merge`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+        advanceUntilIdle()
+
+        viewModel.toggleSelection(Span(0, 0))
+        viewModel.toggleSelection(Span(1, 1))
+        advanceUntilIdle()
+
+        assertFalse(content(viewModel).canMerge)
+    }
+
+    @Test
+    fun `merging two cells leaves one panel covering both`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+        advanceUntilIdle()
+        viewModel.toggleSelection(Span(0, 0))
+        viewModel.toggleSelection(Span(0, 1))
+
+        viewModel.mergeSelection()
+        advanceUntilIdle()
+
+        assertEquals(3, content(viewModel).comic.panels.size)
+        assertEquals(listOf(Span(0, 0, 1, 2)), grid(viewModel).spans)
+    }
+
+    @Test
+    fun `selecting a merged panel offers unmerge`() = runTest {
+        val merged = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, columnCount = 2)))
+        val viewModel = editorFor(comic(merged))
+        advanceUntilIdle()
+
+        viewModel.toggleSelection(Span(0, 0, 1, 2))
+        advanceUntilIdle()
+
+        assertTrue(content(viewModel).canUnmerge)
+        assertFalse(content(viewModel).canMerge)
+    }
+
+    @Test
+    fun `unmerging puts the cells back`() = runTest {
+        val merged = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, columnCount = 2)))
+        val viewModel = editorFor(comic(merged))
+        advanceUntilIdle()
+        viewModel.toggleSelection(Span(0, 0, 1, 2))
+
+        viewModel.unmergeSelection()
+        advanceUntilIdle()
+
+        assertEquals(emptyList<Span>(), grid(viewModel).spans)
+        assertEquals(4, content(viewModel).comic.panels.size)
+    }
+
+    @Test
+    fun `merging does not reshape the cells that were left alone`() {
+        // The chosen shape belongs to a cell, so a merged panel must be a multiple of one rather
+        // than become the shape itself and squash everything around it.
+        val merged = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, columnCount = 2)))
+        val comic = comic(merged).copy(sizing = PageSizing.Ratio(SQUARE_RATIO))
+
+        val shapes = panelShapes(comic.layout, comic.pageHeight, comic.style)
+
+        val cells = shapes.drop(1)
+        assertEquals(2, cells.size)
+        cells.forEach { assertEquals(SQUARE_RATIO, it.bounds.width / it.bounds.height, 1e-3f) }
+    }
+
+    @Test
+    fun `a merged panel is as wide as the cells it covers`() {
+        val merged = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, columnCount = 2)))
+        val comic = comic(merged).copy(sizing = PageSizing.Ratio(SQUARE_RATIO))
+
+        val shapes = panelShapes(comic.layout, comic.pageHeight, comic.style)
+
+        val panel = shapes.first().bounds
+        val cell = shapes.last().bounds
+        assertEquals(cell.width * 2 + comic.style.gutter, panel.width, 1e-3f)
+        assertEquals(cell.height, panel.height, 1e-3f)
+    }
+
+    @Test
+    fun `a merged grid keeps its merge when its options are reopened`() = runTest {
+        val merged = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, columnCount = 2)))
+        val viewModel = editorFor(comic(merged))
+        advanceUntilIdle()
+
+        viewModel.selectLayoutKind(LayoutKind.GRID)
+        advanceUntilIdle()
+
+        assertEquals(listOf(Span(0, 0, 1, 2)), grid(viewModel).spans)
     }
 }

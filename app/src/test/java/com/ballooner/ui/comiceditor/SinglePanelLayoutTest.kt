@@ -78,10 +78,18 @@ class SinglePanelLayoutTest {
     }
 
     @Test
-    fun `a merged comic is active on the custom preset`() {
+    fun `a merged grid is still a grid`() {
+        // Merging is something a grid does, so it must not tip the comic into another kind.
         val grid = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, columnCount = 2)))
 
-        assertEquals(LayoutKind.CUSTOM, layoutKindOf(comic(grid)))
+        assertEquals(LayoutKind.GRID, layoutKindOf(comic(grid)))
+    }
+
+    @Test
+    fun `a merged strip is still a strip`() {
+        val grid = Grid(rows = 1, columns = 4, spans = listOf(Span(0, 0, columnCount = 2)))
+
+        assertEquals(LayoutKind.STRIP, layoutKindOf(comic(grid)))
     }
 
     @Test

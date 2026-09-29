@@ -116,7 +116,7 @@ class PageSizingTest {
     }
 
     @Test
-    fun `merging the reference panel keeps the other panels' images`() {
+    fun `merging keeps the panels the merge did not cover`() {
         val comic = Comic(
             sizing = PageSizing.Ratio(SQUARE_RATIO),
             style = noStyle,
@@ -127,10 +127,28 @@ class PageSizingTest {
 
         val change = comic.withLayout(comic.layout.copy(grid = merged))
 
-        // The merge doubles the page's height, which must not count as losing the bottom row.
-        assertTrue(comic.pageHeight < change.comic.pageHeight)
+        // The shape belongs to a cell, so merging leaves the page exactly where it was and the
+        // bottom row cannot slide out from under itself.
+        assertEquals(comic.pageHeight, change.comic.pageHeight, TOLERANCE)
         assertEquals(1, change.removedImages)
         assertEquals(listOf("image-0", "image-2", "image-3"), change.comic.panels.mapNotNull { it.image?.sourceUri })
+    }
+
+    @Test
+    fun `a layout change that does move the page still matches panels across it`() {
+        val comic = Comic(
+            sizing = PageSizing.Ratio(SQUARE_RATIO),
+            style = noStyle,
+            layout = Layout(Grid(rows = 2, columns = 2)),
+            panels = List(4) { index -> Panel(PanelImage("image-$index")) },
+        )
+        // Another column makes every cell narrower, so the page really does change height.
+        val wider = Layout(Grid(rows = 2, columns = 3))
+
+        val change = comic.withLayout(wider)
+
+        assertTrue(comic.pageHeight != change.comic.pageHeight)
+        assertEquals(0, change.removedImages)
     }
 
     private companion object {

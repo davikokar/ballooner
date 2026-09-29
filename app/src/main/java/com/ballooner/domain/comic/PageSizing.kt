@@ -25,9 +25,9 @@ const val MAX_PAGE_HEIGHT = 100f
  * The page is always one unit wide, so its height is the only measurement the document has to
  * supply. Nothing else can supply it: grid weights divide whatever height they are given, and cuts
  * are stored in normalized coordinates, so both describe proportions *between* panels and never an
- * absolute size. The page therefore takes its height from the shape of one panel — the reference
- * panel, which is the first panel of the grid — and the page shape stops being a thing the user
- * picks at all.
+ * absolute size. The page therefore takes its height from the shape of one cell — the reference
+ * cell, which is the grid's top-left — and the page shape stops being a thing the user picks at
+ * all.
  */
 sealed interface PageSizing {
 
@@ -60,27 +60,28 @@ fun pageHeightOf(
     }
     if (ratio <= 0f) return SQUARE_RATIO
     val grid = layout.grid
-    val span = grid.panelSpans().firstOrNull() ?: return 1f / ratio
     val gutter = style.gutter
 
-    val columnFraction = grid.columnWeights.fractionOf(span.firstColumn, span.lastColumn)
-    val rowFraction = grid.rowWeights.fractionOf(span.firstRow, span.lastRow)
+    // The reference is the top-left CELL, never whatever panel happens to be first. A merged
+    // panel is made of cells, so holding a merge to the chosen shape would squash every cell it
+    // did not cover; holding one cell to it keeps them all that shape and lets a merge be a
+    // multiple of it.
+    val columnFraction = grid.columnWeights.firstFraction()
+    val rowFraction = grid.rowWeights.firstFraction()
     if (rowFraction <= 0f) return SQUARE_RATIO
 
     // The gutters are fixed, so they come out of the extent before the weights divide the rest.
-    // A span covering several cells swallows the gutters between them.
     val available = ((1f - 2f * style.pageMargin) - gutter * (grid.columns - 1)).coerceAtLeast(0f)
-    val width = available * columnFraction + gutter * (span.columnCount - 1)
+    val width = available * columnFraction
     if (width <= 0f) return SQUARE_RATIO
 
-    val availableHeight = (width / ratio - gutter * (span.rowCount - 1)) / rowFraction
-    val contentHeight = availableHeight + gutter * (grid.rows - 1)
+    val contentHeight = width / ratio / rowFraction + gutter * (grid.rows - 1)
     return (contentHeight + 2f * style.pageMargin).coerceIn(MIN_PAGE_HEIGHT, MAX_PAGE_HEIGHT)
 }
 
-/** The share of the whole extent taken by the weights from [first] to [last]. */
-private fun List<Float>.fractionOf(first: Int, last: Int): Float {
+/** The share of the whole extent taken by the first row or column. */
+private fun List<Float>.firstFraction(): Float {
     val total = sum()
-    if (total <= 0f) return 0f
-    return subList(first.coerceAtLeast(0), (last + 1).coerceAtMost(size)).sum() / total
+    if (total <= 0f || isEmpty()) return 0f
+    return first() / total
 }

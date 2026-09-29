@@ -125,16 +125,17 @@ fun ComicEditorScreen(
                     return@Column
                 }
                 if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.GRID) {
-                    val grid = state.comic.layout.grid
                     GridLayoutScreen(
-                        sizing = state.comic.sizing,
-                        panelRatio = state.comic.panelRatio(),
-                        rows = grid.rows,
-                        columns = grid.columns,
-                        panels = state.comic.panels.map { it.image },
+                        comic = state.comic,
                         images = images,
+                        selection = state.selection,
+                        canMerge = state.canMerge,
+                        canUnmerge = state.canUnmerge,
                         onChange = actions::setSizing,
                         onGrid = actions::applyPreset,
+                        onToggleSelection = actions::toggleSelection,
+                        onMerge = actions::mergeSelection,
+                        onUnmerge = actions::unmergeSelection,
                         onBack = actions::closeLayoutKind,
                     )
                     return@Column
