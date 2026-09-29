@@ -9,9 +9,14 @@ const val TALL_RATIO = 2f / 3f
 /** A panel on its side, three wide by two tall. */
 const val WIDE_RATIO = 3f / 2f
 
-/** The widest and narrowest a page may become, so a stray ratio cannot collapse the comic. */
-const val MIN_PAGE_HEIGHT = 0.2f
-const val MAX_PAGE_HEIGHT = 5f
+/**
+ * The widest and narrowest a page may become, so a stray ratio cannot collapse the comic.
+ *
+ * Wide enough for a real strip: six panels of 3:2 side by side is a page nine times wider than it
+ * is tall, and the same strip stood on end is nine times taller than it is wide.
+ */
+const val MIN_PAGE_HEIGHT = 0.05f
+const val MAX_PAGE_HEIGHT = 20f
 
 /**
  * What gives the page its height.

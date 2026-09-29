@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
@@ -96,14 +97,29 @@ fun ComicEditorScreen(
                 // A single panel is the whole comic, so its own preview says everything the
                 // canvas would.
                 if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.SINGLE) {
-                    val panel = state.comic.panelShapes().firstOrNull()?.bounds
                     SinglePanelShapeScreen(
                         sizing = state.comic.sizing,
-                        panelRatio = panel?.takeIf { it.height > 0f }
-                            ?.let { it.width / it.height } ?: 1f,
+                        panelRatio = state.comic.panelRatio(),
                         image = state.comic.panels.firstOrNull()?.image,
                         images = images,
                         onChange = actions::setSizing,
+                        onBack = actions::closeLayoutKind,
+                    )
+                    return@Column
+                }
+                if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.STRIP) {
+                    val grid = state.comic.layout.grid
+                    StripLayoutScreen(
+                        sizing = state.comic.sizing,
+                        panelRatio = state.comic.panelRatio(),
+                        horizontal = grid.rows == 1,
+                        panelCount = maxOf(grid.rows, grid.columns),
+                        panels = state.comic.panels.map { it.image },
+                        images = images,
+                        onChange = actions::setSizing,
+                        onStrip = { across, count ->
+                            if (across) actions.applyPreset(1, count) else actions.applyPreset(count, 1)
+                        },
                         onBack = actions::closeLayoutKind,
                     )
                     return@Column
@@ -563,3 +579,9 @@ private val LayoutPresets = listOf(
 )
 
 private const val DIMMED = 0.35f
+
+/** The shape of one panel as the comic will really draw it, which is what a preview must show. */
+private fun Comic.panelRatio(): Float {
+    val panel = panelShapes().firstOrNull()?.bounds ?: return 1f
+    return if (panel.height > 0f) panel.width / panel.height else 1f
+}

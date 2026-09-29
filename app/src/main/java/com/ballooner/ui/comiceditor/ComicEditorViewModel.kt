@@ -338,12 +338,19 @@ class ComicEditorViewModel @Inject constructor(
     }
 
     /**
-     * Opens one kind of layout's options. Choosing a single panel is itself a layout change; the
-     * other kinds only decide which options are on show.
+     * Opens one kind of layout's options, starting the comic on that kind when it is not already.
+     * A comic that is already the chosen kind is left exactly as it is.
      */
     fun selectLayoutKind(kind: LayoutKind) {
         updateContent { it.copy(layoutKind = kind).withSelection(emptyList()) }
-        if (kind == LayoutKind.SINGLE) applyPreset(rows = 1, columns = 1)
+        val comic = contentOrNull()?.comic ?: return
+        if (layoutKindOf(comic) == kind) return
+        when (kind) {
+            LayoutKind.SINGLE -> applyPreset(rows = 1, columns = 1)
+            LayoutKind.STRIP -> applyPreset(rows = 1, columns = DEFAULT_STRIP_PANELS)
+            // Neither has a screen of its own yet, so both keep whatever the comic already is.
+            LayoutKind.GRID, LayoutKind.CUSTOM -> Unit
+        }
     }
 
     /** Returns to the preset picker, leaving the comic as it is. */
@@ -485,6 +492,9 @@ private fun ComicEditorUiState.Content.withSelection(selection: List<Span>): Com
     )
 
 private const val UNDO_LIMIT = 50
+
+/** What a strip starts as, matching the arrangement its preset card shows. */
+private const val DEFAULT_STRIP_PANELS = 3
 
 /** The navigation argument naming which comic the editor opens. */
 const val COMIC_ID_KEY = "comicId"
