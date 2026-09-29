@@ -57,10 +57,15 @@ fun ComicEditorRoute(
 
     // Which panel the picker was opened for, so its result knows where to land.
     var pickingFor by remember { mutableStateOf<Int?>(null) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    // Picking is plural: one trip can fill the whole page. How many the picker offers is left to
+    // the platform, and anything picked beyond the panels there are to fill is simply not used.
+    val pickContract = remember { ActivityResultContracts.PickMultipleVisualMedia() }
+    val picker = rememberLauncherForActivityResult(pickContract) { uris ->
         val panel = pickingFor
         pickingFor = null
-        if (uri != null && panel != null) viewModel.importPanelImage(panel, uri.toString())
+        if (uris.isNotEmpty() && panel != null) {
+            viewModel.importPanelImages(panel, uris.map { it.toString() })
+        }
     }
 
     val context = LocalContext.current

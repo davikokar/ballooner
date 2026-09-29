@@ -163,6 +163,16 @@ Comic-level settings that restyle the whole comic at once.
 - **Panel image transform**: How a Panel image sits inside its panel: its centre, zoom, and
   rotation angle.
 - **Empty panel**: A panel with no Panel image yet.
+- **Panel corner controls**: The round controls that appear in the top corners of the Selected
+  panel, so what can be done to a panel is offered on the panel itself. Which ones appear depends
+  on what is in it.
+- **Add image button**: The Panel corner control in the top-left corner of an Empty panel. Opens
+  the photo picker, which takes several images at once: the first fills the Selected panel and the
+  rest fill the Empty panels that follow it, wrapping round the page.
+- **Expand button**: The Panel corner control in the top-left corner of a filled panel. Focuses
+  the panel so it fills the Canvas, and gives the Canvas back when it is already focused.
+- **Remove image button**: The Panel corner control in the top-right corner of a filled panel.
+  Empties the panel without removing the panel itself.
 - **Cover**: The rule that a Panel image always fills its panel completely. Zoom, pan, and
   rotation are constrained so no empty area can appear.
 - **Swap**: Exchange the images of two panels by dragging one onto the other.

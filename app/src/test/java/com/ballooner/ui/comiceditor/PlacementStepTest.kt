@@ -39,6 +39,14 @@ class PlacementStepTest {
         panels = List(2) { Panel(if (withImages) PanelImage("image$it") else null) },
     )
 
+    /** A row of panels, each either empty or already holding the named image. */
+    private fun strip(images: List<String?>) = Comic(
+        sizing = PageSizing.Ratio(0.5f),
+        style = style,
+        layout = Layout(Grid(rows = 1, columns = images.size)),
+        panels = images.map { uri -> Panel(uri?.let { PanelImage(it) }) },
+    )
+
     private fun editorFor(initial: Comic): Pair<ComicEditorViewModel, FakeComicRepository> {
         val repository = FakeComicRepository(initial)
         return ComicEditorViewModel(comicId = 1L, repository = repository) to repository
@@ -95,6 +103,82 @@ class PlacementStepTest {
         assertEquals(MIN_PANEL_ZOOM, placed.zoom, TOLERANCE)
         assertEquals(0f, placed.angleDegrees, TOLERANCE)
         assertEquals("file://picked", repository.saved.value.getValue(1L).panels[0].image?.sourceUri)
+    }
+
+    @Test
+    fun `the first picked image lands in the panel that was asked for`() = runTest {
+        val (viewModel, _) = editorFor(strip(listOf(null, null, null, null)))
+        advanceUntilIdle()
+
+        viewModel.importPanelImages(2, listOf("file://a"))
+        advanceUntilIdle()
+
+        assertEquals("file://a", imageOf(viewModel, 2)!!.sourceUri)
+        assertNull(imageOf(viewModel, 0))
+    }
+
+    @Test
+    fun `the images picked after the first fill the panels that follow it`() = runTest {
+        val (viewModel, _) = editorFor(strip(listOf(null, null, null, null)))
+        advanceUntilIdle()
+
+        viewModel.importPanelImages(1, listOf("file://a", "file://b", "file://c"))
+        advanceUntilIdle()
+
+        assertEquals("file://a", imageOf(viewModel, 1)!!.sourceUri)
+        assertEquals("file://b", imageOf(viewModel, 2)!!.sourceUri)
+        assertEquals("file://c", imageOf(viewModel, 3)!!.sourceUri)
+    }
+
+    @Test
+    fun `filling the page leaves the panels that already have an image alone`() = runTest {
+        val (viewModel, _) = editorFor(strip(listOf(null, "kept", null, null)))
+        advanceUntilIdle()
+
+        viewModel.importPanelImages(0, listOf("file://a", "file://b", "file://c"))
+        advanceUntilIdle()
+
+        assertEquals("kept", imageOf(viewModel, 1)!!.sourceUri)
+        assertEquals("file://b", imageOf(viewModel, 2)!!.sourceUri)
+        assertEquals("file://c", imageOf(viewModel, 3)!!.sourceUri)
+    }
+
+    @Test
+    fun `filling the page carries on from the last panel round to the first`() = runTest {
+        val (viewModel, _) = editorFor(strip(listOf(null, null, null, null)))
+        advanceUntilIdle()
+
+        viewModel.importPanelImages(3, listOf("file://a", "file://b"))
+        advanceUntilIdle()
+
+        assertEquals("file://a", imageOf(viewModel, 3)!!.sourceUri)
+        assertEquals("file://b", imageOf(viewModel, 0)!!.sourceUri)
+    }
+
+    @Test
+    fun `more images than there are panels for leaves the extra ones behind`() = runTest {
+        val (viewModel, _) = editorFor(strip(listOf(null, null)))
+        advanceUntilIdle()
+
+        viewModel.importPanelImages(0, listOf("file://a", "file://b", "file://c"))
+        advanceUntilIdle()
+
+        assertEquals(2, content(viewModel).comic.panels.size)
+        assertEquals("file://b", imageOf(viewModel, 1)!!.sourceUri)
+    }
+
+    @Test
+    fun `one trip to the picker counts as one undo`() = runTest {
+        val (viewModel, _) = editorFor(strip(listOf(null, null, null, null)))
+        advanceUntilIdle()
+        viewModel.importPanelImages(0, listOf("file://a", "file://b", "file://c"))
+        advanceUntilIdle()
+
+        viewModel.undo()
+        advanceUntilIdle()
+
+        assertTrue(content(viewModel).comic.panels.all { it.image == null })
+        assertFalse(content(viewModel).canUndo)
     }
 
     @Test

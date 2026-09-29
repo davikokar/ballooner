@@ -273,11 +273,25 @@ class ComicEditorViewModel @Inject constructor(
         commit(content.comic.copy(panels = content.comic.panels.toMutableList().also { it[index] = replaced }))
     }
 
-    /** Takes a copy of a picked image before putting it in a panel. */
-    fun importPanelImage(index: Int, pickedUri: String) {
+    /**
+     * Takes copies of picked images and puts them in panels, starting with [index].
+     *
+     * One trip to the picker can fill a whole page: the first image lands where it was asked for
+     * and the rest go into the panels that are still empty, so nothing already placed is lost.
+     */
+    fun importPanelImages(index: Int, pickedUris: List<String>) {
+        if (pickedUris.isEmpty()) return
         viewModelScope.launch {
-            val imported = imageImporter.import(pickedUri) ?: return@launch
-            setPanelImage(index, imported.uri, imported.aspect)
+            val targets = fillOrder(contentOrNull()?.comic ?: return@launch, index, pickedUris.size)
+            val imported = targets.indices.map { imageImporter.import(pickedUris[it]) }
+            val comic = contentOrNull()?.comic ?: return@launch
+            val panels = comic.panels.toMutableList()
+            targets.forEachIndexed { at, panel ->
+                val image = imported[at] ?: return@forEachIndexed
+                if (panel !in panels.indices) return@forEachIndexed
+                panels[panel] = panels[panel].copy(image = PanelImage(image.uri, sourceAspect = image.aspect))
+            }
+            commit(comic.copy(panels = panels))
         }
     }
 
@@ -576,6 +590,22 @@ private fun ComicEditorUiState.Content.withSelection(selection: List<Span>): Com
         canMerge = selection.size >= 2 && comic.layout.grid.mergedFrom(selection) != null,
         canUnmerge = selection.singleOrNull()?.let { it.rowCount > 1 || it.columnCount > 1 } ?: false,
     )
+
+/**
+ * Which panels a run of [count] picked images lands in when the first was asked for at [from].
+ *
+ * The panel that was asked for always takes the first image, whatever is already in it; the rest
+ * follow it in reading order and skip any panel that is already spoken for, wrapping round the
+ * page so a picker opened on the last panel still fills the empty ones before it.
+ */
+internal fun fillOrder(comic: Comic, from: Int, count: Int): List<Int> {
+    val panels = comic.panels
+    if (from !in panels.indices || count <= 0) return emptyList()
+    val rest = panels.indices
+        .map { (from + 1 + it) % panels.size }
+        .filter { it != from && panels[it].image == null }
+    return (listOf(from) + rest).take(count)
+}
 
 private const val UNDO_LIMIT = 50
 

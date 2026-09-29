@@ -174,7 +174,7 @@ fun ComicEditorScreen(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Page(state, images, actions)
+                    Page(state, images, actions, onPickImage)
                 }
                 // The controls scroll rather than squeezing the page, which is being edited.
                 Column(
@@ -287,7 +287,12 @@ private fun ComicOptionsSheet(
 }
 
 @Composable
-private fun Page(state: ComicEditorUiState.Content, images: PanelImageSource, actions: ComicEditorActions) {
+private fun Page(
+    state: ComicEditorUiState.Content,
+    images: PanelImageSource,
+    actions: ComicEditorActions,
+    onPickImage: (Int) -> Unit,
+) {
     val shapes = remember(state.comic) {
         panelShapes(state.comic.layout, state.comic.pageHeight, state.comic.style)
     }
@@ -317,6 +322,7 @@ private fun Page(state: ComicEditorUiState.Content, images: PanelImageSource, ac
                 focus = focus,
                 images = images,
                 actions = actions,
+                onPickImage = onPickImage,
             )
         }
         if (state.step == EditorStep.BALLOONS) {
@@ -328,14 +334,24 @@ private fun Page(state: ComicEditorUiState.Content, images: PanelImageSource, ac
             )
         }
         if (state.focusedPanel != null) {
-            FocusNavigation(actions, modifier = Modifier.fillMaxSize())
+            FocusNavigation(
+                actions = actions,
+                // In the Placement step the panel's own corner control gives the canvas back, and
+                // a second button in the same corner would sit on top of it.
+                showAll = state.step != EditorStep.PLACEMENT,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
 
 /** Edge buttons for stepping between panels, and back out, without leaving focus. */
 @Composable
-private fun FocusNavigation(actions: ComicEditorActions, modifier: Modifier = Modifier) {
+private fun FocusNavigation(
+    actions: ComicEditorActions,
+    showAll: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier = modifier) {
         OutlinedButton(
             onClick = { actions.focusNeighbour(forward = false) },
@@ -349,11 +365,13 @@ private fun FocusNavigation(actions: ComicEditorActions, modifier: Modifier = Mo
         ) {
             Text("\u203a")
         }
-        OutlinedButton(
-            onClick = { actions.focusPanel(null) },
-            modifier = Modifier.align(Alignment.TopEnd),
-        ) {
-            Text("Show all", style = MaterialTheme.typography.labelSmall)
+        if (showAll) {
+            OutlinedButton(
+                onClick = { actions.focusPanel(null) },
+                modifier = Modifier.align(Alignment.TopEnd),
+            ) {
+                Text("Show all", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
