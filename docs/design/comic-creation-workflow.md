@@ -151,6 +151,10 @@ instead of being kept as a line that cannot be seen. Because the ends only give 
 direction, one end left on the page always keeps the cut alive, so this cannot happen by
 accident.
 
+A trace does not have to begin on the panel it cuts. It can start anywhere on the ground the
+page is drawn on, which is the only way to aim a line at the very edge of a panel without the
+finger covering what it is aiming at.
+
 Cuts are the only source of non-rectangular panels; a grid on its own always produces rectangles.
 
 ### Comic style
@@ -378,8 +382,10 @@ line is dragged or the page is reshaped, instead of drifting away from it.
 ### Cuts are anchored by position, not by index
 
 A cut is the line through two page-normalized points, plus a scope. A page cut splits every panel
-it crosses. A panel cut carries an **anchor**: the point where the user began the trace. When the
-layout is evaluated, the cut splits whichever panel currently contains that anchor.
+it crosses. A panel cut carries an **anchor**: the point where the traced line first passes
+inside a panel, which is where the finger went down when the trace began on a panel and the edge
+it crossed when the trace began beside one. When the layout is evaluated, the cut splits
+whichever panel currently contains that anchor.
 
 Resolving the target by position rather than by index is what makes cuts independent of each
 other. Deleting or moving an earlier cut merges or reshapes panels, but a later cut's anchor

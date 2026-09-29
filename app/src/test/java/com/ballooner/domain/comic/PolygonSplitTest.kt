@@ -84,6 +84,35 @@ class PolygonSplitTest {
         assertFalse(triangle.contains(PagePoint(0.9f, 0.9f)))
     }
 
+    @Test
+    fun `a trace that begins inside a panel is anchored where it began`() {
+        val point = firstPanelPoint(listOf(unitSquare), PagePoint(0.3f, 0.3f), PagePoint(0.9f, 0.9f))
+
+        assertEquals(PagePoint(0.3f, 0.3f), point)
+    }
+
+    @Test
+    fun `a trace that begins beside a panel is anchored inside it`() {
+        val point = firstPanelPoint(listOf(unitSquare), PagePoint(-0.5f, 0.5f), PagePoint(1.5f, 0.5f))!!
+
+        assertTrue(unitSquare.contains(point))
+    }
+
+    @Test
+    fun `a trace is anchored in the first panel it enters`() {
+        val left = Polygon.of(PageRect(0f, 0f, 0.4f, 1f))
+        val right = Polygon.of(PageRect(0.6f, 0f, 0.4f, 1f))
+
+        val point = firstPanelPoint(listOf(left, right), PagePoint(-0.5f, 0.5f), PagePoint(1.5f, 0.5f))!!
+
+        assertTrue(left.contains(point))
+    }
+
+    @Test
+    fun `a trace that meets no panel is anchored nowhere`() {
+        assertNull(firstPanelPoint(listOf(unitSquare), PagePoint(2f, 0f), PagePoint(2f, 1f)))
+    }
+
     private fun Polygon.isConvex(): Boolean {
         var positive = false
         var negative = false

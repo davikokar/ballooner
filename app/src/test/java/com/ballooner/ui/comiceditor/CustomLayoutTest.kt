@@ -288,6 +288,46 @@ class CustomLayoutTest {
     }
 
     @Test
+    fun `a line drawn from beside the page cuts the panel it crosses`() = runTest {
+        val viewModel = editorFor(comic())
+        advanceUntilIdle()
+
+        // The trace begins off the page, so there is no panel under the finger when it goes down.
+        viewModel.addCut(
+            from = NormalizedPoint(-0.3f, 0.5f),
+            to = NormalizedPoint(1.3f, 0.5f),
+            scope = CutScope.AtPoint(NormalizedPoint(-0.3f, 0.5f)),
+        )
+        advanceUntilIdle()
+
+        assertEquals(2, content(viewModel).comic.panels.size)
+    }
+
+    @Test
+    fun `a line drawn from beside the page cuts the first panel it enters`() = runTest {
+        val viewModel = editorFor(comic())
+        advanceUntilIdle()
+        viewModel.addCut(
+            from = NormalizedPoint(0.5f, 0f),
+            to = NormalizedPoint(0.5f, 1f),
+            scope = CutScope.AtPoint(NormalizedPoint(0.25f, 0.5f)),
+        )
+        advanceUntilIdle()
+
+        // Across both panels from the left, so only the left one is cut.
+        viewModel.addCut(
+            from = NormalizedPoint(-0.3f, 0.5f),
+            to = NormalizedPoint(1.3f, 0.5f),
+            scope = CutScope.AtPoint(NormalizedPoint(-0.3f, 0.5f)),
+        )
+        advanceUntilIdle()
+
+        val panels = content(viewModel).comic.panelShapes()
+        assertEquals(3, panels.size)
+        assertEquals(2, panels.count { it.bounds.right <= 0.5f })
+    }
+
+    @Test
     fun `a cut can be undone`() = runTest {
         val viewModel = editorFor(comic())
         advanceUntilIdle()

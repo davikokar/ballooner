@@ -115,6 +115,47 @@ fun splitConvex(polygon: Polygon, line: Line, inset: Float): Pair<Polygon, Polyg
 }
 
 /**
+ * Where a line traced from [from] to [to] first passes inside one of [panels], or null when it
+ * passes inside none of them.
+ *
+ * A trace can begin beside the page rather than on it, so the panel a cut belongs to is the
+ * first one its line enters. The point returned lies inside that panel, which is what a cut's
+ * anchor has to be.
+ */
+fun firstPanelPoint(panels: List<Polygon>, from: PagePoint, to: PagePoint): PagePoint? {
+    if (panels.any { it.contains(from) }) return from
+    val entered = panels.mapNotNull { it.insideStretch(from, to) }.minByOrNull { it.first }
+        ?: return null
+    val middle = (entered.first + entered.second) / 2f
+    return PagePoint(from.x + (to.x - from.x) * middle, from.y + (to.y - from.y) * middle)
+}
+
+/**
+ * How far along the segment [from]..[to] this polygon is entered and left again, as fractions of
+ * the segment, or null when the segment misses it.
+ */
+private fun Polygon.insideStretch(from: PagePoint, to: PagePoint): Pair<Float, Float>? {
+    var enter = 0f
+    var leave = 1f
+    val interior = centroid
+    for (i in vertices.indices) {
+        val edge = Line(vertices[i], vertices[(i + 1) % vertices.size])
+        val inward = if (edge.signedDistanceTo(interior) >= 0f) edge else edge.reversed()
+        val atFrom = inward.signedDistanceTo(from)
+        val change = inward.signedDistanceTo(to) - atFrom
+        if (abs(change) < MIN_LINE_LENGTH) {
+            // Parallel to this edge: either wholly on the inside of it, or missing it entirely.
+            if (atFrom < 0f) return null
+            continue
+        }
+        val crossing = -atFrom / change
+        if (change > 0f) enter = maxOf(enter, crossing) else leave = minOf(leave, crossing)
+        if (enter > leave) return null
+    }
+    return enter to leave
+}
+
+/**
  * The area two convex polygons have in common, used to work out which old panel each new panel
  * came from after a layout edit.
  */

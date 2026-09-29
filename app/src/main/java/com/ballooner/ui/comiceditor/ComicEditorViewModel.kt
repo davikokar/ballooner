@@ -26,6 +26,7 @@ import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.PanelMatching
 import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.anchoredIn
 import com.ballooner.domain.comic.centreOnPage
 import com.ballooner.domain.comic.cutDivides
 import com.ballooner.domain.comic.mergedFrom
@@ -488,10 +489,10 @@ class ComicEditorViewModel @Inject constructor(
     fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope) {
         val content = contentOrNull() ?: return
         val comic = content.comic
-        val layout = comic.layout.withCut(Cut(from, to, scope))
-        val before = panelShapes(comic.layout, comic.pageHeight, comic.style).size
-        val after = panelShapes(layout, comic.pageHeight, comic.style).size
-        if (after <= before) return
+        val panels = panelShapes(comic.layout, comic.pageHeight, comic.style)
+        val anchored = scope.anchoredIn(panels, from, to, comic.pageHeight) ?: return
+        val layout = comic.layout.withCut(Cut(from, to, anchored))
+        if (panelShapes(layout, comic.pageHeight, comic.style).size <= panels.size) return
         applyLayout(layout, PanelMatching.BY_OVERLAP)
     }
 

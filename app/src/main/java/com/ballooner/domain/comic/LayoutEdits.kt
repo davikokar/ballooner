@@ -43,6 +43,25 @@ fun Grid.unmergedAt(row: Int, column: Int): Grid =
 
 fun Layout.withCut(cut: Cut): Layout = copy(cuts = cuts + cut)
 
+/**
+ * The scope a cut traced from [from] to [to] really has, given the [panels] it is drawn over.
+ *
+ * A trace can begin beside the page rather than on a panel, so a panel cut whose anchor has
+ * landed on nothing is re-anchored where its line first meets one. Null when the line meets no
+ * panel at all, and so the cut would separate nothing.
+ */
+fun CutScope.anchoredIn(
+    panels: List<Polygon>,
+    from: NormalizedPoint,
+    to: NormalizedPoint,
+    pageHeight: Float,
+): CutScope? {
+    if (this !is CutScope.AtPoint) return this
+    if (panels.any { it.contains(anchor.onPage(pageHeight)) }) return this
+    val met = firstPanelPoint(panels, from.onPage(pageHeight), to.onPage(pageHeight)) ?: return null
+    return CutScope.AtPoint(met.normalized(pageHeight))
+}
+
 fun Layout.withoutCutAt(index: Int): Layout =
     if (index in cuts.indices) copy(cuts = cuts.filterIndexed { i, _ -> i != index }) else this
 

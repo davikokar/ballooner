@@ -10,6 +10,10 @@ data class NormalizedPoint(val u: Float, val v: Float) {
     fun onPage(pageHeight: Float): PagePoint = PagePoint(u, v * pageHeight)
 }
 
+/** The same point as a fraction of the page, which is how the document stores it. */
+fun PagePoint.normalized(pageHeight: Float): NormalizedPoint =
+    NormalizedPoint(x, if (pageHeight > 0f) y / pageHeight else 0f)
+
 /** Comic-level styling. Every distance is a fraction of the page width. */
 data class ComicStyle(
     val pageMargin: Float = 0.02f,
