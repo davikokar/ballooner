@@ -323,8 +323,9 @@ is a pure function returning one convex polygon per panel, in reading order. `pa
 itself derived, from the sizing rule and the reference panel, so nothing about the page's
 geometry is stored either. Panels are produced in two stages:
 
-1. **The grid.** Each span becomes a rectangle, inset by the page margin where it meets a page
-   edge and by half the gutter on every side it shares with a neighbour.
+1. **The grid.** The gutters are taken out of the content area first, and the row and column
+   weights divide what is left, so equal weights produce equal cells however many there are. A
+   merged span covers the gutters it straddles.
 2. **The cuts, in the order they were drawn.** A page cut replaces every polygon it crosses with
    the two pieces on either side; a panel cut does the same to its target alone. Each piece is
    inset by half the gutter from the cut line.

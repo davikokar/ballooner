@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -44,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -216,7 +219,8 @@ internal fun PanelPreview(
     panels: List<PanelImage?>,
     images: PanelImageSource,
     modifier: Modifier = Modifier,
-    horizontal: Boolean = true,
+    rows: Int = 1,
+    columns: Int = 1,
     emptyMessage: String = "The panel takes the shape of the image you choose next.",
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -272,50 +276,48 @@ internal fun PanelPreview(
                     color = scheme.onSurfaceVariant,
                 )
             } else {
-                PanelStrip(ratio, panels, images, horizontal)
+                PanelLattice(ratio, panels, images, rows, columns)
             }
         }
     }
 }
 
-/** The panels themselves, laid out the way the strip runs. One panel is just a strip of one. */
+/** The panels themselves, in reading order. One panel and a strip are both just small lattices. */
 @Composable
-private fun PanelStrip(
+private fun PanelLattice(
     ratio: Float,
     panels: List<PanelImage?>,
     images: PanelImageSource,
-    horizontal: Boolean,
+    rows: Int,
+    columns: Int,
 ) {
-    val count = panels.size.coerceAtLeast(1)
-    val gap = if (count > 1) 4.dp else 0.dp
-    val frames: @Composable (Modifier) -> Unit = { frameModifier ->
-        panels.forEachIndexed { index, placement ->
-            PanelFrame(
-                ratio = ratio,
-                placement = placement,
-                images = images,
-                single = count == 1,
-                modifier = frameModifier,
-                key = index,
-            )
-        }
-    }
-    // The whole strip is sized so it fits the ground, and each panel divides it evenly.
-    val stripRatio = if (horizontal) ratio * count else ratio / count
-    Box(modifier = Modifier.aspectRatio(stripRatio)) {
-        if (horizontal) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(gap),
-            ) {
-                frames(Modifier.weight(1f).fillMaxHeight())
-            }
-        } else {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(gap),
-            ) {
-                frames(Modifier.weight(1f).fillMaxWidth())
+    val down = rows.coerceAtLeast(1)
+    val across = columns.coerceAtLeast(1)
+    val single = down == 1 && across == 1
+    val gap = if (single) 0.dp else 4.dp
+    // The whole lattice is sized so it fits the ground, and the cells divide it evenly.
+    Box(modifier = Modifier.aspectRatio(ratio * across / down)) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            repeat(down) { row ->
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(gap),
+                ) {
+                    repeat(across) { column ->
+                        val index = row * across + column
+                        PanelFrame(
+                            ratio = ratio,
+                            placement = panels.getOrNull(index),
+                            images = images,
+                            single = single,
+                            key = index,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                        )
+                    }
+                }
             }
         }
     }
@@ -654,6 +656,80 @@ private fun FilledTrack(fraction: Float) {
             cornerRadius = radius,
         )
     }
+}
+
+/**
+ * A whole number nudged one at a time, which takes a fraction of the room a row of chips would.
+ *
+ * There is a floor but no ceiling: how many panels a layout holds is the user's business.
+ */
+@Composable
+internal fun Stepper(label: String, value: Int, min: Int, onChange: (Int) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = scheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .border(BorderStroke(1.dp, scheme.outlineVariant), RoundedCornerShape(4.dp))
+                .background(scheme.surfaceContainerLowest),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StepperButton("\u2212", enabled = value > min) { onChange(value - 1) }
+            Text(
+                text = "$value",
+                style = MaterialTheme.typography.labelMedium,
+                color = scheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(min = 22.dp),
+            )
+            StepperButton("+", enabled = true) { onChange(value + 1) }
+        }
+    }
+}
+
+@Composable
+private fun StepperButton(glyph: String, enabled: Boolean, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = glyph,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (enabled) scheme.primary else scheme.outlineVariant,
+        )
+    }
+}
+
+/** The bordered strip the layout's own controls sit in, above the shape tiles. */
+@Composable
+internal fun LayoutControlBar(content: @Composable RowScope.() -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(scheme.surfaceContainerLow)
+            .border(
+                border = BorderStroke(1.dp, scheme.surfaceContainerHigh),
+                shape = RoundedCornerShape(8.dp),
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
 }
 
 /**

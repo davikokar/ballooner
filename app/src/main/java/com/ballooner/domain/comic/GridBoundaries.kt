@@ -13,9 +13,9 @@ data class GridBoundary(val axis: GridAxis, val index: Int, val position: Float)
 /** Every grid line on the page, edges excluded because the page margin owns those. */
 fun gridBoundaries(grid: Grid, pageHeight: Float, style: ComicStyle): List<GridBoundary> {
     val content = contentRect(pageHeight, style)
-    val columns = boundaryPositions(grid.columnWeights, content.left, content.width)
+    val columns = boundaryPositions(grid.columnWeights, content.left, content.width, style.gutter)
         .mapIndexed { index, position -> GridBoundary(GridAxis.COLUMN, index + 1, position) }
-    val rows = boundaryPositions(grid.rowWeights, content.top, content.height)
+    val rows = boundaryPositions(grid.rowWeights, content.top, content.height, style.gutter)
         .mapIndexed { index, position -> GridBoundary(GridAxis.ROW, index + 1, position) }
     return columns + rows
 }
@@ -45,13 +45,15 @@ fun Grid.withBoundaryMoved(axis: GridAxis, index: Int, delta: Float): Grid {
     return if (axis == GridAxis.COLUMN) copy(columnWeights = moved) else copy(rowWeights = moved)
 }
 
-private fun boundaryPositions(weights: List<Float>, start: Float, extent: Float): List<Float> {
-    val total = weights.sum().takeIf { it > 0f } ?: return emptyList()
-    var running = 0f
-    return weights.dropLast(1).map { weight ->
-        running += weight
-        start + extent * running / total
-    }
+/** A grid line sits in the middle of the gutter it opens. */
+private fun boundaryPositions(
+    weights: List<Float>,
+    start: Float,
+    extent: Float,
+    gutter: Float,
+): List<Float> {
+    val tracks = gridTracks(weights, start, extent, gutter)
+    return tracks.dropLast(1).map { it.end + gutter / 2f }
 }
 
 private const val MIN_CELL_WEIGHT_FRACTION = 0.08f

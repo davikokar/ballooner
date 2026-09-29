@@ -61,18 +61,20 @@ fun pageHeightOf(
     if (ratio <= 0f) return SQUARE_RATIO
     val grid = layout.grid
     val span = grid.panelSpans().firstOrNull() ?: return 1f / ratio
-    val halfGutter = style.gutter / 2f
+    val gutter = style.gutter
 
     val columnFraction = grid.columnWeights.fractionOf(span.firstColumn, span.lastColumn)
     val rowFraction = grid.rowWeights.fractionOf(span.firstRow, span.lastRow)
     if (rowFraction <= 0f) return SQUARE_RATIO
 
-    val widthInset = halfGutter * interiorEdges(span.firstColumn, span.lastColumn, grid.columns)
-    val heightInset = halfGutter * interiorEdges(span.firstRow, span.lastRow, grid.rows)
-
-    val width = (1f - 2f * style.pageMargin) * columnFraction - widthInset
+    // The gutters are fixed, so they come out of the extent before the weights divide the rest.
+    // A span covering several cells swallows the gutters between them.
+    val available = ((1f - 2f * style.pageMargin) - gutter * (grid.columns - 1)).coerceAtLeast(0f)
+    val width = available * columnFraction + gutter * (span.columnCount - 1)
     if (width <= 0f) return SQUARE_RATIO
-    val contentHeight = (width / ratio + heightInset) / rowFraction
+
+    val availableHeight = (width / ratio - gutter * (span.rowCount - 1)) / rowFraction
+    val contentHeight = availableHeight + gutter * (grid.rows - 1)
     return (contentHeight + 2f * style.pageMargin).coerceIn(MIN_PAGE_HEIGHT, MAX_PAGE_HEIGHT)
 }
 
@@ -82,7 +84,3 @@ private fun List<Float>.fractionOf(first: Int, last: Int): Float {
     if (total <= 0f) return 0f
     return subList(first.coerceAtLeast(0), (last + 1).coerceAtMost(size)).sum() / total
 }
-
-/** How many of a span's edges face a neighbour, and so carry half a gutter. */
-private fun interiorEdges(first: Int, last: Int, count: Int): Float =
-    (if (first > 0) 1f else 0f) + (if (last < count - 1) 1f else 0f)

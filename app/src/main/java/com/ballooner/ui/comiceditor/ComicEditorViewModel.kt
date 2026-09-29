@@ -348,8 +348,9 @@ class ComicEditorViewModel @Inject constructor(
         when (kind) {
             LayoutKind.SINGLE -> applyPreset(rows = 1, columns = 1)
             LayoutKind.STRIP -> applyPreset(rows = 1, columns = DEFAULT_STRIP_PANELS)
-            // Neither has a screen of its own yet, so both keep whatever the comic already is.
-            LayoutKind.GRID, LayoutKind.CUSTOM -> Unit
+            LayoutKind.GRID -> applyPreset(rows = DEFAULT_GRID_SIDE, columns = DEFAULT_GRID_SIDE)
+            // Custom starts from whatever the comic already is and is cut from there.
+            LayoutKind.CUSTOM -> Unit
         }
     }
 
@@ -495,6 +496,9 @@ private const val UNDO_LIMIT = 50
 
 /** What a strip starts as, matching the arrangement its preset card shows. */
 private const val DEFAULT_STRIP_PANELS = 3
+
+/** What a grid starts as, matching the arrangement its preset card shows. */
+private const val DEFAULT_GRID_SIDE = 2
 
 /** The navigation argument naming which comic the editor opens. */
 const val COMIC_ID_KEY = "comicId"

@@ -1,7 +1,7 @@
 package com.ballooner.ui.comiceditor
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelImage
@@ -59,12 +56,25 @@ fun StripLayoutScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         LayoutOptionBreadcrumb(current = "STRIP", onBack = onBack)
-        StripControls(
-            horizontal = horizontal,
-            count = count,
-            onDirection = { onStrip(it, count) },
-            onCount = { onStrip(horizontal, it) },
-        )
+        LayoutControlBar {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Orientation",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DirectionButton(across = true, active = horizontal) { onStrip(true, count) }
+                    DirectionButton(across = false, active = !horizontal) { onStrip(false, count) }
+                }
+            }
+            Stepper(label = "Panels", value = count, min = MIN_STRIP_PANELS) {
+                onStrip(horizontal, it)
+            }
+        }
         PanelShapeChooser(
             sizing = sizing,
             // Every panel of a strip is the same shape, so the first image decides all of them.
@@ -76,58 +86,10 @@ fun StripLayoutScreen(
             panels = panels,
             images = images,
             modifier = Modifier.weight(1f),
-            horizontal = horizontal,
+            rows = if (horizontal) 1 else count,
+            columns = if (horizontal) count else 1,
             emptyMessage = "Every panel takes the shape of the first image you choose next.",
         )
-    }
-}
-
-@Composable
-private fun StripControls(
-    horizontal: Boolean,
-    count: Int,
-    onDirection: (Boolean) -> Unit,
-    onCount: (Int) -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(scheme.surfaceContainerLow)
-            .border(
-                border = BorderStroke(1.dp, scheme.surfaceContainerHigh),
-                shape = RoundedCornerShape(8.dp),
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Orientation",
-                style = MaterialTheme.typography.labelMedium,
-                color = scheme.onSurfaceVariant,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                DirectionButton(across = true, active = horizontal) { onDirection(true) }
-                DirectionButton(across = false, active = !horizontal) { onDirection(false) }
-            }
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Panels",
-                style = MaterialTheme.typography.labelMedium,
-                color = scheme.onSurfaceVariant,
-            )
-            Stepper(value = count, min = MIN_STRIP_PANELS, onChange = onCount)
-        }
     }
 }
 
@@ -154,59 +116,11 @@ private fun DirectionButton(across: Boolean, active: Boolean, onClick: () -> Uni
             repeat(3) { index ->
                 val offset = index * (thickness + gap)
                 if (across) {
-                    drawRect(
-                        color = bars,
-                        topLeft = Offset(offset, 0f),
-                        size = Size(thickness, size.height),
-                    )
+                    drawRect(bars, Offset(offset, 0f), Size(thickness, size.height))
                 } else {
-                    drawRect(
-                        color = bars,
-                        topLeft = Offset(0f, offset),
-                        size = Size(size.width, thickness),
-                    )
+                    drawRect(bars, Offset(0f, offset), Size(size.width, thickness))
                 }
             }
         }
-    }
-}
-
-/** A whole number nudged one at a time, which takes a third of the room a row of chips would. */
-@Composable
-private fun Stepper(value: Int, min: Int, onChange: (Int) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .border(BorderStroke(1.dp, scheme.outlineVariant), RoundedCornerShape(4.dp))
-            .background(scheme.surfaceContainerLowest),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        StepperButton("\u2212", enabled = value > min) { onChange(value - 1) }
-        Text(
-            text = "$value",
-            style = MaterialTheme.typography.labelMedium,
-            color = scheme.onSurface,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(min = 22.dp),
-        )
-        StepperButton("+", enabled = true) { onChange(value + 1) }
-    }
-}
-
-@Composable
-private fun StepperButton(glyph: String, enabled: Boolean, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = glyph,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) scheme.primary else scheme.outlineVariant,
-        )
     }
 }

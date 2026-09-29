@@ -100,6 +100,11 @@ the parts owned by later steps are shown dimmed and are not interactive.
   "Select panel preset / Single" — with the leading part tappable to go back.
 - **Single panel shape**: The Single preset's options. Four **Shape tiles** — **Square**,
   **Ratio**, **Custom**, **Auto** — over a **Panel preview**.
+- **Strip options**: The Strip preset's options. An **Orientation** pair of icon buttons and a
+  **Panels** stepper, then the Shape tiles and the Panel preview.
+- **Grid options**: The Grid preset's options. A **Rows** stepper and a **Columns** stepper, then
+  the Shape tiles and the Panel preview.
+- **Stepper**: A whole number nudged one at a time (− n +). It has a floor but no ceiling.
 - **Shape tile**: One shape choice. Shows a miniature of the shape it makes, its name, and its
   numbers; the chosen one carries an ACTIVE badge. The Ratio tile carries a **rotate control**
   that turns the shape on its side (3:2 becomes 2:3).

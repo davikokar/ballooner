@@ -28,9 +28,8 @@ data class GridPanel(val span: Span, val shape: Polygon)
  */
 fun gridPanels(grid: Grid, pageHeight: Float, style: ComicStyle): List<GridPanel> {
     val content = contentRect(pageHeight, style)
-    val halfGutter = style.gutter / 2f
     return grid.panelSpans().map { span ->
-        GridPanel(span, Polygon.of(grid.rectOf(span, content, halfGutter)))
+        GridPanel(span, Polygon.of(grid.rectOf(span, content, style.gutter)))
     }
 }
 
@@ -77,25 +76,38 @@ private fun Cut.applyTo(panels: List<Polygon>, pageHeight: Float, inset: Float):
     }
 }
 
-private fun Grid.rectOf(span: Span, content: PageRect, halfGutter: Float): PageRect {
-    val columnEdges = edges(columnWeights, content.left, content.width)
-    val rowEdges = edges(rowWeights, content.top, content.height)
-    val left = columnEdges[span.firstColumn] + if (span.firstColumn > 0) halfGutter else 0f
-    val right = columnEdges[span.lastColumn + 1] - if (span.lastColumn < columns - 1) halfGutter else 0f
-    val top = rowEdges[span.firstRow] + if (span.firstRow > 0) halfGutter else 0f
-    val bottom = rowEdges[span.lastRow + 1] - if (span.lastRow < rows - 1) halfGutter else 0f
+private fun Grid.rectOf(span: Span, content: PageRect, gutter: Float): PageRect {
+    val columnTracks = gridTracks(columnWeights, content.left, content.width, gutter)
+    val rowTracks = gridTracks(rowWeights, content.top, content.height, gutter)
+    val left = columnTracks[span.firstColumn].start
+    val right = columnTracks[span.lastColumn].end
+    val top = rowTracks[span.firstRow].start
+    val bottom = rowTracks[span.lastRow].end
     return PageRect(left, top, (right - left).coerceAtLeast(0f), (bottom - top).coerceAtLeast(0f))
 }
 
-private fun edges(weights: List<Float>, start: Float, extent: Float): List<Float> {
-    val total = weights.sum().takeIf { it > 0f } ?: return List(weights.size + 1) { start }
-    val result = mutableListOf(start)
-    var running = 0f
-    weights.forEach { weight ->
-        running += weight
-        result += start + extent * running / total
+/** Where one row or column begins and ends, in page units. */
+internal data class GridTrack(val start: Float, val end: Float)
+
+/**
+ * The rows or columns of a grid, with a whole gutter standing between each pair of neighbours.
+ *
+ * The gutters are taken out of the extent before the weights divide what is left, so equal
+ * weights really do produce equal cells however many of them there are.
+ */
+internal fun gridTracks(
+    weights: List<Float>,
+    start: Float,
+    extent: Float,
+    gutter: Float,
+): List<GridTrack> {
+    val total = weights.sum().takeIf { it > 0f } ?: return weights.map { GridTrack(start, start) }
+    val available = (extent - gutter * (weights.size - 1)).coerceAtLeast(0f)
+    var cursor = start
+    return weights.map { weight ->
+        val size = available * weight / total
+        GridTrack(cursor, cursor + size).also { cursor += size + gutter }
     }
-    return result
 }
 
 /**
