@@ -1,5 +1,7 @@
 package com.ballooner.domain.comic
 
+import kotlin.math.abs
+
 /**
  * Combines [selection] into a single panel.
  *
@@ -43,6 +45,23 @@ fun Layout.withCut(cut: Cut): Layout = copy(cuts = cuts + cut)
 
 fun Layout.withoutCutAt(index: Int): Layout =
     if (index in cuts.indices) copy(cuts = cuts.filterIndexed { i, _ -> i != index }) else this
+
+/**
+ * Moves one end of the cut at [index], leaving the other where it is.
+ *
+ * The two ends only give the line its direction, so dragging one swings the cut about the other.
+ * A move that would put both ends in the same place is refused: a line needs two points.
+ */
+fun Layout.withCutEndMoved(index: Int, start: Boolean, to: NormalizedPoint): Layout {
+    val cut = cuts.getOrNull(index) ?: return this
+    val other = if (start) cut.b else cut.a
+    if (abs(other.u - to.u) < MIN_CUT_SPAN && abs(other.v - to.v) < MIN_CUT_SPAN) return this
+    val moved = if (start) cut.copy(a = to) else cut.copy(b = to)
+    return copy(cuts = cuts.mapIndexed { i, existing -> if (i == index) moved else existing })
+}
+
+/** How far apart a cut's two ends must stay, in normalized page units. */
+private const val MIN_CUT_SPAN = 0.01f
 
 private fun Span.isInside(other: Span): Boolean =
     firstRow >= other.firstRow && lastRow <= other.lastRow &&

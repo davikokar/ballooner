@@ -140,6 +140,20 @@ fun ComicEditorScreen(
                     )
                     return@Column
                 }
+                if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.CUSTOM) {
+                    CustomLayoutScreen(
+                        comic = state.comic,
+                        images = images,
+                        canUndo = state.canUndo,
+                        onCut = actions::addCut,
+                        onStartCutDrag = actions::startBoundaryDrag,
+                        onMoveCutEnd = actions::moveCutEnd,
+                        onEndCutDrag = actions::endCutDrag,
+                        onUndo = actions::undo,
+                        onBack = actions::closeLayoutKind,
+                    )
+                    return@Column
+                }
                 Box(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center,
@@ -155,9 +169,10 @@ fun ComicEditorScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     when (state.step) {
-                        EditorStep.LAYOUT -> LayoutStepControls(state, actions)
                         EditorStep.PLACEMENT -> PlacementStepControls(state, actions, onPickImage)
                         EditorStep.BALLOONS -> BalloonStepControls(state, actions)
+                        // Every layout kind has a screen of its own and returns above.
+                        EditorStep.LAYOUT -> Unit
                     }
                 }
             }
@@ -356,49 +371,6 @@ private fun <T> PillSwitch(
 }
 
 @Composable
-private fun LayoutStepControls(state: ComicEditorUiState.Content, actions: ComicEditorActions) {
-    val kind = state.layoutKind ?: return
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            TextButton(onClick = actions::closeLayoutKind) { Text("Presets") }
-            Text("/", style = MaterialTheme.typography.bodyMedium)
-            Text(kind.label, style = MaterialTheme.typography.titleMedium)
-        }
-        MultiPanelControls(state, actions)
-        OutlinedButton(onClick = actions::undo, enabled = state.canUndo) { Text("Undo") }
-    }
-}
-
-@Composable
-private fun MultiPanelControls(state: ComicEditorUiState.Content, actions: ComicEditorActions) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        PillSwitch(
-            options = LayoutTool.entries,
-            selected = state.tool,
-            label = { _, entry -> entry.label },
-            onSelect = actions::selectTool,
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            LayoutPresets.forEach { preset ->
-                OutlinedButton(onClick = { actions.applyPreset(preset.rows, preset.columns) }) {
-                    Text(preset.label, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = actions::mergeSelection, enabled = state.canMerge) { Text("Merge") }
-            Button(onClick = actions::unmergeSelection, enabled = state.canUnmerge) { Text("Unmerge") }
-        }
-    }
-}
-
-@Composable
 private fun PlacementStepControls(
     state: ComicEditorUiState.Content,
     actions: ComicEditorActions,
@@ -568,31 +540,6 @@ private val EditorStep.label: String
         EditorStep.PLACEMENT -> "Images"
         EditorStep.BALLOONS -> "Balloons"
     }
-
-private val LayoutTool.label: String
-    get() = when (this) {
-        LayoutTool.SELECT -> "Select"
-        LayoutTool.CUT_PAGE -> "Cut page"
-        LayoutTool.CUT_PANEL -> "Cut panel"
-    }
-
-private val LayoutKind.label: String
-    get() = when (this) {
-        LayoutKind.SINGLE -> "Single"
-        LayoutKind.STRIP -> "Strip"
-        LayoutKind.GRID -> "Grid"
-        LayoutKind.CUSTOM -> "Custom"
-    }
-
-private data class LayoutPreset(val label: String, val rows: Int, val columns: Int)
-
-private val LayoutPresets = listOf(
-    LayoutPreset("1", 1, 1),
-    LayoutPreset("1x2", 1, 2),
-    LayoutPreset("1x3", 1, 3),
-    LayoutPreset("2x2", 2, 2),
-    LayoutPreset("3x3", 3, 3),
-)
 
 private const val DIMMED = 0.35f
 

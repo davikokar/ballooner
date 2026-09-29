@@ -188,29 +188,8 @@ private fun MergeActions(
     onUnmerge: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (!canMerge && !canUnmerge) return
-    Box(modifier = modifier) {
-        if (canMerge) {
-            FloatingAction(label = "Merge", onClick = onMerge)
-        } else {
-            FloatingAction(label = "Unmerge", onClick = onUnmerge)
-        }
-    }
-}
-
-@Composable
-private fun FloatingAction(label: String, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 16.dp,
-            vertical = 6.dp,
-        ),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-        ),
-    ) {
-        Text(label, style = MaterialTheme.typography.labelLarge)
+    when {
+        canMerge -> FloatingAction("Merge", onMerge, modifier)
+        canUnmerge -> FloatingAction("Unmerge", onUnmerge, modifier)
     }
 }

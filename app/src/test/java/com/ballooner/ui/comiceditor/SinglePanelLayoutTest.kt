@@ -134,15 +134,15 @@ class SinglePanelLayoutTest {
     }
 
     @Test
-    fun `choosing another kind shows its options without changing the comic`() = runTest {
-        val viewModel = editorFor(comic(Grid(rows = 2, columns = 2)))
+    fun `opening the options of the kind a comic already is changes nothing`() = runTest {
+        val viewModel = editorFor(comic(Grid(1, 1)))
         advanceUntilIdle()
         val before = content(viewModel).comic
 
-        viewModel.selectLayoutKind(LayoutKind.CUSTOM)
+        viewModel.selectLayoutKind(LayoutKind.SINGLE)
         advanceUntilIdle()
 
-        assertEquals(LayoutKind.CUSTOM, content(viewModel).layoutKind)
+        assertEquals(LayoutKind.SINGLE, content(viewModel).layoutKind)
         assertEquals(before, content(viewModel).comic)
     }
 

@@ -36,6 +36,7 @@ import com.ballooner.domain.comic.unmergedAt
 import com.ballooner.domain.comic.withBoundaryMoved
 import com.ballooner.domain.comic.withCentreOnPage
 import com.ballooner.domain.comic.withCut
+import com.ballooner.domain.comic.withCutEndMoved
 import com.ballooner.domain.comic.withLayout
 import com.ballooner.domain.comic.withScope
 import com.ballooner.domain.comic.withTailAt
@@ -349,8 +350,8 @@ class ComicEditorViewModel @Inject constructor(
             LayoutKind.SINGLE -> applyPreset(rows = 1, columns = 1)
             LayoutKind.STRIP -> applyPreset(rows = 1, columns = DEFAULT_STRIP_PANELS)
             LayoutKind.GRID -> applyPreset(rows = DEFAULT_GRID_SIDE, columns = DEFAULT_GRID_SIDE)
-            // Custom starts from whatever the comic already is and is cut from there.
-            LayoutKind.CUSTOM -> Unit
+            // A freely drawn layout starts from one whole panel and is cut up from there.
+            LayoutKind.CUSTOM -> applyPreset(rows = 1, columns = 1)
         }
     }
 
@@ -374,7 +375,7 @@ class ComicEditorViewModel @Inject constructor(
         commit(content.comic.copy(sizing = sizing))
     }
 
-    /** Remembers where a grid line started, so the whole drag counts as one undoable change. */
+    /** Remembers the layout before a drag begins, so the whole drag counts as one change. */
     fun startBoundaryDrag() {
         beforeDrag = contentOrNull()?.comic
     }
@@ -387,6 +388,25 @@ class ComicEditorViewModel @Inject constructor(
     }
 
     fun endBoundaryDrag() = endDragAsOneUndoStep()
+
+    /**
+     * Drags one end of a cut, swinging the line about its other end.
+     *
+     * Every step is matched against the layout the drag began from, because swinging a cut
+     * reshapes panels and can reorder them: without matching, the images would swap panels under
+     * the finger. A step that would discard anything is skipped rather than staged, since a drag
+     * is no place to raise a confirmation.
+     */
+    fun moveCutEnd(index: Int, start: Boolean, to: NormalizedPoint) {
+        val origin = beforeDrag ?: return
+        val layout = origin.layout.withCutEndMoved(index, start, to)
+        if (layout == origin.layout) return
+        val change = origin.withLayout(layout, PanelMatching.BY_OVERLAP)
+        if (change.isDestructive) return
+        commit(change.comic, undoable = false)
+    }
+
+    fun endCutDrag() = endDragAsOneUndoStep()
 
     private fun endDragAsOneUndoStep() {
         val origin = beforeDrag ?: return

@@ -103,7 +103,10 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Strip options**: The Strip preset's options. An **Orientation** pair of icon buttons and a
   **Panels** stepper, then the Shape tiles and the Panel preview.
 - **Grid options**: The Grid preset's options. A **Rows** stepper and a **Columns** stepper, then
-  the Shape tiles and the Panel preview.
+  the Shape tiles and the Panel preview. Cells are chosen by tapping them in the preview, and
+  **Merge** / **Unmerge** float over it when the selection allows.
+- **Custom options**: The Custom preset's options. Nothing to choose: the layout is drawn. A drag
+  across a panel in the preview cuts that panel in two, and **Undo** floats over it.
 - **Stepper**: A whole number nudged one at a time (− n +). It has a floor but no ceiling.
 - **Shape tile**: One shape choice. Shows a miniature of the shape it makes, its name, and its
   numbers; the chosen one carries an ACTIVE badge. The Ratio tile carries a **rotate control**
