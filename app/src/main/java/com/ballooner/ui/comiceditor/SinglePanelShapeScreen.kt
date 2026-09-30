@@ -3,6 +3,7 @@ package com.ballooner.ui.comiceditor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -26,21 +27,24 @@ fun SinglePanelShapeScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(12.dp),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         LayoutOptionBreadcrumb(current = "SINGLE", onBack = onBack)
-        PanelShapeChooser(sizing = sizing, autoCaption = "Fit image", onChange = onChange)
-        PanelPreview(
-            // The panel as it will really be: a ratio the page cannot reach is held back, and
-            // the preview has to say so rather than promise the number on the slider. An auto
-            // panel has no shape to show until an image gives it one.
-            ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || image != null },
-            panels = listOf(image),
-            images = images,
-            modifier = Modifier.weight(1f),
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            PanelShapeChooser(sizing = sizing, autoCaption = "Fit image", onChange = onChange)
+            PanelPreview(
+                // The panel as it will really be: a ratio the page cannot reach is held back, and
+                // the preview has to say so rather than promise the number on the slider. An auto
+                // panel has no shape to show until an image gives it one.
+                ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || image != null },
+                panels = listOf(image),
+                images = images,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }

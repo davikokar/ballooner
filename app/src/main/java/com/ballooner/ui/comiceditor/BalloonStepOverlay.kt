@@ -54,6 +54,7 @@ internal fun BalloonStepOverlay(
     focus: Polygon?,
     actions: ComicEditorActions,
     modifier: Modifier = Modifier,
+    showHandles: Boolean = true,
 ) {
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
     val pageHeight = comic.pageHeight
@@ -168,7 +169,9 @@ internal fun BalloonStepOverlay(
         // Lettering is close work, so the panel being lettered offers the same way in as the
         // Placement step does. Its images belong to that step, so nothing here changes them.
         val shape = activePanel?.let { shapes.getOrNull(it) }
-        if (shape != null && area.width > 0 && area.height > 0) {
+        // One panel is already the whole page, so there is nothing to open up or step to.
+        val alone = comic.panels.size <= 1
+        if (shape != null && showHandles && !alone && area.width > 0 && area.height > 0) {
             PanelHandles(
                 panel = shape,
                 viewport = comicViewport(area.toSize(), comic.pageHeight, focus?.bounds),
@@ -176,8 +179,8 @@ internal fun BalloonStepOverlay(
                     kind = if (focus != null) PanelHandleKind.COLLAPSE else PanelHandleKind.EXPAND,
                     onClick = { actions.focusPanel(if (focus != null) null else activePanel) },
                 ),
-                bottomStart = focusHandle(focus, PanelHandleKind.PREVIOUS_PANEL, actions),
-                bottomEnd = focusHandle(focus, PanelHandleKind.NEXT_PANEL, actions),
+                bottomStart = focusHandle(focus, alone, PanelHandleKind.PREVIOUS_PANEL, actions),
+                bottomEnd = focusHandle(focus, alone, PanelHandleKind.NEXT_PANEL, actions),
             )
         }
     }

@@ -43,26 +43,26 @@ fun LayoutPresetPicker(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxSize().padding(12.dp),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = PRESET_PICKER_TITLE,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp),
-        )
-        // Two fixed rows rather than a lazy grid: there are exactly four, and they should all be
-        // on screen at once.
-        LayoutKinds.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { preset ->
-                    PresetCard(
-                        preset = preset,
-                        active = preset.kind == active,
-                        onClick = { onSelect(preset.kind) },
-                        modifier = Modifier.weight(1f),
-                    )
+        StepHeading(PRESET_PICKER_TITLE)
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp, vertical = 0.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Two fixed rows rather than a lazy grid: there are exactly four, and they should all
+            // be on screen at once.
+            LayoutKinds.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { preset ->
+                        PresetCard(
+                            preset = preset,
+                            active = preset.kind == active,
+                            onClick = { onSelect(preset.kind) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }

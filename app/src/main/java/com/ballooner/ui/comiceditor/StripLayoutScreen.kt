@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,46 +51,49 @@ fun StripLayoutScreen(
 ) {
     val count = panelCount.coerceAtLeast(MIN_STRIP_PANELS)
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(12.dp),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         LayoutOptionBreadcrumb(current = "STRIP", onBack = onBack)
-        LayoutControlBar {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Orientation",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DirectionButton(across = true, active = horizontal) { onStrip(true, count) }
-                    DirectionButton(across = false, active = !horizontal) { onStrip(false, count) }
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            LayoutControlBar {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Orientation",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        DirectionButton(across = true, active = horizontal) { onStrip(true, count) }
+                        DirectionButton(across = false, active = !horizontal) { onStrip(false, count) }
+                    }
+                }
+                Stepper(label = "Panels", value = count, min = MIN_STRIP_PANELS) {
+                    onStrip(horizontal, it)
                 }
             }
-            Stepper(label = "Panels", value = count, min = MIN_STRIP_PANELS) {
-                onStrip(horizontal, it)
-            }
+            PanelShapeChooser(
+                sizing = sizing,
+                // Every panel of a strip is the same shape, so the first image decides all of them.
+                autoCaption = "First image",
+                onChange = onChange,
+            )
+            PanelPreview(
+                ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panels.firstOrNull() != null },
+                panels = panels,
+                images = images,
+                modifier = Modifier.weight(1f),
+                rows = if (horizontal) 1 else count,
+                columns = if (horizontal) count else 1,
+                emptyMessage = "Every panel takes the shape of the first image you choose next.",
+            )
         }
-        PanelShapeChooser(
-            sizing = sizing,
-            // Every panel of a strip is the same shape, so the first image decides all of them.
-            autoCaption = "First image",
-            onChange = onChange,
-        )
-        PanelPreview(
-            ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panels.firstOrNull() != null },
-            panels = panels,
-            images = images,
-            modifier = Modifier.weight(1f),
-            rows = if (horizontal) 1 else count,
-            columns = if (horizontal) count else 1,
-            emptyMessage = "Every panel takes the shape of the first image you choose next.",
-        )
     }
 }
 

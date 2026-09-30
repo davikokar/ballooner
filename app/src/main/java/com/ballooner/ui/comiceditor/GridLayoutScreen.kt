@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -71,39 +72,42 @@ fun GridLayoutScreen(
     val down = grid.rows.coerceAtLeast(MIN_GRID_SIDE)
     val across = grid.columns.coerceAtLeast(MIN_GRID_SIDE)
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(12.dp),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         LayoutOptionBreadcrumb(current = "GRID", onBack = onBack)
-        LayoutControlBar {
-            Stepper(label = "Rows", value = down, min = MIN_GRID_SIDE) { onGrid(it, across) }
-            Stepper(label = "Columns", value = across, min = MIN_GRID_SIDE) { onGrid(down, it) }
-        }
-        PanelShapeChooser(
-            sizing = comic.sizing,
-            // Every cell of a grid is the same shape, so the first image decides all of them.
-            autoCaption = "First image",
-            onChange = onChange,
-        )
-        PreviewSurface(
-            modifier = Modifier.weight(1f),
-            hint = "Tap cells to join them".takeIf { selection.isEmpty() },
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            GridPage(
-                comic = comic,
-                images = images,
-                selection = selection,
-                onToggle = onToggleSelection,
+            LayoutControlBar {
+                Stepper(label = "Rows", value = down, min = MIN_GRID_SIDE) { onGrid(it, across) }
+                Stepper(label = "Columns", value = across, min = MIN_GRID_SIDE) { onGrid(down, it) }
+            }
+            PanelShapeChooser(
+                sizing = comic.sizing,
+                // Every cell of a grid is the same shape, so the first image decides all of them.
+                autoCaption = "First image",
+                onChange = onChange,
             )
-            MergeActions(
-                canMerge = canMerge,
-                canUnmerge = canUnmerge,
-                onMerge = onMerge,
-                onUnmerge = onUnmerge,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
-            )
+            PreviewSurface(
+                modifier = Modifier.weight(1f),
+                hint = "Tap cells to join them".takeIf { selection.isEmpty() },
+            ) {
+                GridPage(
+                    comic = comic,
+                    images = images,
+                    selection = selection,
+                    onToggle = onToggleSelection,
+                )
+                MergeActions(
+                    canMerge = canMerge,
+                    canUnmerge = canUnmerge,
+                    onMerge = onMerge,
+                    onUnmerge = onUnmerge,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+                )
+            }
         }
     }
 }

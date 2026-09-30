@@ -54,6 +54,7 @@ internal fun PlacementStepOverlay(
     actions: ComicEditorActions,
     modifier: Modifier = Modifier,
     onPickImage: (Int) -> Unit = {},
+    showHandles: Boolean = true,
 ) {
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
     var carrying by remember { mutableStateOf<Int?>(null) }
@@ -138,8 +139,10 @@ internal fun PlacementStepOverlay(
         // The panel being placed carries its own handles, so what can be done to it is on it
         // rather than somewhere else on the screen.
         val shape = activePanel?.let { shapes.getOrNull(it) }
-        if (shape != null && carrying == null && area.width > 0 && area.height > 0) {
+        if (shape != null && showHandles && carrying == null && area.width > 0 && area.height > 0) {
             val hasImage = comic.panels.getOrNull(activePanel)?.image != null
+            // One panel is already the whole page, so there is nothing to open up or step to.
+            val alone = comic.panels.size <= 1
             val expand = PanelHandle(
                 kind = if (focus != null) PanelHandleKind.COLLAPSE else PanelHandleKind.EXPAND,
                 onClick = { actions.focusPanel(if (focus != null) null else activePanel) },
@@ -148,17 +151,18 @@ internal fun PlacementStepOverlay(
                 panel = shape,
                 viewport = comicViewport(area.toSize(), comic.pageHeight, focus?.bounds),
                 // An empty panel can only be filled; a filled one can be opened up or emptied.
-                start = if (hasImage) expand else PanelHandle(PanelHandleKind.ADD_IMAGE) {
-                    onPickImage(activePanel)
+                start = when {
+                    !hasImage -> PanelHandle(PanelHandleKind.ADD_IMAGE) { onPickImage(activePanel) }
+                    alone -> null
+                    else -> expand
                 },
                 end = if (hasImage) {
                     PanelHandle(PanelHandleKind.REMOVE_IMAGE) { actions.setPanelImage(activePanel, null) }
                 } else {
                     null
                 },
-                // Stepping between panels only means anything while one of them fills the canvas.
-                bottomStart = focusHandle(focus, PanelHandleKind.PREVIOUS_PANEL, actions),
-                bottomEnd = focusHandle(focus, PanelHandleKind.NEXT_PANEL, actions),
+                bottomStart = focusHandle(focus, alone, PanelHandleKind.PREVIOUS_PANEL, actions),
+                bottomEnd = focusHandle(focus, alone, PanelHandleKind.NEXT_PANEL, actions),
             )
         }
     }

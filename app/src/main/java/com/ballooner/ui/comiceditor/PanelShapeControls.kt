@@ -187,30 +187,6 @@ internal fun PanelShapeChooser(
     }
 }
 
-/** Carries the picker's own heading forward, so the step reads as one place the user is inside. */
-@Composable
-internal fun LayoutOptionBreadcrumb(current: String, onBack: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier.padding(start = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(
-            text = PRESET_PICKER_TITLE,
-            style = MaterialTheme.typography.labelLarge,
-            color = scheme.primary,
-            modifier = Modifier.clickable(onClick = onBack),
-        )
-        Text("/", style = MaterialTheme.typography.labelLarge, color = scheme.outline)
-        Text(
-            text = current,
-            style = MaterialTheme.typography.labelLarge,
-            color = scheme.onSurface,
-        )
-    }
-}
-
 /**
  * The panels drawn on a drafting ground, showing the shape as it will really be.
  *

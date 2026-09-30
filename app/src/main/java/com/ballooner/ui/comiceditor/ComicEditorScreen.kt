@@ -51,6 +51,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -196,14 +197,23 @@ fun ComicEditorScreen(
                     )
                     return@Column
                 }
-                if (state.step == EditorStep.PLACEMENT) {
-                    StepTitle(PLACEMENT_STEP_TITLE)
-                }
+                // Hiding the handles is for looking at the panel undisturbed, so it lasts only as
+                // long as the focused view it is offered in.
+                var handlesHidden by remember(state.focusedPanel != null) { mutableStateOf(false) }
+                StepTitle(
+                    text = if (state.step == EditorStep.BALLOONS) BALLOON_STEP_TITLE else PLACEMENT_STEP_TITLE,
+                    handlesHidden = handlesHidden,
+                    onToggleHandles = if (state.focusedPanel != null) {
+                        ({ handlesHidden = !handlesHidden })
+                    } else {
+                        null
+                    },
+                )
                 Box(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Page(state, images, actions, onPickImage)
+                    Page(state, images, actions, onPickImage, showHandles = !handlesHidden)
                 }
                 // The controls scroll rather than squeezing the page, which is being edited.
                 Column(
@@ -377,6 +387,7 @@ private fun Page(
     images: PanelImageSource,
     actions: ComicEditorActions,
     onPickImage: (Int) -> Unit,
+    showHandles: Boolean,
 ) {
     val shapes = remember(state.comic) {
         panelShapes(state.comic.layout, state.comic.pageHeight, state.comic.style)
@@ -408,6 +419,7 @@ private fun Page(
                 images = images,
                 actions = actions,
                 onPickImage = onPickImage,
+                showHandles = showHandles,
             )
         }
         if (state.step == EditorStep.BALLOONS) {
@@ -417,20 +429,59 @@ private fun Page(
                 activePanel = state.activePanel,
                 focus = focus,
                 actions = actions,
+                showHandles = showHandles,
             )
         }
     }
 }
 
-/** A step's own heading, in the same hand as the Layout step's breadcrumb. */
+/** A step's own heading, carrying the toggle that takes the handles off a focused panel. */
 @Composable
-private fun StepTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 16.dp, top = 12.dp),
-    )
+private fun StepTitle(text: String, handlesHidden: Boolean, onToggleHandles: (() -> Unit)?) {
+    StepHeading(text) {
+        // Only worth offering over a focused panel, where the handles sit on the work itself.
+        if (onToggleHandles != null) {
+            IconButton(
+                onClick = onToggleHandles,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp)
+                    .size(32.dp)
+                    .semantics {
+                        contentDescription =
+                            if (handlesHidden) "Show panel handles" else "Hide panel handles"
+                    },
+            ) {
+                EyeGlyph(hidden = handlesHidden, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** An eye, open or struck through: the core icon set has none. */
+@Composable
+private fun EyeGlyph(hidden: Boolean, tint: Color) {
+    Canvas(modifier = Modifier.size(18.dp)) {
+        val thickness = size.minDimension * 0.1f
+        val middle = size.height / 2f
+        val lens = Path().apply {
+            moveTo(size.width * 0.06f, middle)
+            quadraticTo(size.width / 2f, size.height * 0.08f, size.width * 0.94f, middle)
+            quadraticTo(size.width / 2f, size.height * 0.92f, size.width * 0.06f, middle)
+            close()
+        }
+        drawPath(lens, tint, style = Stroke(width = thickness, join = StrokeJoin.Round))
+        drawCircle(tint, radius = size.minDimension * 0.14f, center = Offset(size.width / 2f, middle))
+        if (hidden) {
+            drawLine(
+                color = tint,
+                start = Offset(size.width * 0.1f, size.height * 0.9f),
+                end = Offset(size.width * 0.9f, size.height * 0.1f),
+                strokeWidth = thickness * 1.2f,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
 }
 
 @Composable
@@ -610,6 +661,9 @@ private const val DIMMED = 0.35f
 
 /** The Placement step's heading, which names the step the way the Layout step's breadcrumb does. */
 private const val PLACEMENT_STEP_TITLE = "SELECT AND PLACE IMAGES"
+
+/** The Balloon step's heading. */
+private const val BALLOON_STEP_TITLE = "ADD BALLOONS"
 
 /** How far a control fades when there is nothing for it to do. */
 private const val DISABLED = 0.38f

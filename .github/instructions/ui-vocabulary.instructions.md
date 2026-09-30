@@ -82,10 +82,15 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Layout step**: The step for choosing the Layout kind, the Panel shape, and how the Page is
   divided into panels.
 - **Placement step**: The step for choosing each panel's image and adjusting it in its frame.
-- **Balloon step**: The step for adding and editing balloons.
+- **Balloon step**: The step for adding and editing balloons. Its heading is "Add balloons".
 - **Step switch**: The persistent control that moves between the three steps. It replaces the
   former Edit / View mode toggle. Drawn as a **pill switch**: a flat tinted track in which the
   active segment is lifted out in paper, rather than filled with colour.
+- **Step heading** (`StepHeading`): The line naming the step, at the top of the Workspace:
+  "Select panel preset", "Select and place images", "Add balloons", or the Breadcrumb while
+  Preset options are open. Every step draws it the same way and in the same place, so moving
+  between steps never moves it. Anything it carries at its end, such as the Hide handles button,
+  comes and goes without shifting it.
 - **Preview**: The comic shown without any editing affordances.
 
 ### Editor toolbar controls
@@ -163,8 +168,11 @@ Comic-level settings that restyle the whole comic at once.
 
 ### Placement step
 
-- **Placement step heading**: "Select and place images", shown above the Canvas in the same hand
-  as the Layout step's Breadcrumb, so every step names itself the same way.
+- **Placement step heading**: "Select and place images", the step's Step heading.
+- **Hide handles button**: The eye at the right of a step heading, offered only while a panel is
+  focused. Takes the Panel handles off the panel so it can be seen whole, and puts them back. It
+  stays behind when they are hidden, since nothing else could bring them back, and it forgets
+  itself when the focused view is left.
 - **Panel image**: The image placed in a panel.
 - **Panel image transform**: How a Panel image sits inside its panel: its centre, zoom, and
   rotation angle.
@@ -180,7 +188,8 @@ Comic-level settings that restyle the whole comic at once.
   which takes several images at once: the first fills the Selected panel and the rest fill the
   Empty panels that follow it, wrapping round the page.
 - **Expand button**: The Panel handle at the left of a filled panel. Focuses the panel so it fills
-  the Canvas, and gives the Canvas back when it is already focused.
+  the Canvas, and gives the Canvas back when it is already focused. A comic of one panel is not
+  offered it: that panel is already the whole page.
 - **Remove image button**: The Panel handle at the right of a filled panel. Empties the panel
   without removing the panel itself.
 - **Cover**: The rule that a Panel image always fills its panel completely. Zoom, pan, and
@@ -198,7 +207,7 @@ Comic-level settings that restyle the whole comic at once.
 - **Focus navigation buttons** (`FocusNavigation`): Round arrow handles along the bottom of the
   focused panel, used to move between panels. They are Panel handles like the others and sit the
   same distance inside the panel, so everything over the page reads as one family. Leaving focus
-  is the Expand button's job, not theirs.
+  is the Expand button's job, not theirs, and a comic of one panel has neither.
 - **Balloon**: A speech, thought, whisper, yell, or caption shape placed over the comic.
 - **Selected balloon**: The balloon currently showing balloon editing controls.
 - **Balloon scope**: Whether a balloon belongs to one panel or to the whole comic.

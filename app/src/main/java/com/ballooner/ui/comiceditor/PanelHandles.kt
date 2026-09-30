@@ -48,18 +48,22 @@ internal enum class PanelHandleKind(val description: String) {
 /** One handle to put on the selected panel. */
 internal data class PanelHandle(val kind: PanelHandleKind, val onClick: () -> Unit)
 
-/** Stepping between panels, offered only while one of them fills the canvas. */
+/**
+ * Stepping between panels, offered only while one of them fills the canvas and there is another
+ * to step to.
+ */
 internal fun focusHandle(
     focus: Polygon?,
+    alone: Boolean,
     kind: PanelHandleKind,
     actions: ComicEditorActions,
-): PanelHandle? = focus?.let {
+): PanelHandle? = focus?.takeIf { !alone }?.let {
     PanelHandle(kind) { actions.focusNeighbour(forward = kind == PanelHandleKind.NEXT_PANEL) }
 }
 
 /**
  * The handles along the top and bottom of the selected panel, so what can be done to a panel is
- * offered on the panel itself.
+ * offered on the panel itself. Any slot may be empty.
  *
  * A cut can leave a panel any shape at all, so they are put on the first run across the panel wide
  * enough to hold them rather than on the corners of the box around it.
@@ -68,7 +72,7 @@ internal fun focusHandle(
 internal fun PanelHandles(
     panel: Polygon,
     viewport: PageViewport,
-    start: PanelHandle,
+    start: PanelHandle? = null,
     end: PanelHandle? = null,
     bottomStart: PanelHandle? = null,
     bottomEnd: PanelHandle? = null,
@@ -78,12 +82,11 @@ internal fun PanelHandles(
     val size = with(density) { HANDLE_SIZE.toPx() } / viewport.scale
     val margin = with(density) { HANDLE_MARGIN.toPx() } / viewport.scale
     val top = remember(panel, size, margin) { panelHandleAnchors(panel, size, margin) } ?: return
-    HandleButton(start, viewport.toScreen(top.first.x, top.first.y))
-    if (end != null) HandleButton(end, viewport.toScreen(top.second.x, top.second.y))
-    if (bottomStart == null && bottomEnd == null) return
     val bottom = remember(panel, size, margin) {
         panelHandleAnchors(panel, size, margin, fromTop = false)
     } ?: return
+    if (start != null) HandleButton(start, viewport.toScreen(top.first.x, top.first.y))
+    if (end != null) HandleButton(end, viewport.toScreen(top.second.x, top.second.y))
     if (bottomStart != null) HandleButton(bottomStart, viewport.toScreen(bottom.first.x, bottom.first.y))
     if (bottomEnd != null) HandleButton(bottomEnd, viewport.toScreen(bottom.second.x, bottom.second.y))
 }
