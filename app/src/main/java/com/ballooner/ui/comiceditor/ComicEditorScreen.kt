@@ -78,6 +78,7 @@ fun ComicEditorScreen(
     actions: ComicEditorActions,
     modifier: Modifier = Modifier,
     onPickImage: (Int) -> Unit = {},
+    onSave: () -> Unit = {},
 ) {
     var showOptions by rememberSaveable { mutableStateOf(false) }
     when (state) {
@@ -104,6 +105,7 @@ fun ComicEditorScreen(
                         actions.selectStep(EditorStep.LAYOUT)
                         actions.selectLayoutKind(layoutKindOf(state.comic))
                     })
+                    state.step == EditorStep.BALLOONS -> ({ actions.selectStep(EditorStep.PLACEMENT) })
                     else -> null
                 },
                 onNext = when {
@@ -111,8 +113,11 @@ fun ComicEditorScreen(
                     // On the picker, moving on means opening the preset the comic already is.
                     state.step == EditorStep.LAYOUT -> ({ actions.selectLayoutKind(layoutKindOf(state.comic)) })
                     state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
+                    // The last step has nowhere to go but out, with the comic in hand.
+                    state.step == EditorStep.BALLOONS -> onSave
                     else -> null
                 },
+                nextLabel = if (state.step == EditorStep.BALLOONS) "Save" else "Next",
             )
             // The workspace sits on its own ground so the chrome above it reads as a separate
             // surface rather than as the top of the canvas.
@@ -243,6 +248,7 @@ private fun EditorHeader(
     onUndo: (() -> Unit)?,
     onBack: (() -> Unit)?,
     onNext: (() -> Unit)?,
+    nextLabel: String,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -273,7 +279,7 @@ private fun EditorHeader(
                     modifier = Modifier.height(32.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                 ) {
-                    Text("Next", style = MaterialTheme.typography.labelLarge)
+                    Text(nextLabel, style = MaterialTheme.typography.labelLarge)
                 }
             }
             // Keeps the Options gear at the far end whether or not the preset buttons are there.
@@ -405,29 +411,20 @@ private fun Page(
             BalloonStepOverlay(
                 comic = state.comic,
                 selectedBalloon = state.selectedBalloon,
+                activePanel = state.activePanel,
                 focus = focus,
                 actions = actions,
             )
         }
         if (state.focusedPanel != null) {
-            FocusNavigation(
-                actions = actions,
-                // In the Placement step the panel's own corner control gives the canvas back, and
-                // a second button in the same corner would sit on top of it.
-                showAll = state.step != EditorStep.PLACEMENT,
-                modifier = Modifier.fillMaxSize(),
-            )
+            FocusNavigation(actions, modifier = Modifier.fillMaxSize())
         }
     }
 }
 
-/** Edge buttons for stepping between panels, and back out, without leaving focus. */
+/** Edge buttons for stepping between panels without leaving focus. */
 @Composable
-private fun FocusNavigation(
-    actions: ComicEditorActions,
-    showAll: Boolean,
-    modifier: Modifier = Modifier,
-) {
+private fun FocusNavigation(actions: ComicEditorActions, modifier: Modifier = Modifier) {
     Box(modifier = modifier) {
         OutlinedButton(
             onClick = { actions.focusNeighbour(forward = false) },
@@ -440,14 +437,6 @@ private fun FocusNavigation(
             modifier = Modifier.align(Alignment.CenterEnd),
         ) {
             Text("\u203a")
-        }
-        if (showAll) {
-            OutlinedButton(
-                onClick = { actions.focusPanel(null) },
-                modifier = Modifier.align(Alignment.TopEnd),
-            ) {
-                Text("Show all", style = MaterialTheme.typography.labelSmall)
-            }
         }
     }
 }
@@ -517,8 +506,6 @@ private fun PlacementStepControls(state: ComicEditorUiState.Content) {
 @Composable
 private fun BalloonStepControls(state: ComicEditorUiState.Content, actions: ComicEditorActions) {
     val selected = state.comic.balloons.firstOrNull { it.id == state.selectedBalloon }
-    // Focusing follows the balloon being lettered, falling back to the last panel tapped.
-    val panelToFocus = selected?.panelIndex ?: state.activePanel
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -528,14 +515,6 @@ private fun BalloonStepControls(state: ComicEditorUiState.Content, actions: Comi
                 OutlinedButton(onClick = { actions.addBalloon(type, state.activePanel ?: 0) }) {
                     Text(type.name.lowercase(), style = MaterialTheme.typography.labelSmall)
                 }
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = { actions.focusPanel(if (state.focusedPanel == null) panelToFocus else null) },
-                enabled = state.focusedPanel != null || panelToFocus != null,
-            ) {
-                Text(if (state.focusedPanel == null) "Focus" else "Show all")
             }
         }
         if (selected == null) {
@@ -584,7 +563,6 @@ private fun BalloonStepControls(state: ComicEditorUiState.Content, actions: Comi
                 Text(if (selected.panelIndex == null) "Put in panel" else "Free on page")
             }
             OutlinedButton(onClick = { actions.deleteBalloon(selected.id) }) { Text("Delete") }
-            OutlinedButton(onClick = actions::undo, enabled = state.canUndo) { Text("Undo") }
         }
     }
 }

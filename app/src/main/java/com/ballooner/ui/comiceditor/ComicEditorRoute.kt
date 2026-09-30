@@ -105,6 +105,10 @@ fun ComicEditorRoute(
         }
     }
 
+    val saveComic = {
+        exporter.launch("${content?.comic?.name.orEmpty().ifBlank { "comic" }}.png")
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,10 +129,7 @@ fun ComicEditorRoute(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { exporter.launch("${content?.comic?.name.orEmpty().ifBlank { "comic" }}.png") },
-                        enabled = content != null && !exporting,
-                    ) {
+                    IconButton(onClick = saveComic, enabled = content != null && !exporting) {
                         Icon(Icons.Default.Share, contentDescription = "Save as PNG")
                     }
                 },
@@ -146,6 +147,7 @@ fun ComicEditorRoute(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                 )
             },
+            onSave = saveComic,
         )
     }
 }

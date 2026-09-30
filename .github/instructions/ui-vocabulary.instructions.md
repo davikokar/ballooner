@@ -55,13 +55,15 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Step next button**: The "Next" button at the left of the Editor action row. Moves to the step
   after this one, exactly as tapping that step does. Shown on the Preset picker, where it instead
   opens the active preset's options; while Preset options are open, where it also takes the
-  preset; and in the Placement step.
+  preset; and in the Placement step. In the Balloon step, which has no step after it, it is
+  labelled **Save** and exports the comic exactly as the Save button does.
 - **Step back button**: The "Back" button beside it. Shown in the same places as the Step next
-  button. In the Placement step it returns to the Preset options of the comic's current Layout
-  kind, which is where the preset was chosen, rather than to the Preset picker. While Preset
-  options are open it returns to the Preset picker *without choosing the preset*, throwing away
-  everything the options changed, so the comic and its active preset are as they were before the
-  options opened; the Breadcrumb does the same.
+  button, and in the Balloon step, where it returns to the Placement step. In the Placement step
+  it returns to the Preset options of the comic's current Layout kind, which is where the preset
+  was chosen, rather than to the Preset picker. While Preset options are open it returns to the
+  Preset picker *without choosing the preset*, throwing away everything the options changed, so
+  the comic and its active preset are as they were before the options opened; the Breadcrumb does
+  the same.
 - **Workspace**: Everything below the Editor toolbar. It sits on a tinted ground so the toolbar
   reads as a separate surface above it rather than as the top of the Canvas.
 - **Canvas**: The editing area that displays the Page. The Editor toolbar and Comic kit are
@@ -91,8 +93,6 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Options button**: The gear in the Editor action row. Opens the Comic style controls in a
   bottom sheet, so comic-wide settings never crowd the step being worked on.
 - **Comic style button**: Opens the Comic style controls.
-- **Focus panel button**: Focuses the selected panel, or the first panel when none is selected.
-- **Show all panels button**: Leaves the focused view and displays the whole Page.
 - **Save button**: Exports the comic as a PNG selected by the user.
 - **Undo button**: Reverses the most recent edit, in any step. An icon in the Editor action row,
   beside the Options button, faded out when there is nothing to undo. It is not shown on the
@@ -168,9 +168,10 @@ Comic-level settings that restyle the whole comic at once.
   rotation angle.
 - **Empty panel**: A panel with no Panel image yet.
 - **Panel handles**: The round controls that appear on the Selected panel, so what can be done to
-  a panel is offered on the panel itself. Which ones appear depends on what is in it. They sit on
-  the highest run across the panel with room for them rather than on the corners of the box around
-  it, because a Cut can leave a panel a shape with no usable corners.
+  a panel is offered on the panel itself. Which ones appear depends on the step and on what is in
+  the panel. They sit on the highest run across the panel with room for them rather than on the
+  corners of the box around it, because a Cut can leave a panel a shape with no usable corners.
+  The Balloon step offers only the Expand button, since images belong to the Placement step.
 - **Add image button**: The Panel handle at the left of an Empty panel. Opens the photo picker,
   which takes several images at once: the first fills the Selected panel and the rest fill the
   Empty panels that follow it, wrapping round the page.
@@ -191,7 +192,7 @@ Comic-level settings that restyle the whole comic at once.
   Placement and Balloon steps. Selection and focus are distinct states, and focus is a view
   state that is never saved with the comic.
 - **Focus navigation buttons** (`FocusNavigation`): Directional edge buttons used to move between
-  panels while a panel is focused.
+  panels while a panel is focused. Leaving focus is the Expand button's job, not theirs.
 - **Balloon**: A speech, thought, whisper, yell, or caption shape placed over the comic.
 - **Selected balloon**: The balloon currently showing balloon editing controls.
 - **Balloon scope**: Whether a balloon belongs to one panel or to the whole comic.
