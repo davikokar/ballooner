@@ -49,9 +49,9 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Comic title field** (`EditableTitle`): The editable comic name in the Editor top bar.
 - **Editor toolbar**: The band below the Editor top bar, on its own paper surface, containing the
   Step switch and — under a divider — the **Editor action row**.
-- **Editor action row**: The row beneath the Step switch. The Options button sits at its right
-  end; the Step back button and Step next button sit at its left wherever there is somewhere to
-  go.
+- **Editor action row**: The row beneath the Step switch. The Undo button and the Options button
+  sit at its right end, in that order; the Step back button and Step next button sit at its left
+  wherever there is somewhere to go.
 - **Step next button**: The "Next" button at the left of the Editor action row. Moves to the step
   after this one, exactly as tapping that step does. Shown while Preset options are open, where
   it also takes the preset, and in the Placement step.
@@ -92,7 +92,8 @@ the parts owned by later steps are shown dimmed and are not interactive.
 - **Focus panel button**: Focuses the selected panel, or the first panel when none is selected.
 - **Show all panels button**: Leaves the focused view and displays the whole Page.
 - **Save button**: Exports the comic as a PNG selected by the user.
-- **Undo button**: Reverses the most recent edit, in any step.
+- **Undo button**: Reverses the most recent edit, in any step. An icon in the Editor action row,
+  beside the Options button, faded out when there is nothing to undo.
 
 ### Layout step
 

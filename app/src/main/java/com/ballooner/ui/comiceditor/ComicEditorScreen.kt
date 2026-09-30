@@ -1,5 +1,6 @@
 package com.ballooner.ui.comiceditor
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -45,7 +46,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
@@ -58,6 +66,8 @@ import com.ballooner.domain.model.BalloonType
 import com.ballooner.ui.comic.ComicPage
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.theme.toFontFamily
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** The comic editor: one page, three steps over it. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,6 +92,8 @@ fun ComicEditorScreen(
                 step = state.step,
                 onSelectStep = actions::selectStep,
                 onOptions = { showOptions = true },
+                canUndo = state.canUndo,
+                onUndo = actions::undo,
                 onBack = when {
                     inLayoutOptions -> actions::discardLayoutKind
                     state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.LAYOUT) })
@@ -185,7 +197,7 @@ fun ComicEditorScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     when (state.step) {
-                        EditorStep.PLACEMENT -> PlacementStepControls(state, actions, onPickImage)
+                        EditorStep.PLACEMENT -> PlacementStepControls(state)
                         EditorStep.BALLOONS -> BalloonStepControls(state, actions)
                         // Every layout kind has a screen of its own and returns above.
                         EditorStep.LAYOUT -> Unit
@@ -218,6 +230,8 @@ private fun EditorHeader(
     step: EditorStep,
     onSelectStep: (EditorStep) -> Unit,
     onOptions: () -> Unit,
+    canUndo: Boolean,
+    onUndo: () -> Unit,
     onBack: (() -> Unit)?,
     onNext: (() -> Unit)?,
 ) {
@@ -255,6 +269,17 @@ private fun EditorHeader(
             }
             // Keeps the Options gear at the far end whether or not the preset buttons are there.
             Spacer(modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = onUndo,
+                enabled = canUndo,
+                // The glyph is drawn rather than written, so the button itself has to say what it is.
+                modifier = Modifier.size(36.dp).semantics { contentDescription = "Undo" },
+            ) {
+                UndoGlyph(
+                    tint = if (canUndo) scheme.onSurface else scheme.onSurface.copy(alpha = DISABLED),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
             IconButton(onClick = onOptions, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.Default.Settings,
@@ -264,6 +289,46 @@ private fun EditorHeader(
                 )
             }
         }
+    }
+}
+
+/** An arrow curving back on itself: undo has no icon in the core set, so it is drawn. */
+@Composable
+private fun UndoGlyph(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val thickness = size.minDimension * 0.12f
+        val radius = size.minDimension / 2f - thickness * 1.6f
+        val centre = Offset(size.width / 2f, size.height / 2f)
+        // Open at the lower left, which is where the head goes and where the arrow points.
+        val from = 200f
+        drawArc(
+            color = tint,
+            startAngle = from,
+            sweepAngle = 215f,
+            useCenter = false,
+            topLeft = Offset(centre.x - radius, centre.y - radius),
+            size = Size(radius * 2f, radius * 2f),
+            style = Stroke(width = thickness, cap = StrokeCap.Round),
+        )
+        val radians = Math.toRadians(from.toDouble())
+        val tip = Offset(
+            centre.x + radius * cos(radians).toFloat(),
+            centre.y + radius * sin(radians).toFloat(),
+        )
+        // Back down the arc: the head points the way the arrow came from.
+        val along = Offset(sin(radians).toFloat(), -cos(radians).toFloat())
+        val across = Offset(-along.y, along.x)
+        val length = thickness * 2.6f
+        val width = thickness * 1.6f
+        drawPath(
+            path = Path().apply {
+                moveTo(tip.x, tip.y)
+                lineTo(tip.x - along.x * length + across.x * width, tip.y - along.y * length + across.y * width)
+                lineTo(tip.x - along.x * length - across.x * width, tip.y - along.y * length - across.y * width)
+                close()
+            },
+            color = tint,
+        )
     }
 }
 
@@ -427,38 +492,13 @@ private fun <T> PillSwitch(
 }
 
 @Composable
-private fun PlacementStepControls(
-    state: ComicEditorUiState.Content,
-    actions: ComicEditorActions,
-    onPickImage: (Int) -> Unit,
-) {
-    val panel = state.activePanel
+private fun PlacementStepControls(state: ComicEditorUiState.Content) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (panel == null) {
+        if (state.activePanel == null) {
             Text("Tap a panel to place its image", style = MaterialTheme.typography.bodySmall)
             return@Column
         }
         Text("Pinch, drag, and twist to fit the image", style = MaterialTheme.typography.bodySmall)
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(onClick = { onPickImage(panel) }) {
-                Text(if (state.comic.panels[panel].image == null) "Add image" else "Replace")
-            }
-            OutlinedButton(
-                onClick = { actions.focusPanel(if (state.focusedPanel == null) panel else null) },
-            ) {
-                Text(if (state.focusedPanel == null) "Focus" else "Show all")
-            }
-            OutlinedButton(
-                onClick = { actions.setPanelImage(panel, null) },
-                enabled = state.comic.panels[panel].image != null,
-            ) {
-                Text("Remove")
-            }
-            OutlinedButton(onClick = actions::undo, enabled = state.canUndo) { Text("Undo") }
-        }
         Text("Press and hold a panel to carry its image to another", style = MaterialTheme.typography.bodySmall)
     }
 }
@@ -598,6 +638,9 @@ private val EditorStep.label: String
     }
 
 private const val DIMMED = 0.35f
+
+/** How far a control fades when there is nothing for it to do. */
+private const val DISABLED = 0.38f
 
 /** The shape of one panel as the comic will really draw it, which is what a preview must show. */
 private fun Comic.panelRatio(): Float {
