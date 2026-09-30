@@ -131,6 +131,63 @@ fun firstPanelPoint(panels: List<Polygon>, from: PagePoint, to: PagePoint): Page
 }
 
 /**
+ * Where a pair of handles [size] across can sit inside [panel]: the leftmost and rightmost
+ * centres they can take on the highest run across the panel that has room for them.
+ *
+ * A cut can leave a panel any convex shape at all, so the corners of its bounding box need not be
+ * inside it. Walking down the panel until the whole band a handle covers is inside keeps the
+ * handles on the panel they belong to, whatever the cuts have made of it.
+ */
+fun panelHandleAnchors(panel: Polygon, size: Float): Pair<PagePoint, PagePoint>? {
+    val bounds = panel.bounds
+    if (bounds.width <= 0f || bounds.height <= 0f || size <= 0f) return null
+    // A panel shallower than the handle still gets one: it is centred in what height there is.
+    val reach = minOf(size, bounds.height) / 2f
+    var best: Triple<Float, Float, Float>? = null
+    for (step in 0..HANDLE_SEARCH_STEPS) {
+        val y = bounds.top + reach + (bounds.height - reach * 2f) * step / HANDLE_SEARCH_STEPS
+        val (from, to) = panel.runAcross(y, reach) ?: continue
+        if (to - from >= size * 2f) return anchorsAcross(from, to, y, size)
+        if (best == null || to - from > best.second - best.first) best = Triple(from, to, y)
+    }
+    return best?.let { anchorsAcross(it.first, it.second, it.third, size) }
+}
+
+private fun anchorsAcross(from: Float, to: Float, y: Float, size: Float): Pair<PagePoint, PagePoint> {
+    val half = size / 2f
+    // Too narrow for two side by side: they share the middle rather than hang over the edges.
+    if (to - from < size) {
+        val middle = PagePoint((from + to) / 2f, y)
+        return middle to middle
+    }
+    return PagePoint(from + half, y) to PagePoint(to - half, y)
+}
+
+/** The run across the panel that is inside it at [y] and [reach] either side of it. */
+private fun Polygon.runAcross(y: Float, reach: Float): Pair<Float, Float>? {
+    var from = Float.NEGATIVE_INFINITY
+    var to = Float.POSITIVE_INFINITY
+    for (offset in listOf(-reach, 0f, reach)) {
+        val (left, right) = runAt(y + offset) ?: return null
+        from = maxOf(from, left)
+        to = minOf(to, right)
+    }
+    return (from to to).takeIf { to > from }
+}
+
+/** Where a level line at [y] enters and leaves the panel. */
+private fun Polygon.runAt(y: Float): Pair<Float, Float>? {
+    val bounds = bounds
+    // Reaching in from outside the panel: a segment that starts on its own edge is the one case
+    // the clipping cannot call either way.
+    val left = bounds.left - bounds.width
+    val right = bounds.right + bounds.width
+    val stretch = insideStretch(PagePoint(left, y), PagePoint(right, y)) ?: return null
+    val span = right - left
+    return (left + span * stretch.first) to (left + span * stretch.second)
+}
+
+/**
  * How far along the segment [from]..[to] this polygon is entered and left again, as fractions of
  * the segment, or null when the segment misses it.
  */
@@ -201,3 +258,6 @@ private fun clipToHalfPlane(polygon: Polygon, line: Line, minDistance: Float): P
 private const val EDGE_TOLERANCE = 1e-6f
 private const val MIN_LINE_LENGTH = 1e-6f
 private const val MIN_POLYGON_AREA = 1e-8f
+
+/** How many levels down a panel are tried before settling for its widest one. */
+private const val HANDLE_SEARCH_STEPS = 24

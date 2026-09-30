@@ -39,14 +39,17 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PagePoint
-import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.Polygon
+import com.ballooner.domain.comic.panelHandleAnchors
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
@@ -156,10 +159,10 @@ internal fun PlacementStepOverlay(
         }
         // The panel being placed carries its own controls, so what can be done to it is on it
         // rather than somewhere else on the screen.
-        val bounds = activePanel?.let { shapes.getOrNull(it)?.bounds }
-        if (bounds != null && carrying == null && area.width > 0 && area.height > 0) {
-            PanelActions(
-                bounds = bounds,
+        val shape = activePanel?.let { shapes.getOrNull(it) }
+        if (shape != null && carrying == null && area.width > 0 && area.height > 0) {
+            PanelHandles(
+                panel = shape,
                 viewport = comicViewport(area.toSize(), comic.pageHeight, focus?.bounds),
                 hasImage = comic.panels.getOrNull(activePanel)?.image != null,
                 expanded = focus != null,
@@ -172,15 +175,18 @@ internal fun PlacementStepOverlay(
 }
 
 /**
- * The controls in the top corners of the panel being placed.
+ * The handles along the top of the panel being placed.
  *
  * What is offered depends on what is there: an empty panel can only be filled, and a filled one
  * can be opened up for closer work or emptied again. Adding sits where expanding does, because
- * both are what the panel is asking for next; emptying keeps the far corner to itself.
+ * both are what the panel is asking for next; emptying keeps the far handle to itself.
+ *
+ * A cut can leave a panel any shape at all, so the handles are put on the highest run across the
+ * panel wide enough to hold them rather than on the corners of the box around it.
  */
 @Composable
-private fun PanelActions(
-    bounds: PageRect,
+private fun PanelHandles(
+    panel: Polygon,
     viewport: PageViewport,
     hasImage: Boolean,
     expanded: Boolean,
@@ -190,40 +196,42 @@ private fun PanelActions(
 ) {
     if (viewport.scale <= 0f) return
     val scheme = MaterialTheme.colorScheme
-    val corner = viewport.toScreen(bounds.left, bounds.top)
-    val opposite = viewport.toScreen(bounds.right, bounds.top)
+    val reach = with(LocalDensity.current) { (HANDLE_SIZE + HANDLE_MARGIN * 2).toPx() } / viewport.scale
+    val anchors = remember(panel, reach) { panelHandleAnchors(panel, reach) } ?: return
+    val start = viewport.toScreen(anchors.first.x, anchors.first.y)
+    val end = viewport.toScreen(anchors.second.x, anchors.second.y)
     if (hasImage) {
-        PanelAction(
-            centre = corner,
-            towardsX = 1f,
+        PanelHandle(
+            centre = start,
+            description = if (expanded) "Show the whole page" else "Expand panel",
             onClick = onExpand,
             background = scheme.surfaceContainerLowest,
         ) {
             ExpandGlyph(expanded = expanded, tint = scheme.onSurface)
         }
-        PanelAction(
-            centre = opposite,
-            towardsX = -1f,
+        PanelHandle(
+            centre = end,
+            description = "Remove image",
             onClick = onRemove,
             background = scheme.secondary,
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Remove image",
+                contentDescription = null,
                 tint = scheme.onSecondary,
                 modifier = Modifier.size(GLYPH_SIZE),
             )
         }
     } else {
-        PanelAction(
-            centre = corner,
-            towardsX = 1f,
+        PanelHandle(
+            centre = start,
+            description = "Add image",
             onClick = onAdd,
             background = scheme.surfaceContainerLowest,
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Add image",
+                contentDescription = null,
                 tint = scheme.onSurface,
                 modifier = Modifier.size(GLYPH_SIZE),
             )
@@ -231,11 +239,11 @@ private fun PanelActions(
     }
 }
 
-/** One round control, sitting just inside the panel corner at [centre]. */
+/** One round handle, centred on [centre]. */
 @Composable
-private fun PanelAction(
+private fun PanelHandle(
     centre: Offset,
-    towardsX: Float,
+    description: String,
     onClick: () -> Unit,
     background: Color,
     content: @Composable () -> Unit,
@@ -243,19 +251,16 @@ private fun PanelAction(
     Box(
         modifier = Modifier
             .offset {
-                // Pulled inside the panel so a control on an edge panel is never half off the page.
-                val inset = ACTION_INSET.toPx()
-                val half = ACTION_SIZE.toPx() / 2f
-                IntOffset(
-                    (centre.x + towardsX * inset - half).roundToInt(),
-                    (centre.y + inset - half).roundToInt(),
-                )
+                val half = HANDLE_SIZE.toPx() / 2f
+                IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
             }
-            .size(ACTION_SIZE)
+            .size(HANDLE_SIZE)
             .clip(CircleShape)
             .background(background)
             .border(2.dp, InkBlack, CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            // The glyph is drawn rather than written, so the handle has to say what it is.
+            .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
         content = { content() },
     )
@@ -284,8 +289,11 @@ private fun ExpandGlyph(expanded: Boolean, tint: Color) {
     }
 }
 
-private val ACTION_SIZE = 32.dp
-private val ACTION_INSET = 22.dp
+private val HANDLE_SIZE = 32.dp
+
+/** How far a handle is kept off the edges of its panel. */
+private val HANDLE_MARGIN = 6.dp
+
 private val GLYPH_SIZE = 16.dp
 
 /** The values a running placement gesture needs to keep reading as the comic changes. */
