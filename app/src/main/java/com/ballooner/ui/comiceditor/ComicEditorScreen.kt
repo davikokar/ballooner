@@ -88,19 +88,28 @@ fun ComicEditorScreen(
             // A preset's options are a decision in progress: they are taken or dropped as a
             // whole, so going back throws them away where everywhere else simply steps back.
             val inLayoutOptions = state.step == EditorStep.LAYOUT && state.layoutKind != null
+            val onPresetPicker = state.step == EditorStep.LAYOUT && state.layoutKind == null
             EditorHeader(
                 step = state.step,
                 onSelectStep = actions::selectStep,
                 onOptions = { showOptions = true },
                 canUndo = state.canUndo,
-                onUndo = actions::undo,
+                // The picker changes nothing until a preset is opened, so there is nothing to undo.
+                onUndo = if (onPresetPicker) null else actions::undo,
                 onBack = when {
                     inLayoutOptions -> actions::discardLayoutKind
-                    state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.LAYOUT) })
+                    // Back into the Layout step means back to the options that were left, not to
+                    // the picker: the preset has already been chosen.
+                    state.step == EditorStep.PLACEMENT -> ({
+                        actions.selectStep(EditorStep.LAYOUT)
+                        actions.selectLayoutKind(layoutKindOf(state.comic))
+                    })
                     else -> null
                 },
                 onNext = when {
                     inLayoutOptions -> ({ actions.selectStep(EditorStep.PLACEMENT) })
+                    // On the picker, moving on means opening the preset the comic already is.
+                    state.step == EditorStep.LAYOUT -> ({ actions.selectLayoutKind(layoutKindOf(state.comic)) })
                     state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
                     else -> null
                 },
@@ -231,7 +240,7 @@ private fun EditorHeader(
     onSelectStep: (EditorStep) -> Unit,
     onOptions: () -> Unit,
     canUndo: Boolean,
-    onUndo: () -> Unit,
+    onUndo: (() -> Unit)?,
     onBack: (() -> Unit)?,
     onNext: (() -> Unit)?,
 ) {
@@ -269,16 +278,18 @@ private fun EditorHeader(
             }
             // Keeps the Options gear at the far end whether or not the preset buttons are there.
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(
-                onClick = onUndo,
-                enabled = canUndo,
-                // The glyph is drawn rather than written, so the button itself has to say what it is.
-                modifier = Modifier.size(36.dp).semantics { contentDescription = "Undo" },
-            ) {
-                UndoGlyph(
-                    tint = if (canUndo) scheme.onSurface else scheme.onSurface.copy(alpha = DISABLED),
-                    modifier = Modifier.size(18.dp),
-                )
+            if (onUndo != null) {
+                IconButton(
+                    onClick = onUndo,
+                    enabled = canUndo,
+                    // The glyph is drawn, not written, so the button itself has to say what it is.
+                    modifier = Modifier.size(36.dp).semantics { contentDescription = "Undo" },
+                ) {
+                    UndoGlyph(
+                        tint = if (canUndo) scheme.onSurface else scheme.onSurface.copy(alpha = DISABLED),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
             IconButton(onClick = onOptions, modifier = Modifier.size(36.dp)) {
                 Icon(
