@@ -163,6 +163,8 @@ Comic-level settings that restyle the whole comic at once.
 
 ### Placement step
 
+- **Placement step heading**: "Select and place images", shown above the Canvas in the same hand
+  as the Layout step's Breadcrumb, so every step names itself the same way.
 - **Panel image**: The image placed in a panel.
 - **Panel image transform**: How a Panel image sits inside its panel: its centre, zoom, and
   rotation angle.

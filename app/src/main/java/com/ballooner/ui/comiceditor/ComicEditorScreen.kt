@@ -196,6 +196,9 @@ fun ComicEditorScreen(
                     )
                     return@Column
                 }
+                if (state.step == EditorStep.PLACEMENT) {
+                    StepTitle(PLACEMENT_STEP_TITLE)
+                }
                 Box(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center,
@@ -211,10 +214,10 @@ fun ComicEditorScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     when (state.step) {
-                        EditorStep.PLACEMENT -> PlacementStepControls(state)
                         EditorStep.BALLOONS -> BalloonStepControls(state, actions)
-                        // Every layout kind has a screen of its own and returns above.
-                        EditorStep.LAYOUT -> Unit
+                        // The panels carry their own handles, and the layout kinds each have a
+                        // screen of their own and return above.
+                        EditorStep.PLACEMENT, EditorStep.LAYOUT -> Unit
                     }
                 }
             }
@@ -441,6 +444,17 @@ private fun FocusNavigation(actions: ComicEditorActions, modifier: Modifier = Mo
     }
 }
 
+/** A step's own heading, in the same hand as the Layout step's breadcrumb. */
+@Composable
+private fun StepTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, top = 12.dp),
+    )
+}
+
 @Composable
 private fun StepSwitch(step: EditorStep, onSelect: (EditorStep) -> Unit, modifier: Modifier = Modifier) {
     PillSwitch(
@@ -488,18 +502,6 @@ private fun <T> PillSwitch(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun PlacementStepControls(state: ComicEditorUiState.Content) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (state.activePanel == null) {
-            Text("Tap a panel to place its image", style = MaterialTheme.typography.bodySmall)
-            return@Column
-        }
-        Text("Pinch, drag, and twist to fit the image", style = MaterialTheme.typography.bodySmall)
-        Text("Press and hold a panel to carry its image to another", style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -627,6 +629,9 @@ private val EditorStep.label: String
     }
 
 private const val DIMMED = 0.35f
+
+/** The Placement step's heading, which names the step the way the Layout step's breadcrumb does. */
+private const val PLACEMENT_STEP_TITLE = "SELECT AND PLACE IMAGES"
 
 /** How far a control fades when there is nothing for it to do. */
 private const val DISABLED = 0.38f
