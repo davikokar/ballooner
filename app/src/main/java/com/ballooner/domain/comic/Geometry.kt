@@ -131,44 +131,60 @@ fun firstPanelPoint(panels: List<Polygon>, from: PagePoint, to: PagePoint): Page
 }
 
 /**
- * Where a pair of handles [size] across can sit inside [panel]: the leftmost and rightmost
- * centres they can take on the highest run across the panel that has room for them.
+ * Where a pair of handles [size] across can sit inside [panel]: the leftmost and rightmost centres
+ * they can take on the first run across the panel that has room for them, counting from its top
+ * or, when [fromTop] is false, from its bottom.
+ *
+ * Handles are held [margin] clear of the panel's edges wherever the panel is wide enough for both
+ * of them at that distance, so a handle sits the same way in every panel that can afford it. A
+ * panel narrower than that gets them pushed right out to its edges instead, which is as far apart
+ * as they can be.
  *
  * A cut can leave a panel any convex shape at all, so the corners of its bounding box need not be
- * inside it. Walking down the panel until the whole band a handle covers is inside keeps the
+ * inside it. Walking in from the edge until the whole band a handle covers is inside keeps the
  * handles on the panel they belong to, whatever the cuts have made of it.
  */
-fun panelHandleAnchors(panel: Polygon, size: Float): Pair<PagePoint, PagePoint>? {
+fun panelHandleAnchors(
+    panel: Polygon,
+    size: Float,
+    margin: Float,
+    fromTop: Boolean = true,
+): Pair<PagePoint, PagePoint>? {
     val bounds = panel.bounds
     if (bounds.width <= 0f || bounds.height <= 0f || size <= 0f) return null
     // A panel shallower than the handle still gets one: it is centred in what height there is.
-    val reach = minOf(size, bounds.height) / 2f
+    val reach = minOf(size + margin * 2f, bounds.height) / 2f
+    val roomForBoth = (size + margin) * 2f
     var best: Triple<Float, Float, Float>? = null
     for (step in 0..HANDLE_SEARCH_STEPS) {
-        val y = bounds.top + reach + (bounds.height - reach * 2f) * step / HANDLE_SEARCH_STEPS
+        val travelled = (bounds.height - reach * 2f) * step / HANDLE_SEARCH_STEPS
+        val y = if (fromTop) bounds.top + reach + travelled else bounds.bottom - reach - travelled
         val (from, to) = panel.runAcross(y, reach) ?: continue
-        if (to - from >= size * 2f) return anchorsAcross(from, to, y, size)
+        if (to - from >= roomForBoth) return anchorsAcross(from, to, y, size / 2f + margin)
         if (best == null || to - from > best.second - best.first) best = Triple(from, to, y)
     }
-    return best?.let { anchorsAcross(it.first, it.second, it.third, size) }
+    return best?.let { anchorsAcross(it.first, it.second, it.third, size / 2f) }
 }
 
-private fun anchorsAcross(from: Float, to: Float, y: Float, size: Float): Pair<PagePoint, PagePoint> {
-    val half = size / 2f
-    // Too narrow for two side by side: they share the middle rather than hang over the edges.
-    if (to - from < size) {
+private fun anchorsAcross(from: Float, to: Float, y: Float, inset: Float): Pair<PagePoint, PagePoint> {
+    // Too narrow even for that: they share the middle rather than hang over the edges.
+    if (to - from < inset * 2f) {
         val middle = PagePoint((from + to) / 2f, y)
         return middle to middle
     }
-    return PagePoint(from + half, y) to PagePoint(to - half, y)
+    return PagePoint(from + inset, y) to PagePoint(to - inset, y)
 }
 
 /** The run across the panel that is inside it at [y] and [reach] either side of it. */
 private fun Polygon.runAcross(y: Float, reach: Float): Pair<Float, Float>? {
+    val extent = bounds
     var from = Float.NEGATIVE_INFINITY
     var to = Float.POSITIVE_INFINITY
     for (offset in listOf(-reach, 0f, reach)) {
-        val (left, right) = runAt(y + offset) ?: return null
+        // Held inside the panel's own extent: a band meant to sit against its edge must not land
+        // a rounding error outside it, or the level is thrown away and the handle drops lower.
+        val level = (y + offset).coerceIn(extent.top, extent.bottom)
+        val (left, right) = runAt(level) ?: return null
         from = maxOf(from, left)
         to = minOf(to, right)
     }

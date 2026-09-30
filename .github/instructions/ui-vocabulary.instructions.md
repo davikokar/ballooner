@@ -171,8 +171,10 @@ Comic-level settings that restyle the whole comic at once.
 - **Empty panel**: A panel with no Panel image yet.
 - **Panel handles**: The round controls that appear on the Selected panel, so what can be done to
   a panel is offered on the panel itself. Which ones appear depends on the step and on what is in
-  the panel. They sit on the highest run across the panel with room for them rather than on the
-  corners of the box around it, because a Cut can leave a panel a shape with no usable corners.
+  the panel. They sit the same distance inside the panel wherever it has room for them, on the
+  first run across it wide enough to hold them rather than on the corners of the box around it,
+  because a Cut can leave a panel a shape with no usable corners. A panel with handles along its
+  bottom as well as its top measures those from the bottom in the same way.
   The Balloon step offers only the Expand button, since images belong to the Placement step.
 - **Add image button**: The Panel handle at the left of an Empty panel. Opens the photo picker,
   which takes several images at once: the first fills the Selected panel and the rest fill the
@@ -193,8 +195,10 @@ Comic-level settings that restyle the whole comic at once.
 - **Focused panel**: The panel temporarily filling the Canvas for closer work, available in the
   Placement and Balloon steps. Selection and focus are distinct states, and focus is a view
   state that is never saved with the comic.
-- **Focus navigation buttons** (`FocusNavigation`): Directional edge buttons used to move between
-  panels while a panel is focused. Leaving focus is the Expand button's job, not theirs.
+- **Focus navigation buttons** (`FocusNavigation`): Round arrow handles along the bottom of the
+  focused panel, used to move between panels. They are Panel handles like the others and sit the
+  same distance inside the panel, so everything over the page reads as one family. Leaving focus
+  is the Expand button's job, not theirs.
 - **Balloon**: A speech, thought, whisper, yell, or caption shape placed over the comic.
 - **Selected balloon**: The balloon currently showing balloon editing controls.
 - **Balloon scope**: Whether a balloon belongs to one panel or to the whole comic.

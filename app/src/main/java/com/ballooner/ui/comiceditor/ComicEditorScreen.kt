@@ -419,28 +419,6 @@ private fun Page(
                 actions = actions,
             )
         }
-        if (state.focusedPanel != null) {
-            FocusNavigation(actions, modifier = Modifier.fillMaxSize())
-        }
-    }
-}
-
-/** Edge buttons for stepping between panels without leaving focus. */
-@Composable
-private fun FocusNavigation(actions: ComicEditorActions, modifier: Modifier = Modifier) {
-    Box(modifier = modifier) {
-        OutlinedButton(
-            onClick = { actions.focusNeighbour(forward = false) },
-            modifier = Modifier.align(Alignment.CenterStart),
-        ) {
-            Text("\u2039")
-        }
-        OutlinedButton(
-            onClick = { actions.focusNeighbour(forward = true) },
-            modifier = Modifier.align(Alignment.CenterEnd),
-        ) {
-            Text("\u203a")
-        }
     }
 }
 

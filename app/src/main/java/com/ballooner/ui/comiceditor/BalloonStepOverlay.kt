@@ -176,6 +176,8 @@ internal fun BalloonStepOverlay(
                     kind = if (focus != null) PanelHandleKind.COLLAPSE else PanelHandleKind.EXPAND,
                     onClick = { actions.focusPanel(if (focus != null) null else activePanel) },
                 ),
+                bottomStart = focusHandle(focus, PanelHandleKind.PREVIOUS_PANEL, actions),
+                bottomEnd = focusHandle(focus, PanelHandleKind.NEXT_PANEL, actions),
             )
         }
     }

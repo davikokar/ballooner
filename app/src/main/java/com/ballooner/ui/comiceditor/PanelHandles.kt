@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
@@ -21,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -38,17 +41,28 @@ internal enum class PanelHandleKind(val description: String) {
     EXPAND("Expand panel"),
     COLLAPSE("Show the whole page"),
     REMOVE_IMAGE("Remove image"),
+    PREVIOUS_PANEL("Previous panel"),
+    NEXT_PANEL("Next panel"),
 }
 
 /** One handle to put on the selected panel. */
 internal data class PanelHandle(val kind: PanelHandleKind, val onClick: () -> Unit)
 
+/** Stepping between panels, offered only while one of them fills the canvas. */
+internal fun focusHandle(
+    focus: Polygon?,
+    kind: PanelHandleKind,
+    actions: ComicEditorActions,
+): PanelHandle? = focus?.let {
+    PanelHandle(kind) { actions.focusNeighbour(forward = kind == PanelHandleKind.NEXT_PANEL) }
+}
+
 /**
- * The handles along the top of the selected panel, so what can be done to a panel is offered on
- * the panel itself.
+ * The handles along the top and bottom of the selected panel, so what can be done to a panel is
+ * offered on the panel itself.
  *
- * A cut can leave a panel any shape at all, so they are put on the highest run across the panel
- * wide enough to hold them rather than on the corners of the box around it.
+ * A cut can leave a panel any shape at all, so they are put on the first run across the panel wide
+ * enough to hold them rather than on the corners of the box around it.
  */
 @Composable
 internal fun PanelHandles(
@@ -56,51 +70,77 @@ internal fun PanelHandles(
     viewport: PageViewport,
     start: PanelHandle,
     end: PanelHandle? = null,
+    bottomStart: PanelHandle? = null,
+    bottomEnd: PanelHandle? = null,
 ) {
     if (viewport.scale <= 0f) return
-    val reach = with(LocalDensity.current) { (HANDLE_SIZE + HANDLE_MARGIN * 2).toPx() } / viewport.scale
-    val anchors = remember(panel, reach) { panelHandleAnchors(panel, reach) } ?: return
-    HandleButton(start, viewport.toScreen(anchors.first.x, anchors.first.y))
-    if (end != null) HandleButton(end, viewport.toScreen(anchors.second.x, anchors.second.y))
+    val density = LocalDensity.current
+    val size = with(density) { HANDLE_SIZE.toPx() } / viewport.scale
+    val margin = with(density) { HANDLE_MARGIN.toPx() } / viewport.scale
+    val top = remember(panel, size, margin) { panelHandleAnchors(panel, size, margin) } ?: return
+    HandleButton(start, viewport.toScreen(top.first.x, top.first.y))
+    if (end != null) HandleButton(end, viewport.toScreen(top.second.x, top.second.y))
+    if (bottomStart == null && bottomEnd == null) return
+    val bottom = remember(panel, size, margin) {
+        panelHandleAnchors(panel, size, margin, fromTop = false)
+    } ?: return
+    if (bottomStart != null) HandleButton(bottomStart, viewport.toScreen(bottom.first.x, bottom.first.y))
+    if (bottomEnd != null) HandleButton(bottomEnd, viewport.toScreen(bottom.second.x, bottom.second.y))
 }
 
 @Composable
 private fun HandleButton(handle: PanelHandle, centre: Offset) {
-    val scheme = MaterialTheme.colorScheme
-    val destructive = handle.kind == PanelHandleKind.REMOVE_IMAGE
-    Box(
-        modifier = Modifier
-            .offset {
-                val half = HANDLE_SIZE.toPx() / 2f
-                IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
-            }
-            .size(HANDLE_SIZE)
-            .clip(CircleShape)
-            .background(if (destructive) scheme.secondary else scheme.surfaceContainerLowest)
-            .border(2.dp, InkBlack, CircleShape)
-            .clickable(onClick = handle.onClick)
-            // A glyph may be drawn rather than written, so the handle has to say what it is.
-            .semantics { contentDescription = handle.kind.description },
-        contentAlignment = Alignment.Center,
-    ) {
-        val tint = if (destructive) scheme.onSecondary else scheme.onSurface
+    RoundHandle(
+        description = handle.kind.description,
+        onClick = handle.onClick,
+        modifier = Modifier.offset {
+            val half = HANDLE_SIZE.toPx() / 2f
+            IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
+        },
+        destructive = handle.kind == PanelHandleKind.REMOVE_IMAGE,
+    ) { tint ->
         when (handle.kind) {
-            PanelHandleKind.ADD_IMAGE -> Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(GLYPH_SIZE),
-            )
-            PanelHandleKind.REMOVE_IMAGE -> Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(GLYPH_SIZE),
-            )
+            PanelHandleKind.ADD_IMAGE -> HandleIcon(Icons.Default.Add, tint)
+            PanelHandleKind.REMOVE_IMAGE -> HandleIcon(Icons.Default.Close, tint)
+            PanelHandleKind.PREVIOUS_PANEL ->
+                HandleIcon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, tint)
+            PanelHandleKind.NEXT_PANEL ->
+                HandleIcon(Icons.AutoMirrored.Filled.KeyboardArrowRight, tint)
             PanelHandleKind.EXPAND -> ExpandGlyph(expanded = false, tint = tint)
             PanelHandleKind.COLLAPSE -> ExpandGlyph(expanded = true, tint = tint)
         }
     }
+}
+
+/** The round, ink-bordered button every handle over the page is made of. */
+@Composable
+internal fun RoundHandle(
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    destructive: Boolean = false,
+    glyph: @Composable (tint: Color) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier
+            .size(HANDLE_SIZE)
+            .clip(CircleShape)
+            .background(if (destructive) scheme.secondary else scheme.surfaceContainerLowest)
+            .border(2.dp, InkBlack, CircleShape)
+            .clickable(onClick = onClick)
+            // A glyph may be drawn rather than written, so the handle has to say what it is.
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        glyph(if (destructive) scheme.onSecondary else scheme.onSurface)
+    }
+}
+
+/** An icon sized to sit in a [RoundHandle]. The handle itself carries the name. */
+@Composable
+internal fun HandleIcon(icon: ImageVector, tint: Color) {
+    Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(GLYPH_SIZE))
 }
 
 /** Corner brackets that open outwards to fill the canvas, and face inwards to give it back. */

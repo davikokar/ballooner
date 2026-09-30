@@ -105,12 +105,18 @@ class ComicEditorViewModel @Inject constructor(
         // Moving on to another step accepts whatever a preset's options changed. Only going back
         // to the picker throws it away.
         beforeLayoutKind = null
-        updateContent {
-            it.copy(
+        updateContent { content ->
+            content.copy(
                 step = step,
                 layoutKind = null,
                 selection = emptyList(),
-                activePanel = null,
+                // Placing starts on the first panel, so the step opens with its handles already
+                // offered rather than waiting to be told where to begin.
+                activePanel = if (step == EditorStep.PLACEMENT && content.comic.panels.isNotEmpty()) {
+                    0
+                } else {
+                    null
+                },
                 focusedPanel = null,
             )
         }

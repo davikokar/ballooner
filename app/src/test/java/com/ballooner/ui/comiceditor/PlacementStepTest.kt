@@ -79,6 +79,16 @@ class PlacementStepTest {
     }
 
     @Test
+    fun `arriving at the step starts on the first panel`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.selectStep(EditorStep.PLACEMENT)
+
+        assertEquals(0, content(viewModel).activePanel)
+    }
+
+    @Test
     fun `leaving the step forgets which panel was being placed`() = runTest {
         val (viewModel, _) = editorFor(comic())
         advanceUntilIdle()

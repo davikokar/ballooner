@@ -156,6 +156,9 @@ internal fun PlacementStepOverlay(
                 } else {
                     null
                 },
+                // Stepping between panels only means anything while one of them fills the canvas.
+                bottomStart = focusHandle(focus, PanelHandleKind.PREVIOUS_PANEL, actions),
+                bottomEnd = focusHandle(focus, PanelHandleKind.NEXT_PANEL, actions),
             )
         }
     }
