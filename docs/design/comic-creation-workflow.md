@@ -167,9 +167,10 @@ any export size:
 - **Gutter** — space between adjacent panels, and the space round the outside of the page as well.
   There is no separate page margin: one number keeps every gap in the comic the same width.
 - **Border thickness** — the panel outline weight.
-- **Corner radius** — how rounded panel corners are. Every corner rounds, including the ones a
-  diagonal cut leaves, and a corner never takes more than half of either edge meeting it, so a
-  small panel keeps a straight side.
+- **Corner radius** — how rounded panel corners are, from nothing up to half the page's width.
+  Every corner rounds, including the ones a diagonal cut leaves, and a corner never takes more
+  than half of either edge meeting it — which is what lets the radius be turned all the way up
+  until a square panel closes into a circle.
 
 Changing any of these restyles the whole comic at once. It moves and resizes panel frames, but it
 never deletes anything and never disturbs image placement or balloons.

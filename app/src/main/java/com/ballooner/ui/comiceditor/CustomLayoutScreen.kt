@@ -60,13 +60,14 @@ fun CustomLayoutScreen(
     onEndCutDrag: (index: Int) -> Unit,
     onUndo: () -> Unit,
     onBack: () -> Unit,
+    onOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "CUSTOM", onBack = onBack)
+        LayoutOptionBreadcrumb(current = "CUSTOM", onBack = onBack, onOptions = onOptions)
         PreviewSurface(
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             hint = if (comic.layout.cuts.isEmpty()) {

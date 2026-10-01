@@ -17,9 +17,17 @@ fun PagePoint.normalized(pageHeight: Float): NormalizedPoint =
 /** Comic-level styling. Every distance is a fraction of the page width. */
 data class ComicStyle(
     val gutter: Float = 0.02f,
-    val borderThickness: Float = 0.004f,
+    val borderThickness: Float = 0.005f,
     val cornerRadius: Float = 0f,
 ) {
     /** The gap round the outside of the page, which is the gutter so every gap matches. */
     val pageMargin: Float get() = gutter
 }
+
+/**
+ * The most a corner may be rounded, which is half of the widest a panel can be.
+ *
+ * A corner never takes more than half of either edge meeting it, so at this setting a square
+ * panel's four corners meet at the edge midpoints and the panel comes out a circle.
+ */
+const val MAX_CORNER_RADIUS = 0.5f

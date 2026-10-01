@@ -49,9 +49,8 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Comic title field** (`EditableTitle`): The editable comic name in the Editor top bar.
 - **Editor toolbar**: The band below the Editor top bar, on its own paper surface, containing the
   Step switch and — under a divider — the **Editor action row**.
-- **Editor action row**: The row beneath the Step switch. The Undo button and the Options button
-  sit at its right end, in that order; the Step back button and Step next button sit at its left
-  wherever there is somewhere to go.
+- **Editor action row**: The row beneath the Step switch. The Undo button sits at its right end;
+  the Step back button and Step next button sit at its left wherever there is somewhere to go.
 - **Step next button**: The "Next" button at the left of the Editor action row. Moves to the step
   after this one, exactly as tapping that step does. Shown on the Preset picker, where it instead
   opens the active preset's options; while Preset options are open, where it also takes the
@@ -95,13 +94,15 @@ the parts owned by later steps are shown dimmed and are not interactive.
 
 ### Editor toolbar controls
 
-- **Options button**: The gear in the Editor action row. Opens the Comic style controls in a
-  bottom sheet, so comic-wide settings never crowd the step being worked on.
+- **Options button**: The gear at the right end of the Breadcrumb, so it sits on the same line as
+  the heading it belongs to. Opens the Comic style controls in a bottom sheet. Offered only while
+  Preset options are open — Single, Strip, Grid, or Custom — since that is the only place the
+  comic is being styled as a whole. It is not on the Preset picker or in any other step.
 - **Comic style button**: Opens the Comic style controls.
 - **Save button**: Exports the comic as a PNG selected by the user.
-- **Undo button**: Reverses the most recent edit, in any step. An icon in the Editor action row,
-  beside the Options button, faded out when there is nothing to undo. It is not shown on the
-  Preset picker, which changes nothing until a preset is opened.
+- **Undo button**: Reverses the most recent edit, in any step. An icon at the right end of the
+  Editor action row, faded out when there is nothing to undo. It is not shown on the Preset
+  picker, which changes nothing until a preset is opened.
 
 ### Layout step
 
@@ -114,9 +115,9 @@ the parts owned by later steps are shown dimmed and are not interactive.
   **Custom**. Read back off the comic rather than stored.
 - **Preset options**: The second view of the Layout step, opened by tapping a Layout preset card.
   It is a continuation of the Preset picker, not an overlay: same ground, no frame of its own.
-  Reached by tapping a card, and left by the **Step next button**, the **Step back button**, or
-  the **Breadcrumb**, which continues the picker's heading — "Select panel preset / Single" — with
-  the leading part tappable to go back.
+  Preset picker, and left by the **Step next button**, the **Step back button**, or the
+  **Breadcrumb**, which continues the picker's heading — "Select panel preset / Single" — with
+  the leading part tappable to go back and the **Options button** at its far end.
 - **Single panel shape**: The Single preset's options. Four **Shape tiles** — **Square**,
   **Ratio**, **Custom**, **Auto** — over a **Panel preview**.
 - **Strip options**: The Strip preset's options. An **Orientation** pair of icon buttons and a

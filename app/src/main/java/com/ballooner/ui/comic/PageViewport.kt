@@ -2,7 +2,9 @@ package com.ballooner.ui.comic
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Path
+import com.ballooner.domain.comic.MAX_CORNER_RADIUS
 import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.PanelImage
@@ -68,10 +70,10 @@ fun comicViewport(available: Size, pageHeight: Float, focus: PageRect?): PageVie
  * The outline of a panel in screen pixels.
  *
  * [cornerRadius] is in page units, like every other distance in the document. A corner is rounded
- * by pulling back along both of its edges and curving through where the corner was, so a panel of
- * any shape — including one a cut has left with corners that are not square — rounds the same way.
- * A corner never eats more than half of the shortest edge meeting it, so a small panel stays a
- * panel rather than collapsing into a blob.
+ * by pulling back along both of its edges and arcing between the two points, so a panel of any
+ * shape — including one a cut has left with corners that are not square — rounds the same way.
+ * A corner never eats more than half of the shortest edge meeting it, which is what lets the
+ * radius run all the way up to [MAX_CORNER_RADIUS] and turn a square panel into a circle.
  */
 fun Polygon.toPath(viewport: PageViewport, cornerRadius: Float = 0f): Path = Path().apply {
     val points = vertices.map { viewport.toScreen(it.x, it.y) }
@@ -88,10 +90,17 @@ fun Polygon.toPath(viewport: PageViewport, cornerRadius: Float = 0f): Path = Pat
         val next = points[(index + 1) % points.size]
         val (back, forward) = roundedCorner(previous, corner, next, radius)
         if (index == 0) moveTo(back.x, back.y) else lineTo(back.x, back.y)
-        quadraticTo(corner.x, corner.y, forward.x, forward.y)
+        // A cubic pulled this far towards the corner is a circular arc to within a rounding
+        // error, so four maxed-out corners of a square really do close into a circle.
+        val first = lerp(back, corner, ARC_CONTROL)
+        val second = lerp(forward, corner, ARC_CONTROL)
+        cubicTo(first.x, first.y, second.x, second.y, forward.x, forward.y)
     }
     close()
 }
+
+/** How far towards the corner a control point sits: the usual circle-from-cubics constant. */
+private const val ARC_CONTROL = 0.5523f
 
 /**
  * Where a rounded corner leaves the edge running into [corner], and where it rejoins the one

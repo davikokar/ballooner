@@ -26,13 +26,14 @@ fun SinglePanelShapeScreen(
     style: ComicStyle,
     onChange: (PageSizing) -> Unit,
     onBack: () -> Unit,
+    onOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "SINGLE", onBack = onBack)
+        LayoutOptionBreadcrumb(current = "SINGLE", onBack = onBack, onOptions = onOptions)
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

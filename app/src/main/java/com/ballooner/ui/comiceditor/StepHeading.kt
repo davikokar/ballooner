@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,11 +42,28 @@ internal fun StepHeading(text: String, trailing: @Composable BoxScope.() -> Unit
 /**
  * The Layout step's heading, which carries the picker's own heading forward so the step reads as
  * one place the user is inside. The leading part goes back to the picker.
+ *
+ * [onOptions] opens the Comic style controls. They live here because a preset's options are the
+ * only place the comic is being styled as a whole, and nowhere else in the editor offers them.
  */
 @Composable
-internal fun LayoutOptionBreadcrumb(current: String, onBack: () -> Unit) {
+internal fun LayoutOptionBreadcrumb(current: String, onBack: () -> Unit, onOptions: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    HeadingRow {
+    HeadingRow(
+        trailing = {
+            IconButton(
+                onClick = onOptions,
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp).size(32.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Options",
+                    tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        },
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),

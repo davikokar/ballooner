@@ -66,6 +66,7 @@ fun GridLayoutScreen(
     onMerge: () -> Unit,
     onUnmerge: () -> Unit,
     onBack: () -> Unit,
+    onOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val grid = comic.layout.grid
@@ -75,7 +76,7 @@ fun GridLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "GRID", onBack = onBack)
+        LayoutOptionBreadcrumb(current = "GRID", onBack = onBack, onOptions = onOptions)
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

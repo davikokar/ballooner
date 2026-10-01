@@ -2,6 +2,7 @@ package com.ballooner.ui.comic
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import com.ballooner.domain.comic.MAX_CORNER_RADIUS
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PanelImage
@@ -201,6 +202,24 @@ class PageViewportTest {
 
         assertEquals(corner, back)
         assertEquals(corner, forward)
+    }
+
+    @Test
+    fun `the widest panel there can be is still roundable at the largest radius`() {
+        // A panel can be at most the page's full width, drawn here at 400 pixels to the page unit.
+        val scale = 400f
+        val corner = Offset(400f, 0f)
+
+        val (back, forward) = roundedCorner(
+            previous = Offset(0f, 0f),
+            corner = corner,
+            next = Offset(400f, 400f),
+            radius = MAX_CORNER_RADIUS * scale,
+        )
+
+        // Both ends land on the edge midpoints, which is the corner being a full quarter circle.
+        assertEquals(200f, back.x, TOLERANCE)
+        assertEquals(200f, forward.y, TOLERANCE)
     }
 
     @Test

@@ -49,6 +49,7 @@ fun StripLayoutScreen(
     onChange: (PageSizing) -> Unit,
     onStrip: (horizontal: Boolean, count: Int) -> Unit,
     onBack: () -> Unit,
+    onOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val count = panelCount.coerceAtLeast(MIN_STRIP_PANELS)
@@ -56,7 +57,7 @@ fun StripLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "STRIP", onBack = onBack)
+        LayoutOptionBreadcrumb(current = "STRIP", onBack = onBack, onOptions = onOptions)
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

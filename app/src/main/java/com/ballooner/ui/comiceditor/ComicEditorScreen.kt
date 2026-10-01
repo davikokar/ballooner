@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -31,7 +29,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +67,7 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.MAX_BALLOON_BORDER
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
+import com.ballooner.domain.comic.MAX_CORNER_RADIUS
 import com.ballooner.domain.comic.MIN_BALLOON_BORDER
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.panelIndex
@@ -109,7 +107,6 @@ fun ComicEditorScreen(
             EditorHeader(
                 step = state.step,
                 onSelectStep = actions::selectStep,
-                onOptions = { showOptions = true },
                 canUndo = state.canUndo,
                 // The picker changes nothing until a preset is opened, so there is nothing to undo.
                 onUndo = if (onPresetPicker) null else actions::undo,
@@ -163,6 +160,7 @@ fun ComicEditorScreen(
                         style = state.comic.style,
                         onChange = actions::setSizing,
                         onBack = actions::discardLayoutKind,
+                        onOptions = { showOptions = true },
                     )
                     return@Column
                 }
@@ -181,6 +179,7 @@ fun ComicEditorScreen(
                             if (across) actions.applyPreset(1, count) else actions.applyPreset(count, 1)
                         },
                         onBack = actions::discardLayoutKind,
+                        onOptions = { showOptions = true },
                     )
                     return@Column
                 }
@@ -197,6 +196,7 @@ fun ComicEditorScreen(
                         onMerge = actions::mergeSelection,
                         onUnmerge = actions::unmergeSelection,
                         onBack = actions::discardLayoutKind,
+                        onOptions = { showOptions = true },
                     )
                     return@Column
                 }
@@ -211,6 +211,7 @@ fun ComicEditorScreen(
                         onEndCutDrag = actions::endCutDrag,
                         onUndo = actions::undo,
                         onBack = actions::discardLayoutKind,
+                        onOptions = { showOptions = true },
                     )
                     return@Column
                 }
@@ -297,7 +298,6 @@ fun ComicEditorScreen(
 private fun EditorHeader(
     step: EditorStep,
     onSelectStep: (EditorStep) -> Unit,
-    onOptions: () -> Unit,
     canUndo: Boolean,
     onUndo: (() -> Unit)?,
     onBack: (() -> Unit)?,
@@ -336,7 +336,7 @@ private fun EditorHeader(
                     Text(nextLabel, style = MaterialTheme.typography.labelLarge)
                 }
             }
-            // Keeps the Options gear at the far end whether or not the preset buttons are there.
+            // Keeps Undo at the far end whether or not the preset buttons are there.
             Spacer(modifier = Modifier.weight(1f))
             if (onUndo != null) {
                 IconButton(
@@ -350,14 +350,6 @@ private fun EditorHeader(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-            }
-            IconButton(onClick = onOptions, modifier = Modifier.size(36.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Options",
-                    tint = scheme.onSurface,
-                    modifier = Modifier.size(18.dp),
-                )
             }
         }
     }
@@ -723,7 +715,7 @@ private fun StyleControls(style: ComicStyle, onChange: (ComicStyle) -> Unit) {
         // the same width whichever side of a panel it is on.
         StyleSlider("Gutter", style.gutter, 0f, 0.1f) { onChange(style.copy(gutter = it)) }
         StyleSlider("Border", style.borderThickness, 0f, 0.02f) { onChange(style.copy(borderThickness = it)) }
-        StyleSlider("Corners", style.cornerRadius, 0f, 0.05f) { onChange(style.copy(cornerRadius = it)) }
+        StyleSlider("Corners", style.cornerRadius, 0f, MAX_CORNER_RADIUS) { onChange(style.copy(cornerRadius = it)) }
     }
 }
 
