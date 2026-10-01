@@ -96,6 +96,7 @@ fun GridLayoutScreen(
             PreviewSurface(
                 modifier = Modifier.weight(1f),
                 hint = "Tap cells to join them".takeIf { selection.isEmpty() },
+                offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
             ) {
                 GridPage(

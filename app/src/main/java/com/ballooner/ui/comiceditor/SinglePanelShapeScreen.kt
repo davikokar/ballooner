@@ -27,7 +27,6 @@ fun SinglePanelShapeScreen(
     onChange: (PageSizing) -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
-    onPanelOptions: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -48,9 +47,8 @@ fun SinglePanelShapeScreen(
                 panels = listOfNotNull(panel),
                 images = images,
                 style = style,
-                // The comic has one panel, so there is nothing to choose between: it is always
-                // the panel the Panel options apply to and needs no picking out.
-                onPanelOptions = onPanelOptions,
+                // No Panel options here: the one panel is the whole comic, so styling it and
+                // styling the comic are the same thing and the Options button already does it.
                 modifier = Modifier.weight(1f),
             )
         }

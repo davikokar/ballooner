@@ -119,7 +119,8 @@ the parts owned by later steps are shown dimmed and are not interactive.
   **Breadcrumb**, which continues the picker's heading — "Select panel preset / Single" — with
   the leading part tappable to go back and the **Options button** at its far end.
 - **Single panel shape**: The Single preset's options. Four **Shape tiles** — **Square**,
-  **Ratio**, **Custom**, **Auto** — over a **Panel preview**.
+  **Ratio**, **Custom**, **Auto** — over a **Panel preview**. Its preview carries no Panel
+  options button: the comic is one panel, so the Comic style is already its panel style.
 - **Strip options**: The Strip preset's options. An **Orientation** pair of icon buttons and a
   **Panels** stepper, then the Shape tiles and the Panel preview.
 - **Grid options**: The Grid preset's options. A **Rows** stepper and a **Columns** stepper, then
@@ -139,12 +140,13 @@ the parts owned by later steps are shown dimmed and are not interactive.
   is written to the comic, and the Placement step remains the only place an image is positioned.
   Its top-right corner carries the **Panel options button**.
 - **Panel options button**: The gear in the top-right corner of the Panel preview, drawn as the
-  Options button is because it opens the same kind of thing for one panel. Offered in all four
-  Preset options, and dimmed until exactly one panel is chosen. Opens the **Panel flyout**.
+  Options button is because it opens the same kind of thing for one panel. Offered in **Strip**,
+  **Grid**, and **Custom**, and dimmed until exactly one panel is chosen. Not offered in
+  **Single**, where the comic is one panel and so styling it is styling the comic — the Options
+  button already does that. Opens the **Panel flyout**.
 - **Selected panel**: The one panel the Preset options are working on, which is the panel the
-  Panel flyout restyles. Chosen by tapping a panel in the Panel preview, except in **Single**,
-  where the comic's one panel is always it, and in **Grid**, where it is the cell already picked
-  out for merging.
+  Panel flyout restyles. Chosen by tapping a panel in the Panel preview, except in **Grid**,
+  where it is the cell already picked out for merging.
 - **Reference panel**: The panel that gives the Page its height, which is the first panel of the
   Grid. For a Single comic that is the only panel.
 - **Panel shape**: The proportions the Reference panel is held at. Offered as **Square**, **2:3**,

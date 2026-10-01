@@ -215,6 +215,7 @@ internal fun PanelPreview(
     columns: Int = 1,
     selected: Int? = null,
     onSelect: ((Int) -> Unit)? = null,
+    offersPanelOptions: Boolean = false,
     onPanelOptions: (() -> Unit)? = null,
     emptyMessage: String = "The panel takes the shape of the image you choose next.",
 ) {
@@ -222,6 +223,7 @@ internal fun PanelPreview(
     PreviewSurface(
         modifier = modifier,
         hint = "Pinch and drag to look around".takeIf { anyImage },
+        offersPanelOptions = offersPanelOptions,
         onPanelOptions = onPanelOptions,
     ) {
         if (ratio == null) {
@@ -252,6 +254,8 @@ private const val MIN_PREVIEW_BORDER = 2f
  * What goes on the ground differs: a lattice of frames for the shape presets, the real page for
  * the grid, which has merged panels to show.
  *
+ * [offersPanelOptions] says whether this preset styles panels one at a time at all; a preset
+ * whose comic is a single panel does not, since styling that panel is styling the comic.
  * [onPanelOptions] opens the Panel style controls for the one panel that is selected. A null one
  * leaves the button offered but dimmed, since what is missing is a choice of panel rather than
  * the ability to style one.
@@ -260,6 +264,7 @@ private const val MIN_PREVIEW_BORDER = 2f
 internal fun PreviewSurface(
     modifier: Modifier = Modifier,
     hint: String? = null,
+    offersPanelOptions: Boolean = false,
     onPanelOptions: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -296,7 +301,7 @@ internal fun PreviewSurface(
                     modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp),
                 )
             }
-            PanelOptionsButton(onClick = onPanelOptions)
+            if (offersPanelOptions) PanelOptionsButton(onClick = onPanelOptions)
         }
         Box(
             modifier = Modifier

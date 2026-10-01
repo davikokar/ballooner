@@ -83,6 +83,7 @@ fun CustomLayoutScreen(
                 // Any longer and it wraps under the Panel options button beside it.
                 "Drag both handles off to remove it"
             },
+            offersPanelOptions = true,
             onPanelOptions = onPanelOptions,
         ) {
             CuttingPage(

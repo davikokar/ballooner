@@ -151,10 +151,10 @@ fun ComicEditorScreen(
                     )
                     return@Column
                 }
-                // A single panel is the whole comic, so its own preview says everything the
-                // canvas would.
                 // The Panel flyout restyles one panel, so it waits until exactly one is chosen.
                 val onPanelOptions = state.styledPanel()?.let { { showPanelOptions = true } }
+                // A single panel is the whole comic, so its own preview says everything the
+                // canvas would.
                 if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.SINGLE) {
                     SinglePanelShapeScreen(
                         sizing = state.comic.sizing,
@@ -165,7 +165,6 @@ fun ComicEditorScreen(
                         onChange = actions::setSizing,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
-                        onPanelOptions = onPanelOptions,
                     )
                     return@Column
                 }
@@ -476,8 +475,9 @@ private fun PanelOptionsSheet(
  * already made there rather than asking them to make it twice.
  */
 private fun ComicEditorUiState.Content.styledPanel(): Int? = when (layoutKind) {
-    // One panel is the whole comic: there is nothing to choose between.
-    LayoutKind.SINGLE -> comic.panels.indices.firstOrNull()
+    // One panel is the whole comic, so styling it is styling the comic: the Options button
+    // already does that, and a Panel flyout beside it would only say the same thing twice.
+    LayoutKind.SINGLE -> null
     // The grid picks panels out by their cells, which is what merging already works on.
     LayoutKind.GRID -> selection.singleOrNull()?.let { panelIndexOfCell(comic, it) }
     LayoutKind.STRIP, LayoutKind.CUSTOM -> activePanel?.takeIf { it in comic.panels.indices }

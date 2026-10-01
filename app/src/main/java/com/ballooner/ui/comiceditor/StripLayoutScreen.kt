@@ -100,6 +100,7 @@ fun StripLayoutScreen(
                 columns = if (horizontal) count else 1,
                 selected = selectedPanel,
                 onSelect = onSelectPanel,
+                offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
                 emptyMessage = "Every panel takes the shape of the first image you choose next.",
             )
