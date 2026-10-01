@@ -210,6 +210,16 @@ and each slider reads its value out as that percentage beside the track.
   because a Cut can leave a panel a shape with no usable corners. A panel with handles along its
   bottom as well as its top measures those from the bottom in the same way.
   The Balloon step offers only the Expand button, since images belong to the Placement step.
+- **Panel double tap**: In the Placement and Balloon steps, double tapping a panel does what that
+  panel's own handle would have done. A double tap on the focused panel gives the page back, as
+  the **Collapse** does; otherwise the panel is focused, as the **Expand button** does. In the
+  Placement step only, an **Empty panel** instead opens the photo picker as the **Add image
+  button** does — that step owns images, so elsewhere an empty panel is opened up like any other.
+  Closing is tried first whatever the panel holds, because an empty panel is offered no Collapse
+  to get out with. A comic of one panel is never offered the focused view, so double tapping its
+  only panel does nothing. A single tap still only selects, and does so on the first tap rather
+  than waiting out the double-tap window. In the Balloon step a double tap only counts on bare
+  panel: landing on a balloon selects that balloon and leaves the view alone.
 - **Add image button**: The Panel handle at the left of an Empty panel. Opens the photo picker,
   which takes several images at once: the first fills the Selected panel and the rest fill the
   Empty panels that follow it, wrapping round the page.

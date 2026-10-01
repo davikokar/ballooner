@@ -44,6 +44,7 @@ import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.comicViewport
 import com.ballooner.ui.comic.toPath
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -79,31 +80,52 @@ internal fun PlacementStepOverlay(
     fun panelAt(point: PagePoint) =
         latest.shapes.indexOfFirst { it.contains(point) }.takeIf { it >= 0 }
 
+    // Read where the page is at the moment the finger is read, never before: focusing a panel
+    // moves the whole page, so a viewport taken when the gesture began would be the old one.
+    fun PointerInputScope.panelUnder(position: Offset): Int? =
+        panelAt(comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds).toPage(position))
+
+    // A double tap does whatever the panel's own handle would have done.
+    fun openPanel(index: Int) = when (panelOpening(latest.comic, index, focused = latest.focus != null)) {
+        PanelOpening.PICK_IMAGE -> onPickImage(index)
+        PanelOpening.FOCUS -> actions.focusPanel(index)
+        PanelOpening.UNFOCUS -> actions.focusPanel(null)
+        PanelOpening.NOTHING -> Unit
+    }
+
     Box(modifier = modifier.fillMaxSize().onSizeChanged { area = it }) {
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     awaitEachGesture {
-                        val viewport = comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
                         awaitFirstDown(requireUnconsumed = false)
                         // Nothing is consumed here: consuming the press would cancel the pinch
                         // before it began, and a tap is only a tap if no one else claimed it.
                         val up = waitForUpOrCancellation() ?: return@awaitEachGesture
-                        actions.selectPanel(panelAt(viewport.toPage(up.position)))
+                        val panel = panelUnder(up.position)
+                        // Selected on the first tap rather than after the double-tap window has
+                        // run out: a panel that lights up a third of a second late reads as broken.
+                        actions.selectPanel(panel)
+                        if (panel == null) return@awaitEachGesture
+                        withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                            awaitFirstDown(requireUnconsumed = false)
+                        } ?: return@awaitEachGesture
+                        val secondUp = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        // The second tap has to land on the same panel, or it is two taps on two
+                        // panels rather than a double tap on one.
+                        if (panelUnder(secondUp.position) == panel) openPanel(panel)
                     }
                 }
                 .pointerInput(Unit) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = { start ->
-                            val viewport = comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
-                            carrying = panelAt(viewport.toPage(start))
+                            carrying = panelUnder(start)
                             over = carrying
                         },
                         onDrag = { change, _ ->
                             change.consume()
-                            val viewport = comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
-                            over = panelAt(viewport.toPage(change.position))
+                            over = panelUnder(change.position)
                         },
                         onDragEnd = {
                             val from = carrying
@@ -235,8 +257,10 @@ private suspend fun PointerInputScope.detectPanelTransform(
     actions: ComicEditorActions,
 ) {
     awaitEachGesture {
-        val viewport = viewportOf()
         val down = awaitFirstDown(requireUnconsumed = false)
+        // Read after the press, not before: focusing a panel moves the page under the next
+        // gesture, and this loop restarts before the new layout has reached it.
+        val viewport = viewportOf()
         val panel = panelAt(viewport.toPage(down.position)) ?: return@awaitEachGesture
         val aspect = imageAspect(panel) ?: return@awaitEachGesture
         if (viewport.scale <= 0f) return@awaitEachGesture

@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.Polygon
 import com.ballooner.domain.comic.panelHandleAnchors
 import com.ballooner.ui.comic.PageViewport
@@ -47,6 +48,41 @@ internal enum class PanelHandleKind(val description: String) {
 
 /** One handle to put on the selected panel. */
 internal data class PanelHandle(val kind: PanelHandleKind, val onClick: () -> Unit)
+
+/** What a double tap on a panel does, which is whatever that panel's own handle would have done. */
+internal enum class PanelOpening {
+    /** Fill the panel, as its Add image handle would. */
+    PICK_IMAGE,
+
+    /** Fill the canvas with the panel, as its Expand handle would. */
+    FOCUS,
+
+    /** Give the whole page back, as the Collapse handle would. */
+    UNFOCUS,
+
+    /** Nothing: a comic of one panel is already the whole page. */
+    NOTHING,
+}
+
+/**
+ * Which of those a double tap on the panel at [index] asks for.
+ *
+ * [offersImages] is true only in the step that owns them, so elsewhere an empty panel is opened
+ * up like any other rather than asking to be filled.
+ */
+internal fun panelOpening(
+    comic: Comic,
+    index: Int,
+    focused: Boolean,
+    offersImages: Boolean = true,
+): PanelOpening = when {
+    // Closing comes first whatever the panel holds: in the focused view it is the way back, and
+    // an empty panel is offered no collapse handle to get there with.
+    focused -> PanelOpening.UNFOCUS
+    offersImages && comic.panels.getOrNull(index)?.image == null -> PanelOpening.PICK_IMAGE
+    comic.panels.size <= 1 -> PanelOpening.NOTHING
+    else -> PanelOpening.FOCUS
+}
 
 /**
  * Stepping between panels, offered only while one of them fills the canvas and there is another

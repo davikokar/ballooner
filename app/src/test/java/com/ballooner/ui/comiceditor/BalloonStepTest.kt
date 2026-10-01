@@ -71,6 +71,30 @@ class BalloonStepTest {
     }
 
     @Test
+    fun `double tapping a panel opens it up even though it is empty`() {
+        // Images belong to the Placement step, so an empty panel is lettered like any other.
+        val opening = panelOpening(comic(), index = 1, focused = false, offersImages = false)
+
+        assertEquals(PanelOpening.FOCUS, opening)
+    }
+
+    @Test
+    fun `double tapping the panel that is open gives the page back`() {
+        val opening = panelOpening(comic(), index = 1, focused = true, offersImages = false)
+
+        assertEquals(PanelOpening.UNFOCUS, opening)
+    }
+
+    @Test
+    fun `the only panel of a comic cannot be opened up for lettering`() {
+        val single = comic().copy(layout = Layout(Grid(rows = 1, columns = 1)), panels = listOf(Panel()))
+
+        val opening = panelOpening(single, index = 0, focused = false, offersImages = false)
+
+        assertEquals(PanelOpening.NOTHING, opening)
+    }
+
+    @Test
     fun `adding a balloon puts it in the chosen panel and selects it`() = runTest {
         val (viewModel, repository) = editorFor(comic())
         advanceUntilIdle()

@@ -83,6 +83,42 @@ class PlacementStepTest {
     }
 
     @Test
+    fun `double tapping an empty panel asks for an image`() {
+        val opening = panelOpening(strip(listOf(null, "image1")), index = 0, focused = false)
+
+        assertEquals(PanelOpening.PICK_IMAGE, opening)
+    }
+
+    @Test
+    fun `double tapping a filled panel opens it up`() {
+        val opening = panelOpening(comic(), index = 1, focused = false)
+
+        assertEquals(PanelOpening.FOCUS, opening)
+    }
+
+    @Test
+    fun `double tapping the panel that is open gives the page back`() {
+        val opening = panelOpening(comic(), index = 1, focused = true)
+
+        assertEquals(PanelOpening.UNFOCUS, opening)
+    }
+
+    @Test
+    fun `an empty panel that is open gives the page back rather than asking for an image`() {
+        // It is the only way out: an empty panel is offered no collapse handle.
+        val opening = panelOpening(strip(listOf(null)), index = 0, focused = true)
+
+        assertEquals(PanelOpening.UNFOCUS, opening)
+    }
+
+    @Test
+    fun `the only panel of a comic cannot be opened up`() {
+        val opening = panelOpening(strip(listOf("image0")), index = 0, focused = false)
+
+        assertEquals(PanelOpening.NOTHING, opening)
+    }
+
+    @Test
     fun `choosing a panel that is not there selects nothing`() = runTest {
         val (viewModel, _) = editorFor(comic())
         advanceUntilIdle()

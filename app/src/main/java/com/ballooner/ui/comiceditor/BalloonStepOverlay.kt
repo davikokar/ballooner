@@ -1,8 +1,10 @@
 package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -37,6 +40,7 @@ import com.ballooner.domain.comic.tailTip
 import com.ballooner.domain.comic.tailWidthHandle
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.comicViewport
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** What a drag on a selected balloon is doing. */
 private enum class BalloonGrab { BODY, MOVE, RESIZE, TAIL, TAIL_WIDTH }
@@ -73,27 +77,53 @@ internal fun BalloonStepOverlay(
     // cancel the drag on its own first step. This lets a running gesture read current values.
     val latest by rememberUpdatedState(BalloonInputs(comic, shapes, focus, selected))
 
+    // Read where the page is at the moment the finger is read, never before: opening a panel up
+    // moves the whole page, and this loop restarts before the new layout has reached it.
+    fun PointerInputScope.pageUnder(position: Offset): PagePoint =
+        comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds).toPage(position)
+
+    fun panelUnder(point: PagePoint): Int? =
+        latest.shapes.indexOfFirst { it.contains(point) }.takeIf { it >= 0 }
+
+    // Topmost first, so the balloon you can see is the one you get.
+    fun balloonUnder(point: PagePoint): Balloon? = latest.comic.balloons.inDrawingOrder()
+        .lastOrNull { it.contains(point, panelOf(it), latest.comic.pageHeight) }
+
+    // Lettering is close work, so a panel is opened up and given back exactly as it is in the
+    // Placement step. Images belong to that step, so an empty panel opens up like any other.
+    fun openPanel(index: Int) = when (
+        panelOpening(latest.comic, index, focused = latest.focus != null, offersImages = false)
+    ) {
+        PanelOpening.FOCUS -> actions.focusPanel(index)
+        PanelOpening.UNFOCUS -> actions.focusPanel(null)
+        PanelOpening.PICK_IMAGE, PanelOpening.NOTHING -> Unit
+    }
+
     Box(modifier = modifier.fillMaxSize().onSizeChanged { area = it }) {
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        val viewport =
-                            comicViewport(size.toSize(), latest.comic.pageHeight, latest.focus?.bounds)
-                        val point = viewport.toPage(offset)
-                        val height = latest.comic.pageHeight
-                        // Topmost first, so the balloon you can see is the one you get.
-                        val hit = latest.comic.balloons.inDrawingOrder().lastOrNull {
-                            it.contains(PagePoint(point.x, point.y), panelOf(it), height)
-                        }
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        // Nothing is consumed here: a tap is only a tap if no one else claimed it,
+                        // and consuming the press would cancel a drag before it began.
+                        val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        val hit = balloonUnder(pageUnder(up.position))
                         actions.selectBalloon(hit?.id)
+                        if (hit != null) return@awaitEachGesture
                         // Tapping bare panel also aims where the next balloon will be added.
-                        if (hit == null) {
-                            actions.selectPanel(
-                                latest.shapes.indexOfFirst { it.contains(point) }.takeIf { it >= 0 },
-                            )
-                        }
+                        val panel = panelUnder(pageUnder(up.position))
+                        actions.selectPanel(panel)
+                        if (panel == null) return@awaitEachGesture
+                        withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                            awaitFirstDown(requireUnconsumed = false)
+                        } ?: return@awaitEachGesture
+                        val secondUp = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        // The second tap has to land on the same bare panel, or it is two taps on
+                        // two things rather than a double tap on one.
+                        val point = pageUnder(secondUp.position)
+                        if (balloonUnder(point) == null && panelUnder(point) == panel) openPanel(panel)
                     }
                 }
                 .pointerInput(Unit) {
@@ -173,7 +203,8 @@ internal fun BalloonStepOverlay(
         }
         // Lettering is close work, so the panel being lettered offers the same way in as the
         // Placement step does. Its images belong to that step, so nothing here changes them.
-        val shape = activePanel?.let { shapes.getOrNull(it) }        // One panel is already the whole page, so there is nothing to open up or step to.
+        val shape = activePanel?.let { shapes.getOrNull(it) }
+        // One panel is already the whole page, so there is nothing to open up or step to.
         val alone = comic.panels.size <= 1
         if (shape != null && showHandles && !alone && area.width > 0 && area.height > 0) {
             PanelHandles(
