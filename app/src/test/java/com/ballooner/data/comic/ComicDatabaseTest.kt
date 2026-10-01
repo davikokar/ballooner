@@ -6,6 +6,7 @@ import com.ballooner.data.AppDatabase
 import com.ballooner.data.MIGRATION_6_7
 import com.ballooner.data.MIGRATION_7_8
 import com.ballooner.data.MIGRATION_8_9
+import com.ballooner.data.MIGRATION_9_10
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.BalloonScope
 import com.ballooner.domain.comic.Comic
@@ -58,7 +59,7 @@ class ComicDatabaseTest {
 
     private fun openDatabase(): AppDatabase {
         database = Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
             .build()
         repository = RoomComicRepository(database.comicDao())
         return database

@@ -52,6 +52,8 @@ fun ComicPage(
     imageAlpha: Float = 1f,
     balloonAlpha: Float = 1f,
     focus: Polygon? = null,
+    /** The balloon whose text is being typed in place, and so must not be drawn twice. */
+    editingBalloon: Long? = null,
 ) {
     // A focused panel is drawn scaled up, so without this the page spills over its neighbours
     // in the layout.
@@ -60,7 +62,16 @@ fun ComicPage(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val viewport = comicViewport(size, comic.pageHeight, focus?.bounds)
             if (viewport.scale <= 0f) return@Canvas
-            drawComicPage(comic, images, viewport, textMeasurer, imageAlpha, balloonAlpha, focus)
+            drawComicPage(
+                comic = comic,
+                images = images,
+                viewport = viewport,
+                textMeasurer = textMeasurer,
+                imageAlpha = imageAlpha,
+                balloonAlpha = balloonAlpha,
+                focus = focus,
+                editingBalloon = editingBalloon,
+            )
         }
     }
 }
@@ -79,6 +90,7 @@ fun DrawScope.drawComicPage(
     imageAlpha: Float = 1f,
     balloonAlpha: Float = 1f,
     focus: Polygon? = null,
+    editingBalloon: Long? = null,
 ) {
     if (viewport.scale <= 0f) return
     val drawEverything = {
@@ -90,11 +102,11 @@ fun DrawScope.drawComicPage(
         // Balloons belonging to a panel go under its border, so they can never paint over
         // the edge of the panel that is supposed to be cutting them off.
         if (balloonAlpha > 0f) {
-            drawBalloons(comic, shapes, viewport, balloonAlpha, textMeasurer, panelScoped = true)
+            drawBalloons(comic, shapes, viewport, balloonAlpha, textMeasurer, true, editingBalloon)
         }
         shapes.forEach { drawPanelBorder(comic, it, viewport) }
         if (balloonAlpha > 0f) {
-            drawBalloons(comic, shapes, viewport, balloonAlpha, textMeasurer, panelScoped = false)
+            drawBalloons(comic, shapes, viewport, balloonAlpha, textMeasurer, false, editingBalloon)
         }
     }
     // Focusing shows one panel alone, so its neighbours are cut away rather than hidden.
@@ -108,6 +120,7 @@ private fun DrawScope.drawBalloons(
     alpha: Float,
     textMeasurer: TextMeasurer,
     panelScoped: Boolean,
+    editingBalloon: Long?,
 ) {
     comic.balloons.inDrawingOrder().forEach { balloon ->
         val panelIndex = balloon.panelIndex
@@ -123,7 +136,9 @@ private fun DrawScope.drawBalloons(
                 outlineColor = InkBlack,
                 alpha = alpha,
             )
-            drawBalloonText(balloon, geometry, viewport.scale, textMeasurer, alpha)
+            if (balloon.id != editingBalloon) {
+                drawBalloonText(balloon, geometry, viewport.scale, textMeasurer, alpha)
+            }
         }
         // A panel balloon is cut off at its panel's edge; a comic balloon is free of them.
         if (panel != null) clipPath(panel.toPath(viewport)) { draw() } else draw()
@@ -140,13 +155,12 @@ private fun DrawScope.drawBalloonText(
     if (balloon.text.isBlank() || geometry.radiusX <= 0f) return
     val layout = textMeasurer.measure(
         text = balloon.text,
-        style = TextStyle(
-            color = InkBlack,
-            fontSize = (balloon.fontSize * pageScale).toSp(),
-            fontFamily = balloon.font.toFontFamily(),
-            textAlign = TextAlign.Center,
+        style = balloonTextStyle(
+            balloon = balloon,
+            sizePx = balloonTextSize(balloon, geometry, textMeasurer, pageScale, this),
+            density = this,
         ),
-        constraints = Constraints(maxWidth = (geometry.radiusX * 2f * TEXT_INSET).roundToInt().coerceAtLeast(1)),
+        constraints = Constraints(maxWidth = textWidth(geometry)),
     )
     drawText(
         textLayoutResult = layout,
@@ -216,4 +230,5 @@ private fun Size.toIntSize() = IntSize(
 private val EmptyPanelFill = Color(0xFFE8E8E8)
 
 // Keeps text off the balloon outline.
-private const val TEXT_INSET = 0.82f
+/** How much of the balloon's width its text is wrapped to. */
+internal const val TEXT_INSET = 0.82f

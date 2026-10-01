@@ -24,12 +24,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -56,6 +62,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
@@ -66,6 +73,7 @@ import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.ui.comic.ComicPage
 import com.ballooner.ui.comic.PanelImageSource
+import com.ballooner.ui.theme.label
 import com.ballooner.ui.theme.toFontFamily
 import kotlin.math.cos
 import kotlin.math.sin
@@ -82,6 +90,7 @@ fun ComicEditorScreen(
     onSave: () -> Unit = {},
 ) {
     var showOptions by rememberSaveable { mutableStateOf(false) }
+    var showBalloonStyle by rememberSaveable { mutableStateOf(false) }
     when (state) {
         ComicEditorUiState.Loading -> Box(modifier.fillMaxSize(), Alignment.Center) {
             CircularProgressIndicator()
@@ -200,20 +209,41 @@ fun ComicEditorScreen(
                 // Hiding the handles is for looking at the panel undisturbed, so it lasts only as
                 // long as the focused view it is offered in.
                 var handlesHidden by remember(state.focusedPanel != null) { mutableStateOf(false) }
-                StepTitle(
-                    text = if (state.step == EditorStep.BALLOONS) BALLOON_STEP_TITLE else PLACEMENT_STEP_TITLE,
-                    handlesHidden = handlesHidden,
-                    onToggleHandles = if (state.focusedPanel != null) {
-                        ({ handlesHidden = !handlesHidden })
-                    } else {
-                        null
-                    },
-                )
+                val selectedBalloon = state.comic.balloons.firstOrNull { it.id == state.selectedBalloon }
+                // The heading and what belongs to it are one block, so the workspace's spacing
+                // falls below them rather than between them.
+                Column {
+                    StepTitle(
+                        text = if (state.step == EditorStep.BALLOONS) BALLOON_STEP_TITLE else PLACEMENT_STEP_TITLE,
+                        handlesHidden = handlesHidden,
+                        onToggleHandles = if (state.focusedPanel != null) {
+                            ({ handlesHidden = !handlesHidden })
+                        } else {
+                            null
+                        },
+                    )
+                    if (state.step == EditorStep.BALLOONS) {
+                        BalloonTypeBar(
+                            onAdd = { actions.addBalloon(it, state.activePanel) },
+                            inPanel = selectedBalloon?.let { it.panelIndex != null },
+                            onToggleScope = {
+                                selectedBalloon?.let { actions.toggleBalloonScope(it.id) }
+                            },
+                        )
+                    }
+                }
                 Box(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Page(state, images, actions, onPickImage, showHandles = !handlesHidden)
+                    Page(
+                        state = state,
+                        images = images,
+                        actions = actions,
+                        onPickImage = onPickImage,
+                        showHandles = !handlesHidden,
+                        onEditBalloon = { showBalloonStyle = true },
+                    )
                 }
                 // The controls scroll rather than squeezing the page, which is being edited.
                 Column(
@@ -224,10 +254,9 @@ fun ComicEditorScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     when (state.step) {
-                        EditorStep.BALLOONS -> BalloonStepControls(state, actions)
-                        // The panels carry their own handles, and the layout kinds each have a
-                        // screen of their own and return above.
-                        EditorStep.PLACEMENT, EditorStep.LAYOUT -> Unit
+                        // The panels and balloons carry their own handles, and the layout kinds
+                        // each have a screen of their own and return above.
+                        EditorStep.BALLOONS, EditorStep.PLACEMENT, EditorStep.LAYOUT -> Unit
                     }
                 }
             }
@@ -244,6 +273,10 @@ fun ComicEditorScreen(
             onChange = actions::setStyle,
             onDismiss = { showOptions = false },
         )
+    }
+    val styled = content?.comic?.balloons?.firstOrNull { it.id == content.selectedBalloon }
+    if (showBalloonStyle && styled != null) {
+        BalloonStyleSheet(balloon = styled, actions = actions, onDismiss = { showBalloonStyle = false })
     }
 }
 
@@ -388,6 +421,7 @@ private fun Page(
     actions: ComicEditorActions,
     onPickImage: (Int) -> Unit,
     showHandles: Boolean,
+    onEditBalloon: () -> Unit,
 ) {
     val shapes = remember(state.comic) {
         panelShapes(state.comic.layout, state.comic.pageHeight, state.comic.style)
@@ -402,6 +436,8 @@ private fun Page(
             imageAlpha = if (state.step == EditorStep.LAYOUT) DIMMED else 1f,
             balloonAlpha = if (state.step == EditorStep.BALLOONS) 1f else DIMMED,
             focus = focus,
+            // The selected balloon's words are typed into the page itself, not drawn on it.
+            editingBalloon = state.selectedBalloon.takeIf { state.step == EditorStep.BALLOONS },
         )
         if (state.step == EditorStep.LAYOUT) {
             LayoutStepOverlay(
@@ -420,6 +456,7 @@ private fun Page(
                 actions = actions,
                 onPickImage = onPickImage,
                 showHandles = showHandles,
+                importingPanels = state.importingPanels,
             )
         }
         if (state.step == EditorStep.BALLOONS) {
@@ -430,6 +467,7 @@ private fun Page(
                 focus = focus,
                 actions = actions,
                 showHandles = showHandles,
+                onEditBalloon = onEditBalloon,
             )
         }
     }
@@ -534,66 +572,91 @@ private fun <T> PillSwitch(
     }
 }
 
+/** How the selected balloon is lettered, kept in a sheet so it never crowds the page. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BalloonStepControls(state: ComicEditorUiState.Content, actions: ComicEditorActions) {
-    val selected = state.comic.balloons.firstOrNull { it.id == state.selectedBalloon }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun BalloonStyleSheet(
+    balloon: Balloon,
+    actions: ComicEditorActions,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            BalloonType.entries.forEach { type ->
-                OutlinedButton(onClick = { actions.addBalloon(type, state.activePanel ?: 0) }) {
-                    Text(type.name.lowercase(), style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
-        if (selected == null) {
-            Text("Tap a balloon to edit it", style = MaterialTheme.typography.bodySmall)
-            return@Column
-        }
-        OutlinedTextField(
-            value = selected.text,
-            onValueChange = { actions.setBalloonText(selected.id, it) },
-            label = { Text("Text") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            BalloonFont.entries.forEach { font ->
-                OutlinedButton(
-                    onClick = { actions.setBalloonFont(selected.id, font) },
-                    enabled = font != selected.font,
-                ) {
-                    Text(
-                        text = font.name.lowercase().replace('_', ' '),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = font.toFontFamily(),
+            Text("Balloon style", style = MaterialTheme.typography.headlineSmall)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FontDropdown(
+                    font = balloon.font,
+                    onChange = { actions.setBalloonFont(balloon.id, it) },
+                    modifier = Modifier.weight(1f),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = balloon.autoSize,
+                        onCheckedChange = { actions.setBalloonAutoSize(balloon.id, it) },
                     )
+                    Text("autosize", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            StyleSlider(
+                label = "Size",
+                value = balloon.fontSize,
+                from = MIN_BALLOON_TEXT_SIZE,
+                to = MAX_BALLOON_TEXT_SIZE,
+                // The balloon is choosing for itself, so there is nothing here to choose.
+                enabled = !balloon.autoSize,
+            ) {
+                actions.setBalloonTextSize(balloon.id, it)
+            }
+            // Only the rounded shapes have a roundness worth changing.
+            if (balloon.type == BalloonType.SPEAK || balloon.type == BalloonType.WHISPER) {
+                StyleSlider("Shape", balloon.cornerRoundness, 0f, 1f) {
+                    actions.setBalloonRoundness(balloon.id, it)
                 }
             }
         }
-        StyleSlider(
-            label = "Size",
-            value = selected.fontSize,
-            from = MIN_BALLOON_TEXT_SIZE,
-            to = MAX_BALLOON_TEXT_SIZE,
-        ) {
-            actions.setBalloonTextSize(selected.id, it)
-        }
-        // Only the rounded shapes have a roundness worth changing.
-        if (selected.type == BalloonType.SPEAK || selected.type == BalloonType.WHISPER) {
-            StyleSlider("Shape", selected.cornerRoundness, 0f, 1f) {
-                actions.setBalloonRoundness(selected.id, it)
+    }
+}
+
+/** The balloon's typeface, each choice shown in the letters it would set the words in. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FontDropdown(
+    font: BalloonFont,
+    onChange: (BalloonFont) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var open by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = open,
+        onExpandedChange = { open = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = font.label(),
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text("Font") },
+            textStyle = LocalTextStyle.current.copy(fontFamily = font.toFontFamily()),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            BalloonFont.entries.forEach { choice ->
+                DropdownMenuItem(
+                    text = { Text(choice.label(), fontFamily = choice.toFontFamily()) },
+                    onClick = {
+                        onChange(choice)
+                        open = false
+                    },
+                )
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { actions.toggleBalloonScope(selected.id) }) {
-                Text(if (selected.panelIndex == null) "Put in panel" else "Free on page")
-            }
-            OutlinedButton(onClick = { actions.deleteBalloon(selected.id) }) { Text("Delete") }
         }
     }
 }
@@ -608,23 +671,28 @@ private fun StyleControls(style: ComicStyle, onChange: (ComicStyle) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StyleSlider(label: String, value: Float, from: Float, to: Float, onChange: (Float) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
+private fun StyleSlider(
+    label: String,
+    value: Float,
+    from: Float,
+    to: Float,
+    enabled: Boolean = true,
+    onChange: (Float) -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(56.dp))
         Slider(
             value = value.coerceIn(from, to),
             onValueChange = onChange,
             valueRange = from..to,
-            // Material's defaults take the track from the secondary role, which is crimson here
-            // and reads as an error rather than as a measurement.
-            colors = SliderDefaults.colors(
-                thumbColor = scheme.primary,
-                activeTrackColor = scheme.primary,
-                inactiveTrackColor = scheme.surfaceContainerHighest,
-            ),
-            modifier = Modifier.weight(1f),
+            enabled = enabled,
+            modifier = Modifier.weight(1f).height(20.dp),
+            // No thumb at all: the filled track says where the value is, and a thumb would only
+            // cost height.
+            thumb = {},
+            track = { FilledTrack((value.coerceIn(from, to) - from) / (to - from), enabled) },
         )
     }
 }

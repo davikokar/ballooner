@@ -57,7 +57,9 @@ data class Balloon(
     val tailWidth: Float = 0.5f,
     val cornerRoundness: Float = 1f,
     val fontSize: Float = 0.05f,
-    val font: BalloonFont = BalloonFont.DEFAULT,
+    /** When set, the text is sized to fill the balloon rather than held at [fontSize]. */
+    val autoSize: Boolean = false,
+    val font: BalloonFont = BalloonFont.ANIME_ACE,
 )
 
 /**

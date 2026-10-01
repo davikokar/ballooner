@@ -106,6 +106,7 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
             tailWidth = balloon.tailWidth,
             cornerRoundness = balloon.cornerRoundness,
             fontSize = balloon.fontSize,
+            autoSize = balloon.autoSize,
             font = balloon.font.name,
         )
     },
@@ -148,6 +149,7 @@ private fun ComicBalloonEntity.toDomain() = Balloon(
     tailWidth = tailWidth,
     cornerRoundness = cornerRoundness,
     fontSize = fontSize,
+    autoSize = autoSize,
     font = enumValueOrDefault(font, BalloonFont.DEFAULT),
 )
 

@@ -29,6 +29,7 @@ import com.ballooner.domain.comic.Polygon
 import com.ballooner.domain.comic.centreOnPage
 import com.ballooner.domain.comic.contains
 import com.ballooner.domain.comic.inDrawingOrder
+import com.ballooner.domain.comic.moveHandle
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.comic.resizeHandle
@@ -38,7 +39,7 @@ import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.comicViewport
 
 /** What a drag on a selected balloon is doing. */
-private enum class BalloonGrab { BODY, RESIZE, TAIL, TAIL_WIDTH }
+private enum class BalloonGrab { BODY, MOVE, RESIZE, TAIL, TAIL_WIDTH }
 
 /**
  * The Balloon step's editing surface: pick a balloon, then move it, resize it, or aim its tail.
@@ -55,6 +56,7 @@ internal fun BalloonStepOverlay(
     actions: ComicEditorActions,
     modifier: Modifier = Modifier,
     showHandles: Boolean = true,
+    onEditBalloon: () -> Unit = {},
 ) {
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
     val pageHeight = comic.pageHeight
@@ -109,12 +111,19 @@ internal fun BalloonStepOverlay(
                                 val tail = balloon.tailTip(panel, height)
                                 val tailBase = balloon.tailWidthHandle(panel, height)
                                 val corner = balloon.resizeHandle(panel, height)
+                                val top = balloon.moveHandle(panel, height)
                                 val hasTail = balloon.tailLength > 0f
+                                // A short tail puts its two handles within a finger of each other,
+                                // so the nearer one wins rather than whichever is asked first.
+                                val onTail = hasTail && near(viewport(), point, tail, grabRadius)
+                                val onBase = hasTail && near(viewport(), point, tailBase, grabRadius)
+                                val tailIsNearer = distance(viewport(), point, tail) <=
+                                    distance(viewport(), point, tailBase)
                                 grab = when {
-                                    hasTail && near(viewport(), point, tail, grabRadius) -> BalloonGrab.TAIL
-                                    hasTail && near(viewport(), point, tailBase, grabRadius) ->
-                                        BalloonGrab.TAIL_WIDTH
+                                    onTail && (tailIsNearer || !onBase) -> BalloonGrab.TAIL
+                                    onBase -> BalloonGrab.TAIL_WIDTH
                                     near(viewport(), point, corner, grabRadius) -> BalloonGrab.RESIZE
+                                    near(viewport(), point, top, grabRadius) -> BalloonGrab.MOVE
                                     balloon.contains(point, panel, height) -> BalloonGrab.BODY
                                     else -> null
                                 }
@@ -129,6 +138,10 @@ internal fun BalloonStepOverlay(
                             val point = viewport().toPage(change.position)
                             when (how) {
                                 BalloonGrab.BODY -> actions.moveBalloon(balloon.id, point.x, point.y)
+                                // The handle rides the top edge, so the centre trails half a
+                                // balloon below wherever it is dragged to.
+                                BalloonGrab.MOVE ->
+                                    actions.moveBalloon(balloon.id, point.x, point.y + balloon.height / 2f)
                                 BalloonGrab.RESIZE -> actions.resizeBalloon(balloon.id, point.x, point.y)
                                 BalloonGrab.TAIL -> actions.pointBalloonTail(balloon.id, point.x, point.y)
                                 BalloonGrab.TAIL_WIDTH ->
@@ -151,16 +164,8 @@ internal fun BalloonStepOverlay(
             val viewport = comicViewport(size, comic.pageHeight, focus?.bounds)
             if (viewport.scale <= 0f || selected == null) return@Canvas
             val panel = panelOf(selected)
-            val centre = selected.centreOnPage(panel, pageHeight)
-            val topLeft = viewport.toScreen(centre.x - selected.width / 2f, centre.y - selected.height / 2f)
-            val bottomRight = viewport.toScreen(centre.x + selected.width / 2f, centre.y + selected.height / 2f)
-            drawRect(
-                color = SelectionStroke,
-                topLeft = topLeft,
-                size = androidx.compose.ui.geometry.Size(bottomRight.x - topLeft.x, bottomRight.y - topLeft.y),
-                style = Stroke(width = 3f),
-            )
-            drawHandle(viewport, selected.resizeHandle(panel, pageHeight))
+            // Only the tail's own handles are drawn: everything else the selected balloon offers
+            // is a control of its own, sitting on the balloon.
             if (selected.tailLength > 0f) {
                 drawHandle(viewport, selected.tailTip(panel, pageHeight))
                 drawHandle(viewport, selected.tailWidthHandle(panel, pageHeight), small = true)
@@ -168,8 +173,7 @@ internal fun BalloonStepOverlay(
         }
         // Lettering is close work, so the panel being lettered offers the same way in as the
         // Placement step does. Its images belong to that step, so nothing here changes them.
-        val shape = activePanel?.let { shapes.getOrNull(it) }
-        // One panel is already the whole page, so there is nothing to open up or step to.
+        val shape = activePanel?.let { shapes.getOrNull(it) }        // One panel is already the whole page, so there is nothing to open up or step to.
         val alone = comic.panels.size <= 1
         if (shape != null && showHandles && !alone && area.width > 0 && area.height > 0) {
             PanelHandles(
@@ -183,6 +187,17 @@ internal fun BalloonStepOverlay(
                 bottomEnd = focusHandle(focus, alone, PanelHandleKind.NEXT_PANEL, actions),
             )
         }
+        if (selected != null && area.width > 0 && area.height > 0) {
+            BalloonEditingLayer(
+                balloon = selected,
+                panel = panelOf(selected),
+                pageHeight = pageHeight,
+                viewport = comicViewport(area.toSize(), comic.pageHeight, focus?.bounds),
+                onText = { actions.setBalloonText(selected.id, it) },
+                onDelete = { actions.deleteBalloon(selected.id) },
+                onEdit = onEditBalloon,
+            )
+        }
     }
 }
 
@@ -194,24 +209,29 @@ private data class BalloonInputs(
     val selected: Balloon?,
 )
 
+/** Solid, so a tail handle reads as something to take hold of rather than a ring on the page. */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHandle(
     viewport: PageViewport,
     at: PagePoint,
     small: Boolean = false,
-) {    val centre = viewport.toScreen(at.x, at.y)
+) {
+    val centre = viewport.toScreen(at.x, at.y)
     val radius = if (small) 13f else 18f
-    drawCircle(color = HandleFill, radius = radius, center = centre)
-    drawCircle(color = SelectionStroke, radius = radius, center = centre, style = Stroke(width = 3f))
+    drawCircle(color = SelectionStroke, radius = radius, center = centre)
+    drawCircle(color = HandleRim, radius = radius, center = centre, style = Stroke(width = 3f))
 }
 
-private fun near(viewport: PageViewport, point: PagePoint, target: PagePoint, radius: Float): Boolean {
+private fun distance(viewport: PageViewport, point: PagePoint, target: PagePoint): Float {
     val a = viewport.toScreen(point.x, point.y)
     val b = viewport.toScreen(target.x, target.y)
-    return (a - b).getDistance() <= radius
+    return (a - b).getDistance()
 }
+
+private fun near(viewport: PageViewport, point: PagePoint, target: PagePoint, radius: Float): Boolean =
+    distance(viewport, point, target) <= radius
 
 private val GRAB_RADIUS = 28.dp
 private val SelectionStroke = Color(0xFF2962FF)
-private val HandleFill = Color(0xCCFFFFFF)
+private val HandleRim = Color(0xCCFFFFFF)
 
 private operator fun Offset.minus(other: Offset) = Offset(x - other.x, y - other.y)

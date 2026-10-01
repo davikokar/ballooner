@@ -49,6 +49,7 @@ interface ComicEditorActions {
     fun setBalloonFont(id: Long, font: BalloonFont)
     fun setBalloonTextSize(id: Long, size: Float)
     fun setBalloonRoundness(id: Long, roundness: Float)
+    fun setBalloonAutoSize(id: Long, autoSize: Boolean)
     fun setBalloonTailWidth(id: Long, x: Float, y: Float)
     fun moveBalloon(id: Long, x: Float, y: Float)
     fun resizeBalloon(id: Long, x: Float, y: Float)
@@ -107,6 +108,8 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun setBalloonTextSize(id: Long, size: Float) = this@asActions.setBalloonTextSize(id, size)
     override fun setBalloonRoundness(id: Long, roundness: Float) =
         this@asActions.setBalloonRoundness(id, roundness)
+    override fun setBalloonAutoSize(id: Long, autoSize: Boolean) =
+        this@asActions.setBalloonAutoSize(id, autoSize)
     override fun setBalloonTailWidth(id: Long, x: Float, y: Float) =
         this@asActions.setBalloonTailWidth(id, x, y)
     override fun moveBalloon(id: Long, x: Float, y: Float) = this@asActions.moveBalloon(id, x, y)

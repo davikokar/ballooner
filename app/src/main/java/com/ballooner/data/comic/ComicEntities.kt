@@ -130,6 +130,7 @@ data class ComicBalloonEntity(
     val tailWidth: Float,
     val cornerRoundness: Float,
     val fontSize: Float,
+    val autoSize: Boolean,
     val font: String,
 )
 

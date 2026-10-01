@@ -30,6 +30,7 @@ import com.ballooner.domain.comic.anchoredIn
 import com.ballooner.domain.comic.centreOnPage
 import com.ballooner.domain.comic.cutDivides
 import com.ballooner.domain.comic.mergedFrom
+import com.ballooner.domain.comic.newBalloon
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.comic.resizedTo
@@ -110,9 +111,9 @@ class ComicEditorViewModel @Inject constructor(
                 step = step,
                 layoutKind = null,
                 selection = emptyList(),
-                // Placing starts on the first panel, so the step opens with its handles already
-                // offered rather than waiting to be told where to begin.
-                activePanel = if (step == EditorStep.PLACEMENT && content.comic.panels.isNotEmpty()) {
+                // The steps that work on a panel start on the first one, so what can be done to
+                // it is offered at once rather than waiting to be told where to begin.
+                activePanel = if (step != EditorStep.LAYOUT && content.comic.panels.isNotEmpty()) {
                     0
                 } else {
                     null
@@ -165,12 +166,14 @@ class ComicEditorViewModel @Inject constructor(
         val content = contentOrNull() ?: return
         val comic = content.comic
         val id = nextBalloonId++
-        val balloon = Balloon(
+        val panel = panelIndex?.let {
+            panelShapes(comic.layout, comic.pageHeight, comic.style).getOrNull(it)?.bounds
+        }
+        val balloon = newBalloon(
             id = id,
             type = type,
             scope = panelIndex?.let { BalloonScope.Panel(it) } ?: BalloonScope.Comic,
-            tailLength = if (type == BalloonType.CAPTION) 0f else 0.12f,
-            cornerRoundness = if (type == BalloonType.CAPTION) 0f else 1f,
+            panel = panel,
         )
         commit(comic.copy(balloons = comic.balloons + balloon))
         updateContent { it.copy(selectedBalloon = id) }
@@ -197,6 +200,11 @@ class ComicEditorViewModel @Inject constructor(
 
     fun setBalloonRoundness(id: Long, roundness: Float) = editBalloon(id, undoable = false) {
         it.copy(cornerRoundness = roundness.coerceIn(0f, 1f))
+    }
+
+    /** Hands the balloon's text size over to the balloon itself, or takes it back. */
+    fun setBalloonAutoSize(id: Long, autoSize: Boolean) = editBalloon(id, undoable = true) {
+        it.copy(autoSize = autoSize)
     }
 
     fun setBalloonTailWidth(id: Long, x: Float, y: Float) =
@@ -289,7 +297,13 @@ class ComicEditorViewModel @Inject constructor(
         if (pickedUris.isEmpty()) return
         viewModelScope.launch {
             val targets = fillOrder(contentOrNull()?.comic ?: return@launch, index, pickedUris.size)
-            val imported = targets.indices.map { imageImporter.import(pickedUris[it]) }
+            // Copying takes as long as the pictures are big, so the panels waiting on it say so.
+            updateContent { it.copy(importingPanels = it.importingPanels + targets) }
+            val imported = try {
+                targets.indices.map { imageImporter.import(pickedUris[it]) }
+            } finally {
+                updateContent { it.copy(importingPanels = it.importingPanels - targets.toSet()) }
+            }
             val comic = contentOrNull()?.comic ?: return@launch
             val panels = comic.panels.toMutableList()
             targets.forEachIndexed { at, panel ->

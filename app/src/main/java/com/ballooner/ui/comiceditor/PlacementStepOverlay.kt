@@ -11,6 +11,10 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -25,7 +30,11 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PagePoint
@@ -36,6 +45,7 @@ import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.comicViewport
 import com.ballooner.ui.comic.toPath
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -55,6 +65,7 @@ internal fun PlacementStepOverlay(
     modifier: Modifier = Modifier,
     onPickImage: (Int) -> Unit = {},
     showHandles: Boolean = true,
+    importingPanels: Set<Int> = emptySet(),
 ) {
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
     var carrying by remember { mutableStateOf<Int?>(null) }
@@ -136,6 +147,22 @@ internal fun PlacementStepOverlay(
                 }
             }
         }
+        // A panel is still waiting while its picked image is being copied in, and again while the
+        // copy is being decoded, so the wait is marked on the panel the image is going into.
+        if (area.width > 0 && area.height > 0) {
+            val viewport = comicViewport(area.toSize(), comic.pageHeight, focus?.bounds)
+            // A focused panel is drawn scaled up, which puts the others off the canvas entirely.
+            Box(modifier = Modifier.matchParentSize().clipToBounds()) {
+                comic.panels.forEachIndexed { index, panel ->
+                    val waiting = index in importingPanels ||
+                        panel.image?.sourceUri?.let { images.bitmapFor(it) == null } == true
+                    val centre = shapes.getOrNull(index)?.centroid
+                    if (waiting && centre != null) {
+                        PanelProgress(viewport.toScreen(centre.x, centre.y))
+                    }
+                }
+            }
+        }
         // The panel being placed carries its own handles, so what can be done to it is on it
         // rather than somewhere else on the screen.
         val shape = activePanel?.let { shapes.getOrNull(it) }
@@ -166,6 +193,23 @@ internal fun PlacementStepOverlay(
             )
         }
     }
+}
+
+/** Says that a panel's image is on its way, while it is copied in and decoded. */
+@Composable
+private fun PanelProgress(centre: Offset) {
+    CircularProgressIndicator(
+        modifier = Modifier
+            .offset {
+                val half = PROGRESS_SIZE.toPx() / 2f
+                IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
+            }
+            .size(PROGRESS_SIZE)
+            .semantics { contentDescription = "Loading image" },
+        color = MaterialTheme.colorScheme.primary,
+        trackColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        strokeWidth = 4.dp,
+    )
 }
 
 /** The values a running placement gesture needs to keep reading as the comic changes. */
@@ -253,3 +297,4 @@ private val ActiveStroke = Color(0xFF2962FF)
 private val EmptyHint = Color(0x22000000)
 private val CarriedFill = Color(0x332962FF)
 private val DropTargetFill = Color(0x5500C853)
+private val PROGRESS_SIZE = 40.dp

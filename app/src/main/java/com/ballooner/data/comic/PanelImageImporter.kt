@@ -1,8 +1,12 @@
 package com.ballooner.data.comic
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import com.ballooner.data.image.ImageStore
+import com.ballooner.data.image.imageOrientation
+import com.ballooner.data.image.turnsSideways
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 /** A copied image, and the proportions the page can take its shape from. */
@@ -19,6 +23,7 @@ fun interface PanelImageImporter {
 }
 
 class AppPanelImageImporter @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val imageStore: ImageStore,
 ) : PanelImageImporter {
 
@@ -32,10 +37,12 @@ class AppPanelImageImporter @Inject constructor(
         val path = Uri.parse(uri).path ?: return null
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(path, options)
-        if (options.outWidth <= 0 || options.outHeight <= 0) {
-            null
-        } else {
-            options.outWidth.toFloat() / options.outHeight
-        }
+        if (options.outWidth <= 0 || options.outHeight <= 0) return null
+        // The header describes the pixels as stored, which for a photo taken on its side is the
+        // other way round from how it will be shown.
+        val sideways = turnsSideways(imageOrientation(context, uri))
+        val width = if (sideways) options.outHeight else options.outWidth
+        val height = if (sideways) options.outWidth else options.outHeight
+        width.toFloat() / height
     }.getOrNull()
 }

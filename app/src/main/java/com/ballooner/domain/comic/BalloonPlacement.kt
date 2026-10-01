@@ -11,6 +11,44 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
+ * A balloon as it is first added: a caption is a plain box with nothing to say it aloud, while
+ * every other kind comes with a tail and rounded corners.
+ *
+ * A balloon that belongs to a panel is shrunk to fit inside it, so it never arrives bigger than
+ * the panel it is being added to.
+ */
+fun newBalloon(id: Long, type: BalloonType, scope: BalloonScope, panel: PageRect? = null): Balloon {
+    val balloon = Balloon(
+        id = id,
+        type = type,
+        scope = scope,
+        tailLength = if (type == BalloonType.CAPTION) 0f else NEW_BALLOON_TAIL,
+        cornerRoundness = if (type == BalloonType.CAPTION) 0f else 1f,
+    )
+    return if (panel == null) balloon else balloon.fittedIn(panel)
+}
+
+/**
+ * Shrinks the balloon, tail and text with it, until it sits inside [panel] with room to spare.
+ * A balloon that already fits is left exactly as it is.
+ */
+fun Balloon.fittedIn(panel: PageRect): Balloon {
+    if (width <= 0f || height + tailLength <= 0f) return this
+    val room = minOf(
+        1f,
+        panel.width * BALLOON_PANEL_FIT / width,
+        panel.height * BALLOON_PANEL_FIT / (height + tailLength),
+    )
+    if (room >= 1f) return this
+    return copy(
+        width = (width * room).coerceAtLeast(MIN_BALLOON_SIZE),
+        height = (height * room).coerceAtLeast(MIN_BALLOON_SIZE),
+        tailLength = tailLength * room,
+        fontSize = (fontSize * room).coerceAtLeast(MIN_BALLOON_TEXT_SIZE),
+    )
+}
+
+/**
  * Where a balloon's centre falls on the page, in page units.
  *
  * A panel balloon is placed relative to its panel, so it follows the panel when the layout
@@ -97,6 +135,24 @@ fun Balloon.resizeHandle(panel: PageRect?, pageHeight: Float): PagePoint {
     return PagePoint(centre.x + width / 2f, centre.y + height / 2f)
 }
 
+/** The middle of the balloon's top edge, in page units, where its move handle sits. */
+fun Balloon.moveHandle(panel: PageRect?, pageHeight: Float): PagePoint {
+    val centre = centreOnPage(panel, pageHeight)
+    return PagePoint(centre.x, centre.y - height / 2f)
+}
+
+/** The corner the delete handle sits on, in page units. */
+fun Balloon.deleteHandle(panel: PageRect?, pageHeight: Float): PagePoint {
+    val centre = centreOnPage(panel, pageHeight)
+    return PagePoint(centre.x + width / 2f, centre.y - height / 2f)
+}
+
+/** The corner the edit handle sits on, in page units. */
+fun Balloon.editHandle(panel: PageRect?, pageHeight: Float): PagePoint {
+    val centre = centreOnPage(panel, pageHeight)
+    return PagePoint(centre.x - width / 2f, centre.y - height / 2f)
+}
+
 /** The tip of the tail, in page units, which is where its handle sits. */
 fun Balloon.tailTip(panel: PageRect?, pageHeight: Float): PagePoint {
     val centre = centreOnPage(panel, pageHeight)
@@ -105,13 +161,17 @@ fun Balloon.tailTip(panel: PageRect?, pageHeight: Float): PagePoint {
     return PagePoint(centre.x + cos(angle) * reach, centre.y + sin(angle) * reach)
 }
 
-/** One side of where the tail meets the body, in page units, which is where its handle sits. */
+/** Where the tail meets the body, off to one side, which is where its width handle sits. */
 fun Balloon.tailWidthHandle(panel: PageRect?, pageHeight: Float): PagePoint {
-    val base = tailBaseCentre(panel, pageHeight)
+    val centre = centreOnPage(panel, pageHeight)
     val angle = Math.toRadians(tailAngleDegrees.toDouble()).toFloat()
+    val edge = ellipseEdgeRadius(width / 2f, height / 2f, angle)
     val halfBase = tailWidth * min(width / 2f, height / 2f)
-    // Perpendicular to the tail, so the handle sits beside the base rather than along it.
-    return PagePoint(base.x - sin(angle) * halfBase, base.y + cos(angle) * halfBase)
+    // Out along the tail to the body's edge, then perpendicular to it by half the tail's width.
+    return PagePoint(
+        centre.x + cos(angle) * edge - sin(angle) * halfBase,
+        centre.y + sin(angle) * edge + cos(angle) * halfBase,
+    )
 }
 
 /** Widens or narrows the tail base so it reaches [target]. */
@@ -158,6 +218,12 @@ const val MIN_TAIL_WIDTH = 0.1f
 const val MAX_TAIL_WIDTH = 1.2f
 const val MIN_BALLOON_TEXT_SIZE = 0.015f
 const val MAX_BALLOON_TEXT_SIZE = 0.12f
+
+/** The tail a balloon is born with, in page units. */
+const val NEW_BALLOON_TAIL = 0.12f
+
+/** How much of a panel a balloon added to it may take up. */
+const val BALLOON_PANEL_FIT = 0.8f
 
 /** How far inside the body edge the tail base sits, so the two overlap cleanly. */
 const val TAIL_BASE_INSET = 0.7f

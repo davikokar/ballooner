@@ -122,6 +122,7 @@ class ComicMappingTest {
             tailWidth = 0.4f,
             cornerRoundness = 0.25f,
             fontSize = 0.06f,
+            autoSize = true,
             font = BalloonFont.COMIC_SANS_MS,
         )
 

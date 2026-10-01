@@ -95,11 +95,11 @@ internal fun PanelHandles(
 private fun HandleButton(handle: PanelHandle, centre: Offset) {
     RoundHandle(
         description = handle.kind.description,
-        onClick = handle.onClick,
         modifier = Modifier.offset {
             val half = HANDLE_SIZE.toPx() / 2f
             IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
         },
+        onClick = handle.onClick,
         destructive = handle.kind == PanelHandleKind.REMOVE_IMAGE,
     ) { tint ->
         when (handle.kind) {
@@ -119,8 +119,8 @@ private fun HandleButton(handle: PanelHandle, centre: Offset) {
 @Composable
 internal fun RoundHandle(
     description: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     destructive: Boolean = false,
     glyph: @Composable (tint: Color) -> Unit,
 ) {
@@ -131,7 +131,7 @@ internal fun RoundHandle(
             .clip(CircleShape)
             .background(if (destructive) scheme.secondary else scheme.surfaceContainerLowest)
             .border(2.dp, InkBlack, CircleShape)
-            .clickable(onClick = onClick)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             // A glyph may be drawn rather than written, so the handle has to say what it is.
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
@@ -169,7 +169,8 @@ private fun ExpandGlyph(expanded: Boolean, tint: Color) {
     }
 }
 
-private val HANDLE_SIZE = 32.dp
+/** How wide every handle over the page is. */
+internal val HANDLE_SIZE = 32.dp
 
 /** How far a handle is kept off the edges of its panel. */
 private val HANDLE_MARGIN = 6.dp

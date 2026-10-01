@@ -177,6 +177,9 @@ Comic-level settings that restyle the whole comic at once.
 - **Panel image transform**: How a Panel image sits inside its panel: its centre, zoom, and
   rotation angle.
 - **Empty panel**: A panel with no Panel image yet.
+- **Panel loading spinner**: The progress ring drawn in the middle of a panel while its picked
+  image is still being copied into the app or decoded for display. It appears on every panel one
+  trip to the picker is filling, not only the Selected panel.
 - **Panel handles**: The round controls that appear on the Selected panel, so what can be done to
   a panel is offered on the panel itself. Which ones appear depends on the step and on what is in
   the panel. They sit the same distance inside the panel wherever it has room for them, on the
@@ -218,17 +221,40 @@ Comic-level settings that restyle the whole comic at once.
 
 ### Balloon controls
 
-- **Balloon type buttons** (`BalloonTypeButton`): The Comic kit controls that add each
-  balloon type.
+- **Balloon type buttons** (`BalloonTypeBar`): The row of five controls under the Balloon step's
+  Step heading that add each balloon type. Each is drawn as the balloon it makes, by the same
+  renderer that draws the page, so a button cannot advertise something the comic does not do.
+  A new balloon goes into the Selected panel.
 - **Comic kit toggle**: Expands or collapses the Comic kit.
-- **Balloon scope toggle**: Switches the selected balloon between Panel balloon and Comic
-  balloon.
-- **Font selector**: Selects the typeface of the selected balloon's text.
-- **Text size slider**: Changes the selected balloon's text size in manual sizing mode.
+- **Balloon scope toggle**: The icon at the right end of the Balloon type buttons that switches
+  the selected balloon between Panel balloon and Comic balloon. Greyed out when no balloon is
+  selected, since there is nothing to say.
+- **Balloon style flyout** (`BalloonStyleSheet`): The sheet the balloon's **Balloon style handle**
+  opens from the bottom, holding everything about how that balloon is lettered: its Font selector
+  and **autosize** checkbox on one line, then the Text size slider and the Shape slider. All of it
+  belongs to the one balloon.
+- **Auto size**: When set, the balloon sizes its own text to fill itself, and the Text size slider
+  has nothing to choose.
+- **Font selector**: A dropdown of the typefaces, each shown in its own letters. A new balloon is
+  lettered in Anime Ace.
+- **Text size slider**: Changes the selected balloon's text size, unless it is sizing itself.
+  Like the other style sliders it is drawn as a plain filled bar with no thumb, which costs less
+  height than Material's.
 - **Shape slider** (`ShapeSlider`): Changes the selected speech or whisper balloon's
   roundness.
-- **Balloon move handle**: Moves the selected balloon.
-- **Balloon resize handles**: Change the selected balloon's width and height.
+- **Balloon move handle**: The round handle in the middle of the selected balloon's top edge.
+  Dragging it carries the balloon.
+- **Balloon resize handle**: The round handle on its bottom-right corner, which changes its width
+  and height.
+- **Balloon delete handle**: The round handle on its top-right corner, which removes it.
+- **Balloon style handle**: The round handle on its top-left corner, which opens the Balloon style
+  flyout.
+- **Tail handles**: Two solid blue dots on the selected balloon's tail: one at its tip, which aims
+  and lengthens it, and one where the tail leaves the body, which widens or narrows it. When both
+  are under the finger the nearer one is taken, since a short tail puts them close together.
+- **Balloon text entry**: The selected balloon's words are typed into the balloon itself, in the
+  letters and at the size they will be read in. An empty balloon invites them with "Say
+  something". There is no text box anywhere else.
 - **Tail handle**: Changes a balloon tail's direction and length.
 - **Tail-width handle**: Changes the width of a balloon tail.
 - **Balloon delete button**: Removes the selected balloon.

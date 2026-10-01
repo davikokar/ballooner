@@ -3,6 +3,7 @@ package com.ballooner.domain.comic
 import com.ballooner.domain.model.BalloonType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BalloonPlacementTest {
@@ -23,6 +24,77 @@ class BalloonPlacementTest {
         scope = BalloonScope.Comic,
         centre = NormalizedPoint(u, v),
     )
+
+    @Test
+    fun `a balloon added to a small panel is shrunk to fit inside it`() {
+        val small = PageRect(0f, 0f, 0.2f, 0.15f)
+
+        val balloon = newBalloon(1, BalloonType.SPEAK, BalloonScope.Panel(0), small)
+
+        assertTrue("too wide", balloon.width <= small.width)
+        assertTrue("too tall", balloon.height + balloon.tailLength <= small.height)
+        assertTrue("the text was left behind", balloon.fontSize < Balloon(type = BalloonType.SPEAK, scope = BalloonScope.Comic).fontSize)
+    }
+
+    @Test
+    fun `a balloon added to a panel with room to spare is left exactly as it is`() {
+        val roomy = PageRect(0f, 0f, 1f, 1f)
+
+        val balloon = newBalloon(1, BalloonType.SPEAK, BalloonScope.Panel(0), roomy)
+
+        assertEquals(newBalloon(1, BalloonType.SPEAK, BalloonScope.Panel(0)), balloon)
+    }
+
+    @Test
+    fun `the tail width handle sits where the tail leaves the body`() {
+        // Its tail points straight down, so the handle is level with the bottom of the body.
+        val balloon = comicBalloon(0.5f, 0.5f)
+
+        val handle = balloon.tailWidthHandle(panel = null, pageHeight = pageHeight)
+
+        assertEquals(0.5f * pageHeight + balloon.height / 2f, handle.y, TOLERANCE)
+        assertTrue("the handle should sit off to one side", handle.x < 0.5f)
+    }
+
+    @Test
+    fun `dragging the width handle to where it already is leaves the tail as wide as it was`() {
+        val balloon = comicBalloon(0.5f, 0.5f).copy(tailWidth = 0.6f)
+
+        val handle = balloon.tailWidthHandle(panel = null, pageHeight = pageHeight)
+        val after = balloon.withTailWidthAt(handle, panel = null, pageHeight = pageHeight)
+
+        assertEquals(balloon.tailWidth, after.tailWidth, TOLERANCE)
+    }
+
+    @Test
+    fun `the edit handle sits on the top left corner`() {
+        val balloon = comicBalloon(0.5f, 0.4f)
+
+        val handle = balloon.editHandle(panel = null, pageHeight = pageHeight)
+
+        assertEquals(0.5f - balloon.width / 2f, handle.x, TOLERANCE)
+        assertEquals(0.4f * pageHeight - balloon.height / 2f, handle.y, TOLERANCE)
+    }
+
+    @Test
+    fun `the move handle rides the middle of the top edge`() {
+        val balloon = comicBalloon(0.5f, 0.4f)
+
+        val handle = balloon.moveHandle(panel = null, pageHeight = pageHeight)
+
+        assertEquals(0.5f, handle.x, TOLERANCE)
+        assertEquals(0.4f * pageHeight - balloon.height / 2f, handle.y, TOLERANCE)
+    }
+
+    @Test
+    fun `the delete handle sits on the top right corner`() {
+        val balloon = comicBalloon(0.5f, 0.4f)
+
+        val handle = balloon.deleteHandle(panel = null, pageHeight = pageHeight)
+
+        assertEquals(0.5f + balloon.width / 2f, handle.x, TOLERANCE)
+        assertEquals(0.4f * pageHeight - balloon.height / 2f, handle.y, TOLERANCE)
+    }
 
     @Test
     fun `a panel balloon is placed inside its panel`() {

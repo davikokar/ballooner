@@ -10,7 +10,12 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
+import com.ballooner.data.image.imageOrientation
+import com.ballooner.data.image.uprighted
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 /**
@@ -25,8 +30,13 @@ fun rememberPanelImageSource(sourceUris: Set<String>): PanelImageSource {
     val loaded = remember { mutableStateMapOf<String, ImageBitmap>() }
 
     LaunchedEffect(sourceUris) {
-        sourceUris.filterNot { it in loaded }.forEach { uri ->
-            withContext(Dispatchers.IO) { decode(context, uri) }?.let { loaded[uri] = it }
+        // A page filled in one trip to the picker would otherwise appear one image at a time.
+        coroutineScope {
+            sourceUris.filterNot { it in loaded }.map { uri ->
+                async {
+                    withContext(Dispatchers.IO) { decode(context, uri) }?.let { loaded[uri] = it }
+                }
+            }.awaitAll()
         }
     }
 
@@ -44,8 +54,11 @@ private fun decode(context: Context, sourceUri: String, maxEdge: Int = MAX_EDGE_
         while (longestEdge / sampleSize > maxEdge) sampleSize *= 2
 
         val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        // Imported copies keep the file they came from, note and all, so which way up the photo
+        // was taken is settled here rather than by rewriting it on the way in.
+        val orientation = imageOrientation(context, sourceUri)
         context.contentResolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, options)?.asImageBitmap()
+            BitmapFactory.decodeStream(it, null, options)?.uprighted(orientation)?.asImageBitmap()
         }
     }.getOrNull()
 

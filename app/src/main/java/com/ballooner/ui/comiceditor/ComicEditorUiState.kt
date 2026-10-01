@@ -59,6 +59,8 @@ sealed interface ComicEditorUiState {
         val selection: List<Span> = emptyList(),
         /** The panel being placed in the Placement step, by index in reading order. */
         val activePanel: Int? = null,
+        /** Panels whose picked image is still being copied in, by index in reading order. */
+        val importingPanels: Set<Int> = emptySet(),
         /**
          * The panel filling the canvas for closer work, by index. This is view state: it is never
          * saved with the comic and changes nothing in it.

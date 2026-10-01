@@ -648,13 +648,13 @@ private fun UnitSlider(label: String, value: Int, onChange: (Int) -> Unit) {
 
 /** A plain filled bar, without Material's gaps, tick marks, or end stop. */
 @Composable
-private fun FilledTrack(fraction: Float) {
+internal fun FilledTrack(fraction: Float, enabled: Boolean = true) {
     val scheme = MaterialTheme.colorScheme
     Canvas(modifier = Modifier.fillMaxWidth().height(6.dp)) {
         val radius = CornerRadius(size.height / 2f)
         drawRoundRect(color = scheme.surfaceContainerHighest, cornerRadius = radius)
         drawRoundRect(
-            color = scheme.primary,
+            color = if (enabled) scheme.primary else scheme.onSurface.copy(alpha = 0.38f),
             size = Size(size.width * fraction.coerceIn(0f, 1f), size.height),
             cornerRadius = radius,
         )

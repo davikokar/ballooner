@@ -59,6 +59,16 @@ class BalloonStepTest {
     private fun balloons(viewModel: ComicEditorViewModel) = content(viewModel).comic.balloons
 
     @Test
+    fun `arriving at the step starts on the first panel`() = runTest {
+        val (viewModel, _) = editorFor(comic())
+        advanceUntilIdle()
+
+        viewModel.selectStep(EditorStep.BALLOONS)
+
+        assertEquals(0, content(viewModel).activePanel)
+    }
+
+    @Test
     fun `adding a balloon puts it in the chosen panel and selects it`() = runTest {
         val (viewModel, repository) = editorFor(comic())
         advanceUntilIdle()
@@ -319,12 +329,12 @@ class BalloonStepTest {
         val (viewModel, repository) = editorFor(comic(balloons))
         advanceUntilIdle()
 
-        viewModel.setBalloonFont(1, BalloonFont.ANIME_ACE)
+        viewModel.setBalloonFont(1, BalloonFont.MONOSPACE)
         advanceUntilIdle()
 
-        assertEquals(BalloonFont.ANIME_ACE, balloons(viewModel).first { it.id == 1L }.font)
-        assertEquals(BalloonFont.DEFAULT, balloons(viewModel).first { it.id == 2L }.font)
-        assertEquals(BalloonFont.ANIME_ACE, repository.saved.value.getValue(1L).balloons.first().font)
+        assertEquals(BalloonFont.MONOSPACE, balloons(viewModel).first { it.id == 1L }.font)
+        assertEquals(balloons[1].font, balloons(viewModel).first { it.id == 2L }.font)
+        assertEquals(BalloonFont.MONOSPACE, repository.saved.value.getValue(1L).balloons.first().font)
     }
 
     @Test

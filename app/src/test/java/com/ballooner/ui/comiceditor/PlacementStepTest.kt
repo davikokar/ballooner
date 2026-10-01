@@ -1,6 +1,8 @@
 package com.ballooner.ui.comiceditor
 
+import androidx.lifecycle.SavedStateHandle
 import com.ballooner.data.comic.FakeComicRepository
+import com.ballooner.data.comic.ImportedImage
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
@@ -11,6 +13,7 @@ import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.util.MainDispatcherRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -52,6 +55,17 @@ class PlacementStepTest {
         return ComicEditorViewModel(comicId = 1L, repository = repository) to repository
     }
 
+    /** An editor whose imports do not finish until [gate] is completed. */
+    private fun slowImportEditor(initial: Comic, gate: CompletableDeferred<Unit>) =
+        ComicEditorViewModel(
+            savedStateHandle = SavedStateHandle(mapOf(COMIC_ID_KEY to 1L)),
+            repository = FakeComicRepository(initial),
+            imageImporter = {
+                gate.await()
+                ImportedImage(it, null)
+            },
+        )
+
     private fun content(viewModel: ComicEditorViewModel) =
         viewModel.uiState.value as ComicEditorUiState.Content
 
@@ -89,12 +103,12 @@ class PlacementStepTest {
     }
 
     @Test
-    fun `leaving the step forgets which panel was being placed`() = runTest {
+    fun `going back to the layout forgets which panel was being placed`() = runTest {
         val (viewModel, _) = editorFor(comic())
         advanceUntilIdle()
-        viewModel.selectPanel(0)
+        viewModel.selectPanel(1)
 
-        viewModel.selectStep(EditorStep.BALLOONS)
+        viewModel.selectStep(EditorStep.LAYOUT)
 
         assertNull(content(viewModel).activePanel)
     }
@@ -175,6 +189,32 @@ class PlacementStepTest {
 
         assertEquals(2, content(viewModel).comic.panels.size)
         assertEquals("file://b", imageOf(viewModel, 1)!!.sourceUri)
+    }
+
+    @Test
+    fun `a panel waiting on its picked image says so`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = slowImportEditor(strip(listOf(null, null)), gate)
+        advanceUntilIdle()
+
+        viewModel.importPanelImages(0, listOf("file://a", "file://b"))
+        advanceUntilIdle()
+
+        assertEquals(setOf(0, 1), content(viewModel).importingPanels)
+    }
+
+    @Test
+    fun `a panel stops waiting once its picked image has been copied in`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = slowImportEditor(strip(listOf(null, null)), gate)
+        advanceUntilIdle()
+        viewModel.importPanelImages(0, listOf("file://a", "file://b"))
+        advanceUntilIdle()
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertTrue(content(viewModel).importingPanels.isEmpty())
     }
 
     @Test
