@@ -41,6 +41,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -61,11 +63,14 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
+import com.ballooner.domain.comic.MAX_BALLOON_BORDER
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
+import com.ballooner.domain.comic.MIN_BALLOON_BORDER
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
@@ -76,6 +81,7 @@ import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.theme.label
 import com.ballooner.ui.theme.toFontFamily
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** The comic editor: one page, three steps over it. */
@@ -154,6 +160,7 @@ fun ComicEditorScreen(
                         panelRatio = state.comic.panelRatio(),
                         image = state.comic.panels.firstOrNull()?.image,
                         images = images,
+                        style = state.comic.style,
                         onChange = actions::setSizing,
                         onBack = actions::discardLayoutKind,
                     )
@@ -168,6 +175,7 @@ fun ComicEditorScreen(
                         panelCount = maxOf(grid.rows, grid.columns),
                         panels = state.comic.panels.map { it.image },
                         images = images,
+                        style = state.comic.style,
                         onChange = actions::setSizing,
                         onStrip = { across, count ->
                             if (across) actions.applyPreset(1, count) else actions.applyPreset(count, 1)
@@ -581,47 +589,94 @@ private fun BalloonStyleSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
+        var tab by rememberSaveable { mutableStateOf(0) }
         Column(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Balloon style", style = MaterialTheme.typography.headlineSmall)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FontDropdown(
-                    font = balloon.font,
-                    onChange = { actions.setBalloonFont(balloon.id, it) },
-                    modifier = Modifier.weight(1f),
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = balloon.autoSize,
-                        onCheckedChange = { actions.setBalloonAutoSize(balloon.id, it) },
+            TabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
+                BALLOON_STYLE_TABS.forEachIndexed { index, title ->
+                    Tab(
+                        selected = tab == index,
+                        onClick = { tab = index },
+                        text = { Text(title, style = MaterialTheme.typography.labelLarge) },
                     )
-                    Text("autosize", style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            StyleSlider(
-                label = "Size",
-                value = balloon.fontSize,
-                from = MIN_BALLOON_TEXT_SIZE,
-                to = MAX_BALLOON_TEXT_SIZE,
-                // The balloon is choosing for itself, so there is nothing here to choose.
-                enabled = !balloon.autoSize,
-            ) {
-                actions.setBalloonTextSize(balloon.id, it)
-            }
-            // Only the rounded shapes have a roundness worth changing.
-            if (balloon.type == BalloonType.SPEAK || balloon.type == BalloonType.WHISPER) {
-                StyleSlider("Shape", balloon.cornerRoundness, 0f, 1f) {
-                    actions.setBalloonRoundness(balloon.id, it)
-                }
+            when (tab) {
+                0 -> BalloonTextStyle(balloon, actions)
+                else -> BalloonShapeStyle(balloon, actions)
             }
         }
     }
 }
+
+/** The Text tab: what the words are set in, and how big. */
+@Composable
+private fun BalloonTextStyle(balloon: Balloon, actions: ComicEditorActions) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FontDropdown(
+                font = balloon.font,
+                onChange = { actions.setBalloonFont(balloon.id, it) },
+                modifier = Modifier.weight(1f),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = balloon.autoSize,
+                    onCheckedChange = { actions.setBalloonAutoSize(balloon.id, it) },
+                )
+                Text("autosize", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        StyleSlider(
+            label = "Size",
+            value = balloon.fontSize,
+            from = MIN_BALLOON_TEXT_SIZE,
+            to = MAX_BALLOON_TEXT_SIZE,
+            // The balloon is choosing for itself, so there is nothing here to choose.
+            enabled = !balloon.autoSize,
+        ) {
+            actions.setBalloonTextSize(balloon.id, it)
+        }
+    }
+}
+
+/** The Balloon tab: the outline the words are drawn inside. */
+@Composable
+private fun BalloonShapeStyle(balloon: Balloon, actions: ComicEditorActions) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Only the rounded shapes have a roundness worth changing.
+        if (balloon.type == BalloonType.SPEAK || balloon.type == BalloonType.WHISPER) {
+            StyleSlider("Shape", balloon.cornerRoundness, 0f, 1f) {
+                actions.setBalloonRoundness(balloon.id, it)
+            }
+        }
+        StyleSlider(
+            label = "Border size",
+            value = balloon.borderThickness,
+            from = MIN_BALLOON_BORDER,
+            to = MAX_BALLOON_BORDER,
+            // The panel borders are deciding, so there is nothing here to decide.
+            enabled = !balloon.matchPanelBorder,
+        ) {
+            actions.setBalloonBorderThickness(balloon.id, it)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = balloon.matchPanelBorder,
+                onCheckedChange = { actions.setBalloonMatchPanelBorder(balloon.id, it) },
+            )
+            Text("match panel border", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+private val BALLOON_STYLE_TABS = listOf("Text", "Balloon")
 
 /** The balloon's typeface, each choice shown in the letters it would set the words in. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -664,7 +719,8 @@ private fun FontDropdown(
 @Composable
 private fun StyleControls(style: ComicStyle, onChange: (ComicStyle) -> Unit) {
     Column {
-        StyleSlider("Margin", style.pageMargin, 0f, 0.12f) { onChange(style.copy(pageMargin = it)) }
+        // There is no margin control: the page margin is the gutter, so every gap in the comic is
+        // the same width whichever side of a panel it is on.
         StyleSlider("Gutter", style.gutter, 0f, 0.1f) { onChange(style.copy(gutter = it)) }
         StyleSlider("Border", style.borderThickness, 0f, 0.02f) { onChange(style.copy(borderThickness = it)) }
         StyleSlider("Corners", style.cornerRadius, 0f, 0.05f) { onChange(style.copy(cornerRadius = it)) }
@@ -681,10 +737,11 @@ private fun StyleSlider(
     enabled: Boolean = true,
     onChange: (Float) -> Unit,
 ) {
+    val current = value.coerceIn(from, to)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(56.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(76.dp))
         Slider(
-            value = value.coerceIn(from, to),
+            value = current,
             onValueChange = onChange,
             valueRange = from..to,
             enabled = enabled,
@@ -692,10 +749,23 @@ private fun StyleSlider(
             // No thumb at all: the filled track says where the value is, and a thumb would only
             // cost height.
             thumb = {},
-            track = { FilledTrack((value.coerceIn(from, to) - from) / (to - from), enabled) },
+            track = { FilledTrack((current - from) / (to - from), enabled) },
+        )
+        // Every comic style distance is a fraction of the page width, so the number that means
+        // something to the reader is what percentage of the page it takes.
+        Text(
+            text = percentOfPage(current),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = 8.dp).width(52.dp),
         )
     }
 }
+
+/** A page-width fraction written the way the control reads it out: "1.5%" of the page's width. */
+internal fun percentOfPage(value: Float): String =
+    "${(value * 1000f).roundToInt() / 10f}%"
 
 @Composable
 private fun LayoutChangeDialog(warning: LayoutChangeWarning, onConfirm: () -> Unit, onCancel: () -> Unit) {

@@ -6,7 +6,7 @@ import org.junit.Test
 
 class GridBoundariesTest {
 
-    private val noStyle = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val noStyle = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     @Test
     fun `a single panel has no grid lines`() {
@@ -28,7 +28,7 @@ class GridBoundariesTest {
 
     @Test
     fun `the page margin shifts the grid lines inwards`() {
-        val style = ComicStyle(pageMargin = 0.1f, gutter = 0f, borderThickness = 0f)
+        val style = ComicStyle(gutter = 0.1f, borderThickness = 0f)
 
         val boundaries = gridBoundaries(Grid(rows = 1, columns = 2), 1f, style)
 

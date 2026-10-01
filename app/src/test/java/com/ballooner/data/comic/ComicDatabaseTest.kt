@@ -3,6 +3,7 @@ package com.ballooner.data.comic
 import android.content.Context
 import androidx.room.Room
 import com.ballooner.data.AppDatabase
+import com.ballooner.data.MIGRATION_10_11
 import com.ballooner.data.MIGRATION_6_7
 import com.ballooner.data.MIGRATION_7_8
 import com.ballooner.data.MIGRATION_8_9
@@ -59,7 +60,7 @@ class ComicDatabaseTest {
 
     private fun openDatabase(): AppDatabase {
         database = Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         repository = RoomComicRepository(database.comicDao())
         return database
@@ -99,7 +100,7 @@ class ComicDatabaseTest {
         val comic = Comic(
             name = "Round trip",
             sizing = PageSizing.Ratio(WIDE_RATIO),
-            style = ComicStyle(pageMargin = 0.04f, gutter = 0.02f, borderThickness = 0.008f, cornerRadius = 0.01f),
+            style = ComicStyle(gutter = 0.02f, borderThickness = 0.008f, cornerRadius = 0.01f),
             layout = Layout(
                 grid = Grid(
                     rows = 2,
@@ -122,7 +123,14 @@ class ComicDatabaseTest {
                 Panel(),
             ),
             balloons = listOf(
-                Balloon(id = 1, type = BalloonType.SPEAK, scope = BalloonScope.Panel(0), text = "Hello"),
+                Balloon(
+                    id = 1,
+                    type = BalloonType.SPEAK,
+                    scope = BalloonScope.Panel(0),
+                    text = "Hello",
+                    borderThickness = 0.013f,
+                    matchPanelBorder = false,
+                ),
                 Balloon(id = 2, type = BalloonType.CAPTION, scope = BalloonScope.Comic, text = "Later"),
             ),
         )

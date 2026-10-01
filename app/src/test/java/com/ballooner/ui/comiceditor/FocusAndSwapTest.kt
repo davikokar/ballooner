@@ -30,7 +30,7 @@ class FocusAndSwapTest {
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
 
-    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val style = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     private fun comic(panels: Int = 4, withImages: Boolean = true) = Comic(
         // A two by two grid of square panels, which makes the page square too.

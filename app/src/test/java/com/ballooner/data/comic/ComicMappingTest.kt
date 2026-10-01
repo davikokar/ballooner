@@ -37,7 +37,7 @@ class ComicMappingTest {
         val comic = Comic(
             name = "Styled",
             sizing = PageSizing.Ratio(WIDE_RATIO),
-            style = ComicStyle(pageMargin = 0.05f, gutter = 0.03f, borderThickness = 0.01f, cornerRadius = 0.02f),
+            style = ComicStyle(gutter = 0.03f, borderThickness = 0.01f, cornerRadius = 0.02f),
         )
 
         assertEquals(comic, roundTrip(comic))

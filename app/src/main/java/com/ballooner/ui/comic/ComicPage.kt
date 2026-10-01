@@ -110,7 +110,11 @@ fun DrawScope.drawComicPage(
         }
     }
     // Focusing shows one panel alone, so its neighbours are cut away rather than hidden.
-    if (focus != null) clipPath(focus.toPath(viewport)) { drawEverything() } else drawEverything()
+    if (focus != null) {
+        clipPath(focus.toPath(viewport, comic.style.cornerRadius)) { drawEverything() }
+    } else {
+        drawEverything()
+    }
 }
 
 private fun DrawScope.drawBalloons(
@@ -127,7 +131,13 @@ private fun DrawScope.drawBalloons(
         if ((panelIndex != null) != panelScoped) return@forEach
         val panel = panelIndex?.let { shapes.getOrNull(it) }
         if (panelIndex != null && panel == null) return@forEach
-        val geometry = balloonGeometry(balloon, panel?.bounds, comic.pageHeight, viewport)
+        val geometry = balloonGeometry(
+            balloon = balloon,
+            panel = panel?.bounds,
+            pageHeight = comic.pageHeight,
+            viewport = viewport,
+            borderThickness = balloon.borderWidth(comic.style),
+        )
         val draw = {
             drawBalloon(
                 geometry = geometry,
@@ -141,7 +151,11 @@ private fun DrawScope.drawBalloons(
             }
         }
         // A panel balloon is cut off at its panel's edge; a comic balloon is free of them.
-        if (panel != null) clipPath(panel.toPath(viewport)) { draw() } else draw()
+        if (panel != null) {
+            clipPath(panel.toPath(viewport, comic.style.cornerRadius)) { draw() }
+        } else {
+            draw()
+        }
     }
 }
 
@@ -188,7 +202,7 @@ private fun DrawScope.drawPanelImage(
     images: PanelImageSource,
     imageAlpha: Float,
 ) {
-    val path = shape.toPath(viewport)
+    val path = shape.toPath(viewport, comic.style.cornerRadius)
     val image = comic.panels.getOrNull(index)?.image
     val bitmap = image?.let { images.bitmapFor(it.sourceUri) }
     clipPath(path) {
@@ -216,7 +230,11 @@ private fun DrawScope.drawPanelImage(
 private fun DrawScope.drawPanelBorder(comic: Comic, shape: Polygon, viewport: PageViewport) {
     val borderWidth = comic.style.borderThickness * viewport.scale
     if (borderWidth > 0f) {
-        drawPath(shape.toPath(viewport), color = InkBlack, style = Stroke(width = borderWidth))
+        drawPath(
+            path = shape.toPath(viewport, comic.style.cornerRadius),
+            color = InkBlack,
+            style = Stroke(width = borderWidth),
+        )
     }
 }
 

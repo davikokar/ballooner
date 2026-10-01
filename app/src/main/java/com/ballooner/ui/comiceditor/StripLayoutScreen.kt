@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.ui.comic.PanelImageSource
@@ -44,6 +45,7 @@ fun StripLayoutScreen(
     panelCount: Int,
     panels: List<PanelImage?>,
     images: PanelImageSource,
+    style: ComicStyle,
     onChange: (PageSizing) -> Unit,
     onStrip: (horizontal: Boolean, count: Int) -> Unit,
     onBack: () -> Unit,
@@ -88,6 +90,7 @@ fun StripLayoutScreen(
                 ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panels.firstOrNull() != null },
                 panels = panels,
                 images = images,
+                style = style,
                 modifier = Modifier.weight(1f),
                 rows = if (horizontal) 1 else count,
                 columns = if (horizontal) count else 1,

@@ -32,6 +32,8 @@ data class BalloonGeometry(
     val tailLengthPx: Float,
     val tailWidth: Float,
     val cornerRoundness: Float,
+    /** How thickly the outline is drawn, in page units. */
+    val borderThickness: Float,
     val type: BalloonType,
 ) {
     val rect: Rect
@@ -65,6 +67,7 @@ fun balloonGeometry(
     panel: PageRect?,
     pageHeight: Float,
     viewport: PageViewport,
+    borderThickness: Float = balloon.borderThickness,
 ): BalloonGeometry {
     val onPage = balloon.centreOnPage(panel, pageHeight)
     val radiusX = balloon.width * viewport.scale / 2f
@@ -79,6 +82,7 @@ fun balloonGeometry(
         tailLengthPx = balloon.tailLength * viewport.scale,
         tailWidth = balloon.tailWidth,
         cornerRoundness = balloon.cornerRoundness,
+        borderThickness = borderThickness,
         type = balloon.type,
     )
 }
@@ -90,7 +94,7 @@ fun DrawScope.drawBalloon(
     outlineColor: Color,
     alpha: Float = 1f,
 ) {
-    val strokeWidth = max(pageScale * 0.006f, 2f)
+    val strokeWidth = max(pageScale * geometry.borderThickness, 2f)
 
     if (geometry.type == BalloonType.THINK) {
         drawThinkTail(geometry, bodyColor, outlineColor, strokeWidth, alpha)

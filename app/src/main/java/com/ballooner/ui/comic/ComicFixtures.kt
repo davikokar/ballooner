@@ -119,11 +119,11 @@ fun comicFixtures(): List<ComicFixture> = listOf(
         ),
     ),
     ComicFixture(
-        name = "Wide gutter and margin",
+        name = "Wide gutter",
         comic = fixture(
             ratio = SQUARE_RATIO,
             layout = Layout(Grid(rows = 2, columns = 2)),
-            style = ComicStyle(pageMargin = 0.08f, gutter = 0.06f, borderThickness = 0.008f),
+            style = ComicStyle(gutter = 0.06f, borderThickness = 0.008f),
         ),
     ),
     ComicFixture(

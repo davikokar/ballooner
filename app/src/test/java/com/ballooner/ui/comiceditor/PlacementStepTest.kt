@@ -32,7 +32,7 @@ class PlacementStepTest {
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
 
-    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val style = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     private fun comic(withImages: Boolean = true) = Comic(
         // Two panels side by side, each held at half as wide as it is tall, so the page is square.
@@ -390,7 +390,7 @@ class PlacementStepTest {
         val (viewModel, repository) = editorFor(comic())
         advanceUntilIdle()
 
-        viewModel.setStyle(ComicStyle(pageMargin = 0.08f, gutter = 0.05f, borderThickness = 0.01f))
+        viewModel.setStyle(ComicStyle(gutter = 0.05f, borderThickness = 0.01f))
         advanceUntilIdle()
 
         assertEquals(2, content(viewModel).comic.panels.size)

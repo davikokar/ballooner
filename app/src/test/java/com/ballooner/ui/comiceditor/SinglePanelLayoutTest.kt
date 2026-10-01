@@ -32,7 +32,7 @@ class SinglePanelLayoutTest {
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
 
-    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val style = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     private fun editorFor(initial: Comic) =
         ComicEditorViewModel(comicId = 1L, repository = FakeComicRepository(initial))

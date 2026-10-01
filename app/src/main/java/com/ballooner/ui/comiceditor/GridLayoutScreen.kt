@@ -144,8 +144,9 @@ private fun GridPage(
             },
     ) {
         val viewport = PageViewport(0f, 0f, size.width)
+        val radius = comic.style.cornerRadius
         shapes.forEachIndexed { index, shape ->
-            val path = shape.toPath(viewport)
+            val path = shape.toPath(viewport, radius)
             val image = comic.panels.getOrNull(index)?.image
             val bitmap = image?.let { images.bitmapFor(it.sourceUri) }
             clipPath(path) {
@@ -173,10 +174,10 @@ private fun GridPage(
                     }
                 }
             }
-            drawPath(path, color = InkBlack, style = Stroke(width = 4f))
+            drawPath(path, color = InkBlack, style = Stroke(width = previewBorderWidth(comic, viewport)))
         }
         cells.filter { it.span in selection }.forEach { cell ->
-            val path = cell.shape.toPath(viewport)
+            val path = cell.shape.toPath(viewport, radius)
             drawPath(path, color = scheme.primary.copy(alpha = 0.3f))
             drawPath(path, color = scheme.primary, style = Stroke(width = 8f))
         }

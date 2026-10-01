@@ -218,6 +218,11 @@ const val MIN_TAIL_WIDTH = 0.1f
 const val MAX_TAIL_WIDTH = 1.2f
 const val MIN_BALLOON_TEXT_SIZE = 0.015f
 const val MAX_BALLOON_TEXT_SIZE = 0.12f
+const val MIN_BALLOON_BORDER = 0f
+const val MAX_BALLOON_BORDER = 0.02f
+
+/** The outline a balloon is born with, in page units. */
+const val DEFAULT_BALLOON_BORDER = 0.006f
 
 /** The tail a balloon is born with, in page units. */
 const val NEW_BALLOON_TAIL = 0.12f

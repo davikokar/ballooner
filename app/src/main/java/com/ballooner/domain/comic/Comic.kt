@@ -60,7 +60,15 @@ data class Balloon(
     /** When set, the text is sized to fill the balloon rather than held at [fontSize]. */
     val autoSize: Boolean = false,
     val font: BalloonFont = BalloonFont.ANIME_ACE,
-)
+    val borderThickness: Float = DEFAULT_BALLOON_BORDER,
+    /** When set, the balloon is outlined as thickly as the panel borders rather than at
+     * [borderThickness]. */
+    val matchPanelBorder: Boolean = true,
+) {
+    /** How thickly this balloon is outlined on a page drawn in [style], in page units. */
+    fun borderWidth(style: ComicStyle): Float =
+        if (matchPanelBorder) style.borderThickness else borderThickness
+}
 
 /**
  * One comic: a single page, its layout, what fills each panel, and the balloons over it.

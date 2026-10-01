@@ -14,7 +14,7 @@ import org.junit.Test
 
 class ComicExportTest {
 
-    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val style = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     private fun sizesOf(vararg entries: Pair<String, IntSize>): (String) -> IntSize? {
         val sizes = entries.toMap()

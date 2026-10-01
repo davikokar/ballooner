@@ -193,7 +193,7 @@ private fun CuttingPage(
     ) {
         val viewport = pageViewport(size, comic.pageHeight)
         shapes.forEachIndexed { index, shape ->
-            val path = shape.toPath(viewport)
+            val path = shape.toPath(viewport, comic.style.cornerRadius)
             val image = comic.panels.getOrNull(index)?.image
             val bitmap = image?.let { images.bitmapFor(it.sourceUri) }
             clipPath(path) {
@@ -221,7 +221,7 @@ private fun CuttingPage(
                     }
                 }
             }
-            drawPath(path, color = InkBlack, style = Stroke(width = 4f))
+            drawPath(path, color = InkBlack, style = Stroke(width = previewBorderWidth(comic, viewport)))
         }
         drawCutHandles(handles, viewport, scheme.primary)
         val from = start

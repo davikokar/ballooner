@@ -137,7 +137,7 @@ internal fun PlacementStepOverlay(
             val viewport = comicViewport(size, comic.pageHeight, focus?.bounds)
             if (viewport.scale <= 0f) return@Canvas
             shapes.forEachIndexed { index, shape ->
-                val path = shape.toPath(viewport)
+                val path = shape.toPath(viewport, comic.style.cornerRadius)
                 when {
                     carrying != null && index == over && index != carrying ->
                         drawPath(path, color = DropTargetFill)

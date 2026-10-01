@@ -130,7 +130,7 @@ internal fun LayoutStepOverlay(
         if (viewport.scale <= 0f) return@Canvas
         if (tool == LayoutTool.SELECT) {
             panels.filter { it.span in selection }.forEach { panel ->
-                val path = panel.shape.toPath(viewport)
+                val path = panel.shape.toPath(viewport, comic.style.cornerRadius)
                 drawPath(path, color = SelectionFill)
                 drawPath(path, color = SelectionStroke, style = Stroke(width = 4f))
             }

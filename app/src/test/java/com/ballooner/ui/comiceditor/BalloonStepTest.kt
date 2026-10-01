@@ -7,7 +7,9 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.Layout
+import com.ballooner.domain.comic.MAX_BALLOON_BORDER
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
+import com.ballooner.domain.comic.MIN_BALLOON_BORDER
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MIN_TAIL_WIDTH
 import com.ballooner.domain.comic.NormalizedPoint
@@ -37,7 +39,7 @@ class BalloonStepTest {
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
 
-    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val style = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     private fun comic(balloons: List<Balloon> = emptyList()) = Comic(
         // Two panels side by side, each held at half as wide as it is tall, so the page is square.
@@ -276,7 +278,7 @@ class BalloonStepTest {
 
     @Test
     fun `a comic balloon over no panel cannot be put in one`() = runTest {
-        val gutterStyle = ComicStyle(pageMargin = 0.2f, gutter = 0f, borderThickness = 0f)
+        val gutterStyle = ComicStyle(gutter = 0.2f, borderThickness = 0f)
         val balloon = Balloon(
             id = 1,
             type = BalloonType.SPEAK,
@@ -313,7 +315,7 @@ class BalloonStepTest {
         val (viewModel, _) = editorFor(comic(listOf(balloon)))
         advanceUntilIdle()
 
-        viewModel.setStyle(ComicStyle(pageMargin = 0.05f, gutter = 0.04f, borderThickness = 0.01f))
+        viewModel.setStyle(ComicStyle(gutter = 0.04f, borderThickness = 0.01f))
         viewModel.setSizing(PageSizing.Ratio(WIDE_RATIO))
         advanceUntilIdle()
 
@@ -365,6 +367,35 @@ class BalloonStepTest {
         viewModel.setBalloonRoundness(1, 5f)
         advanceUntilIdle()
         assertEquals(1f, balloons(viewModel).single().cornerRoundness, TOLERANCE)
+    }
+
+    @Test
+    fun `border size is kept within what can be drawn`() = runTest {
+        val balloon = Balloon(id = 1, type = BalloonType.SPEAK, scope = BalloonScope.Panel(0))
+        val (viewModel, _) = editorFor(comic(listOf(balloon)))
+        advanceUntilIdle()
+
+        viewModel.setBalloonBorderThickness(1, 99f)
+        advanceUntilIdle()
+        assertEquals(MAX_BALLOON_BORDER, balloons(viewModel).single().borderThickness, TOLERANCE)
+
+        viewModel.setBalloonBorderThickness(1, -1f)
+        advanceUntilIdle()
+        assertEquals(MIN_BALLOON_BORDER, balloons(viewModel).single().borderThickness, TOLERANCE)
+    }
+
+    @Test
+    fun `a balloon matching the panel border is outlined as thickly as the panels`() = runTest {
+        val balloon = Balloon(
+            id = 1,
+            type = BalloonType.SPEAK,
+            scope = BalloonScope.Panel(0),
+            borderThickness = 0.02f,
+        )
+        val panelStyle = ComicStyle(borderThickness = 0.007f)
+
+        assertEquals(0.007f, balloon.borderWidth(panelStyle), TOLERANCE)
+        assertEquals(0.02f, balloon.copy(matchPanelBorder = false).borderWidth(panelStyle), TOLERANCE)
     }
 
     @Test

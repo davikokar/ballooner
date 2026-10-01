@@ -132,6 +132,8 @@ data class ComicBalloonEntity(
     val fontSize: Float,
     val autoSize: Boolean,
     val font: String,
+    val borderThickness: Float,
+    val matchPanelBorder: Boolean,
 )
 
 /** Stores grid weights as a plain comma-separated list, which needs no serialization library. */

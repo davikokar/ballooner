@@ -5,7 +5,7 @@ import org.junit.Test
 
 class ReadingOrderTest {
 
-    private val noStyle = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val noStyle = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     @Test
     fun `a grid reads left to right then top to bottom`() {

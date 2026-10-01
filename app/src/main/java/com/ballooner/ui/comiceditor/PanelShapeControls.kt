@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -52,9 +53,12 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.ballooner.domain.comic.Comic
+import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelImage
@@ -190,14 +194,17 @@ internal fun PanelShapeChooser(
 /**
  * The panels drawn on a drafting ground, showing the shape as it will really be.
  *
- * [ratio] is one panel's shape; a null one means there is nothing to show yet. Any image already
- * in a panel is drawn in it, and can be pinched, dragged, and twisted — see [PreviewImage].
+ * [ratio] is one panel's shape; a null one means there is nothing to show yet. [style] is the
+ * comic's own, so the Comic style controls are seen here too rather than only on the canvas. Any
+ * image already in a panel is drawn in it, and can be pinched, dragged, and twisted — see
+ * [PreviewImage].
  */
 @Composable
 internal fun PanelPreview(
     ratio: Float?,
     panels: List<PanelImage?>,
     images: PanelImageSource,
+    style: ComicStyle,
     modifier: Modifier = Modifier,
     rows: Int = 1,
     columns: Int = 1,
@@ -215,10 +222,20 @@ internal fun PanelPreview(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            PanelLattice(ratio, panels, images, rows, columns)
+            PanelLattice(ratio, panels, images, style, rows, columns)
         }
     }
 }
+
+/**
+ * The panel outline a preview strokes: the comic's own border weight, held to a hairline at the
+ * thinnest so panels that are there to be tapped on cannot vanish at a zero border.
+ */
+internal fun previewBorderWidth(comic: Comic, viewport: PageViewport): Float =
+    (comic.style.borderThickness * viewport.scale).coerceAtLeast(MIN_PREVIEW_BORDER)
+
+/** In pixels, since a preview is drawn straight onto a canvas. */
+private const val MIN_PREVIEW_BORDER = 2f
 
 /**
  * The bordered card and drafting ground every preset's preview sits on.
@@ -291,15 +308,20 @@ private fun PanelLattice(
     ratio: Float,
     panels: List<PanelImage?>,
     images: PanelImageSource,
+    style: ComicStyle,
     rows: Int,
     columns: Int,
 ) {
     val down = rows.coerceAtLeast(1)
     val across = columns.coerceAtLeast(1)
-    val single = down == 1 && across == 1
-    val gap = if (single) 0.dp else 4.dp
     // The whole lattice is sized so it fits the ground, and the cells divide it evenly.
-    Box(modifier = Modifier.aspectRatio(ratio * across / down)) {
+    BoxWithConstraints(modifier = Modifier.aspectRatio(ratio * across / down)) {
+        // The lattice stands in for the page, so a page unit is its width and every style
+        // distance is read at the same fraction the comic will draw it at.
+        val pageWidth = maxWidth
+        val gap = pageWidth * style.gutter
+        val border = (pageWidth * style.borderThickness).coerceAtLeast(MIN_PREVIEW_FRAME)
+        val corner = pageWidth * style.cornerRadius
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(gap),
@@ -315,7 +337,8 @@ private fun PanelLattice(
                             ratio = ratio,
                             placement = panels.getOrNull(index),
                             images = images,
-                            single = single,
+                            border = border,
+                            corner = corner,
                             key = index,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
@@ -326,21 +349,27 @@ private fun PanelLattice(
     }
 }
 
+/** A preview frame keeps a visible edge however thin the comic's border is. */
+private val MIN_PREVIEW_FRAME = 1.dp
+
 @Composable
 private fun PanelFrame(
     ratio: Float,
     placement: PanelImage?,
     images: PanelImageSource,
-    single: Boolean,
+    border: Dp,
+    corner: Dp,
     key: Int,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     val bitmap = placement?.let { images.bitmapFor(it.sourceUri) }
+    val shape = RoundedCornerShape(corner)
     Box(
         modifier = modifier
+            .clip(shape)
             .background(scheme.surfaceContainerLowest)
-            .border(BorderStroke(if (single) 3.dp else 2.dp, scheme.onSurface)),
+            .border(BorderStroke(border, scheme.onSurface), shape),
     ) {
         if (bitmap != null) {
             PreviewImage(ratio = ratio, placement = placement, bitmap = bitmap, key = key)

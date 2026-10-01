@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.ui.comic.PanelImageSource
@@ -22,6 +23,7 @@ fun SinglePanelShapeScreen(
     panelRatio: Float,
     image: PanelImage?,
     images: PanelImageSource,
+    style: ComicStyle,
     onChange: (PageSizing) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -43,6 +45,7 @@ fun SinglePanelShapeScreen(
                 ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || image != null },
                 panels = listOf(image),
                 images = images,
+                style = style,
                 modifier = Modifier.weight(1f),
             )
         }

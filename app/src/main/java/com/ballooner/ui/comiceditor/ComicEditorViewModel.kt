@@ -16,7 +16,9 @@ import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.GridAxis
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.LayoutChange
+import com.ballooner.domain.comic.MAX_BALLOON_BORDER
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
+import com.ballooner.domain.comic.MIN_BALLOON_BORDER
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PagePoint
@@ -205,6 +207,15 @@ class ComicEditorViewModel @Inject constructor(
     /** Hands the balloon's text size over to the balloon itself, or takes it back. */
     fun setBalloonAutoSize(id: Long, autoSize: Boolean) = editBalloon(id, undoable = true) {
         it.copy(autoSize = autoSize)
+    }
+
+    fun setBalloonBorderThickness(id: Long, thickness: Float) = editBalloon(id, undoable = false) {
+        it.copy(borderThickness = thickness.coerceIn(MIN_BALLOON_BORDER, MAX_BALLOON_BORDER))
+    }
+
+    /** Ties the balloon's outline to the panel borders, or lets it carry its own weight. */
+    fun setBalloonMatchPanelBorder(id: Long, match: Boolean) = editBalloon(id, undoable = true) {
+        it.copy(matchPanelBorder = match)
     }
 
     fun setBalloonTailWidth(id: Long, x: Float, y: Float) =

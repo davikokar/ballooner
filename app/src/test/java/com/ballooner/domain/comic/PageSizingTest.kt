@@ -6,7 +6,7 @@ import org.junit.Test
 
 class PageSizingTest {
 
-    private val noStyle = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val noStyle = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     @Test
     fun `a square single panel gives a square page`() {
@@ -42,7 +42,7 @@ class PageSizingTest {
     fun `the panel keeps its shape when the margin changes under it`() {
         val comic = Comic(
             sizing = PageSizing.Ratio(WIDE_RATIO),
-            style = ComicStyle(pageMargin = 0.12f, gutter = 0f, borderThickness = 0f),
+            style = ComicStyle(gutter = 0.12f, borderThickness = 0f),
         )
 
         val panel = comic.panelShapes().single().bounds
@@ -54,7 +54,7 @@ class PageSizingTest {
     fun `the panel keeps its shape when the gutter changes under it`() {
         val comic = Comic(
             sizing = PageSizing.Ratio(SQUARE_RATIO),
-            style = ComicStyle(pageMargin = 0f, gutter = 0.08f, borderThickness = 0f),
+            style = ComicStyle(gutter = 0.08f, borderThickness = 0f),
             layout = Layout(Grid(rows = 2, columns = 2)),
             panels = List(4) { Panel() },
         )

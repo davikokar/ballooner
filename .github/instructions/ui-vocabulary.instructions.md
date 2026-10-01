@@ -159,10 +159,12 @@ the parts owned by later steps are shown dimmed and are not interactive.
 
 ### Comic style
 
-Comic-level settings that restyle the whole comic at once.
+Comic-level settings that restyle the whole comic at once. Each is a fraction of the page width,
+and each slider reads its value out as that percentage beside the track.
 
-- **Page margin**: Space between the page edge and the outermost panels.
-- **Gutter**: Space between adjacent panels.
+- **Gutter**: Space between adjacent panels, and the space round the outside of the page too.
+- **Page margin**: The gap between the page edge and the outermost panels. It is the Gutter, not a
+  setting of its own, so there is no margin control.
 - **Border thickness**: The panel outline weight.
 - **Corner radius**: How rounded panel corners are.
 
@@ -230,9 +232,12 @@ Comic-level settings that restyle the whole comic at once.
   the selected balloon between Panel balloon and Comic balloon. Greyed out when no balloon is
   selected, since there is nothing to say.
 - **Balloon style flyout** (`BalloonStyleSheet`): The sheet the balloon's **Balloon style handle**
-  opens from the bottom, holding everything about how that balloon is lettered: its Font selector
-  and **autosize** checkbox on one line, then the Text size slider and the Shape slider. All of it
-  belongs to the one balloon.
+  opens from the bottom, holding everything about how that balloon is drawn. It is split into a
+  **Text tab** and a **Balloon tab**. All of it belongs to the one balloon.
+- **Text tab**: Holds the Font selector and **autosize** checkbox on one line, then the Text size
+  slider.
+- **Balloon tab**: Holds the Shape slider, the Border size slider, and the **match panel border**
+  checkbox.
 - **Auto size**: When set, the balloon sizes its own text to fill itself, and the Text size slider
   has nothing to choose.
 - **Font selector**: A dropdown of the typefaces, each shown in its own letters. A new balloon is
@@ -242,6 +247,10 @@ Comic-level settings that restyle the whole comic at once.
   height than Material's.
 - **Shape slider** (`ShapeSlider`): Changes the selected speech or whisper balloon's
   roundness.
+- **Border size slider**: Changes how thickly the selected balloon is outlined, unless it is
+  matching the panel border.
+- **Match panel border**: When set, the balloon is outlined as thickly as the panel borders and
+  the Border size slider has nothing to choose. A new balloon matches.
 - **Balloon move handle**: The round handle in the middle of the selected balloon's top edge.
   Dragging it carries the balloon.
 - **Balloon resize handle**: The round handle on its bottom-right corner, which changes its width

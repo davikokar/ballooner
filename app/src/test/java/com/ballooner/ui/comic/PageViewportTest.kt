@@ -1,5 +1,6 @@
 package com.ballooner.ui.comic
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageRect
@@ -158,6 +159,48 @@ class PageViewportTest {
         val focused = comicViewport(Size(400f, 400f), 4f / 3f, null)
 
         assertEquals(pageViewport(Size(400f, 400f), 4f / 3f), focused)
+    }
+
+    @Test
+    fun `a rounded corner leaves both of its edges the same distance back`() {
+        val corner = Offset(100f, 100f)
+
+        val (back, forward) = roundedCorner(
+            previous = Offset(0f, 100f),
+            corner = corner,
+            next = Offset(100f, 200f),
+            radius = 20f,
+        )
+
+        assertEquals(80f, back.x, TOLERANCE)
+        assertEquals(100f, back.y, TOLERANCE)
+        assertEquals(100f, forward.x, TOLERANCE)
+        assertEquals(120f, forward.y, TOLERANCE)
+    }
+
+    @Test
+    fun `a corner never takes more than half of the edge it sits on`() {
+        val corner = Offset(10f, 0f)
+
+        val (back, forward) = roundedCorner(
+            previous = Offset(0f, 0f),
+            corner = corner,
+            next = Offset(10f, 4f),
+            radius = 1000f,
+        )
+
+        assertEquals(5f, back.x, TOLERANCE)
+        assertEquals(2f, forward.y, TOLERANCE)
+    }
+
+    @Test
+    fun `no corner radius leaves the corner where it is`() {
+        val corner = Offset(10f, 10f)
+
+        val (back, forward) = roundedCorner(Offset(0f, 10f), corner, Offset(10f, 20f), radius = 0f)
+
+        assertEquals(corner, back)
+        assertEquals(corner, forward)
     }
 
     @Test

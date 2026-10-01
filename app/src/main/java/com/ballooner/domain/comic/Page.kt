@@ -16,8 +16,10 @@ fun PagePoint.normalized(pageHeight: Float): NormalizedPoint =
 
 /** Comic-level styling. Every distance is a fraction of the page width. */
 data class ComicStyle(
-    val pageMargin: Float = 0.02f,
     val gutter: Float = 0.02f,
     val borderThickness: Float = 0.004f,
     val cornerRadius: Float = 0f,
-)
+) {
+    /** The gap round the outside of the page, which is the gutter so every gap matches. */
+    val pageMargin: Float get() = gutter
+}

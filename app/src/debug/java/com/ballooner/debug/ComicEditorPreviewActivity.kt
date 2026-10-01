@@ -73,7 +73,7 @@ private class InMemoryComicRepository : ComicRepository {
         Comic(
             name = "Debug comic",
             sizing = PageSizing.Ratio(TALL_RATIO),
-            style = ComicStyle(pageMargin = 0.03f, gutter = 0.025f, borderThickness = 0.006f),
+            style = ComicStyle(gutter = 0.025f, borderThickness = 0.006f),
             layout = Layout(Grid(rows = 3, columns = 2)),
             panels = List(6) { index -> Panel(if (index % 2 == 0) PanelImage("sample") else null) },
         ),

@@ -5,7 +5,7 @@ import org.junit.Test
 
 class PanelShapesTest {
 
-    private val noStyle = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val noStyle = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     @Test
     fun `a single panel layout fills the page`() {
@@ -34,11 +34,12 @@ class PanelShapesTest {
     }
 
     @Test
-    fun `the margin insets the page and the gutter separates neighbours`() {
-        val style = ComicStyle(pageMargin = 0.1f, gutter = 0.1f, borderThickness = 0f)
+    fun `the gutter both insets the page and separates neighbours`() {
+        val style = ComicStyle(gutter = 0.1f, borderThickness = 0f)
 
         val shapes = panelShapes(Layout(Grid(rows = 1, columns = 2)), 1f, style)
 
+        // One number, so the gap round the outside is the gap between the panels.
         assertRect(PageRect(0.1f, 0.1f, 0.35f, 0.8f), shapes[0].bounds)
         assertRect(PageRect(0.55f, 0.1f, 0.35f, 0.8f), shapes[1].bounds)
     }
@@ -124,7 +125,7 @@ class PanelShapesTest {
 
     @Test
     fun `a panel cut whose anchor lands in a gutter is skipped`() {
-        val style = ComicStyle(pageMargin = 0f, gutter = 0.2f, borderThickness = 0f)
+        val style = ComicStyle(gutter = 0.2f, borderThickness = 0f)
         val cut = Cut(
             a = NormalizedPoint(0.5f, 0f),
             b = NormalizedPoint(0.5f, 1f),

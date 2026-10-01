@@ -20,7 +20,6 @@ fun ComicWithParts.toDomain(): Comic = Comic(
     name = comic.name,
     sizing = comic.pageRatio?.takeIf { it > 0f }?.let { PageSizing.Ratio(it) } ?: PageSizing.FromImage,
     style = ComicStyle(
-        pageMargin = comic.pageMargin,
         gutter = comic.gutter,
         borderThickness = comic.borderThickness,
         cornerRadius = comic.cornerRadius,
@@ -46,6 +45,8 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
         createdAt = createdAt,
         updatedAt = updatedAt,
         pageRatio = (sizing as? PageSizing.Ratio)?.value,
+        // The margin is the gutter now; the column is kept so an older build still reads a
+        // sensible page.
         pageMargin = style.pageMargin,
         gutter = style.gutter,
         borderThickness = style.borderThickness,
@@ -108,6 +109,8 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
             fontSize = balloon.fontSize,
             autoSize = balloon.autoSize,
             font = balloon.font.name,
+            borderThickness = balloon.borderThickness,
+            matchPanelBorder = balloon.matchPanelBorder,
         )
     },
 )
@@ -151,6 +154,8 @@ private fun ComicBalloonEntity.toDomain() = Balloon(
     fontSize = fontSize,
     autoSize = autoSize,
     font = enumValueOrDefault(font, BalloonFont.DEFAULT),
+    borderThickness = borderThickness,
+    matchPanelBorder = matchPanelBorder,
 )
 
 private inline fun <reified T : Enum<T>> enumValueOrDefault(name: String, fallback: T): T =

@@ -9,7 +9,7 @@ import org.junit.Test
 
 class ComicLayoutChangeTest {
 
-    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val style = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     private fun comicWith(grid: Grid, cuts: List<Cut> = emptyList()): Comic {
         val comic = Comic(sizing = PageSizing.Ratio(SQUARE_RATIO), style = style, layout = Layout(grid, cuts))

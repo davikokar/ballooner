@@ -30,7 +30,7 @@ class LayoutStepTest {
     @get:Rule
     val dispatcherRule = MainDispatcherRule()
 
-    private val style = ComicStyle(pageMargin = 0f, gutter = 0f, borderThickness = 0f)
+    private val style = ComicStyle(gutter = 0f, borderThickness = 0f)
 
     private fun comic(rows: Int, columns: Int, withImages: Boolean = false) = Comic(
         // Holding a panel at its share of a square page keeps the page square for any grid.

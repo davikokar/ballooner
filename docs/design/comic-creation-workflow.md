@@ -160,13 +160,16 @@ Cuts are the only source of non-rectangular panels; a grid on its own always pro
 
 ### Comic style
 
-Gutter, margin, and border are comic-level settings the user can change at any time:
+Gutter, border, and corners are comic-level settings the user can change at any time. Every one of
+them is a fraction of the page's width, so the same number means the same gap on both axes and at
+any export size:
 
-- **Page margin** — space between the page edge and the outermost panels.
-- **Gutter** — space between adjacent panels.
+- **Gutter** — space between adjacent panels, and the space round the outside of the page as well.
+  There is no separate page margin: one number keeps every gap in the comic the same width.
 - **Border thickness** — the panel outline weight.
-- **Corner radius** — how rounded panel corners are. It applies to right-angled corners; corners
-  formed by a diagonal cut stay sharp.
+- **Corner radius** — how rounded panel corners are. Every corner rounds, including the ones a
+  diagonal cut leaves, and a corner never takes more than half of either edge meeting it, so a
+  small panel keeps a straight side.
 
 Changing any of these restyles the whole comic at once. It moves and resizes panel frames, but it
 never deletes anything and never disturbs image placement or balloons.

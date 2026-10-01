@@ -230,3 +230,15 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         )
     }
 }
+
+/** A balloon now carries its own outline weight, matching the panel borders unless told not to. */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `comic_balloon` ADD COLUMN `borderThickness` REAL NOT NULL DEFAULT 0.006",
+        )
+        db.execSQL(
+            "ALTER TABLE `comic_balloon` ADD COLUMN `matchPanelBorder` INTEGER NOT NULL DEFAULT 1",
+        )
+    }
+}

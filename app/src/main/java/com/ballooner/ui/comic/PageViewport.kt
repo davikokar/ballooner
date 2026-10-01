@@ -64,13 +64,55 @@ fun comicViewport(available: Size, pageHeight: Float, focus: PageRect?): PageVie
     )
 }
 
-/** The outline of a panel in screen pixels. */
-fun Polygon.toPath(viewport: PageViewport): Path = Path().apply {
-    vertices.forEachIndexed { index, vertex ->
-        val point = viewport.toScreen(vertex.x, vertex.y)
-        if (index == 0) moveTo(point.x, point.y) else lineTo(point.x, point.y)
+/**
+ * The outline of a panel in screen pixels.
+ *
+ * [cornerRadius] is in page units, like every other distance in the document. A corner is rounded
+ * by pulling back along both of its edges and curving through where the corner was, so a panel of
+ * any shape — including one a cut has left with corners that are not square — rounds the same way.
+ * A corner never eats more than half of the shortest edge meeting it, so a small panel stays a
+ * panel rather than collapsing into a blob.
+ */
+fun Polygon.toPath(viewport: PageViewport, cornerRadius: Float = 0f): Path = Path().apply {
+    val points = vertices.map { viewport.toScreen(it.x, it.y) }
+    val radius = cornerRadius * viewport.scale
+    if (points.size < 3 || radius <= 0f) {
+        points.forEachIndexed { index, point ->
+            if (index == 0) moveTo(point.x, point.y) else lineTo(point.x, point.y)
+        }
+        close()
+        return@apply
+    }
+    points.forEachIndexed { index, corner ->
+        val previous = points[(index + points.size - 1) % points.size]
+        val next = points[(index + 1) % points.size]
+        val (back, forward) = roundedCorner(previous, corner, next, radius)
+        if (index == 0) moveTo(back.x, back.y) else lineTo(back.x, back.y)
+        quadraticTo(corner.x, corner.y, forward.x, forward.y)
     }
     close()
+}
+
+/**
+ * Where a rounded corner leaves the edge running into [corner], and where it rejoins the one
+ * leaving it.
+ *
+ * A corner never takes more than half of either edge, so two corners sharing a short edge cannot
+ * both eat it and leave the panel with no straight side at all.
+ */
+internal fun roundedCorner(
+    previous: Offset,
+    corner: Offset,
+    next: Offset,
+    radius: Float,
+): Pair<Offset, Offset> = corner.pulledTowards(previous, radius) to corner.pulledTowards(next, radius)
+
+/** A point [by] pixels from this one along the way to [target], at most halfway there. */
+private fun Offset.pulledTowards(target: Offset, by: Float): Offset {
+    val span = (target - this).getDistance()
+    if (span <= 0f) return this
+    val fraction = minOf(by / span, 0.5f)
+    return this + (target - this) * fraction
 }
 
 /** How a panel image is drawn: its size in pixels, and where its top-left corner goes. */
