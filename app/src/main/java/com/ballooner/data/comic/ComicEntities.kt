@@ -98,6 +98,9 @@ data class ComicPanelEntity(
     val angleDegrees: Float,
     // The image file's own proportions, unknown for an image imported before these were kept.
     val sourceAspect: Float?,
+    // The panel's own frame. Both null together means it is framed as the comic style says.
+    val borderThickness: Float?,
+    val cornerRadius: Float?,
 )
 
 /** One balloon. [balloonId] rises with each balloon added, so it is also the drawing order. */

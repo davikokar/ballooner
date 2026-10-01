@@ -22,7 +22,18 @@ data class ComicStyle(
 ) {
     /** The gap round the outside of the page, which is the gutter so every gap matches. */
     val pageMargin: Float get() = gutter
+
+    /** What this style asks of a panel that has no say of its own. */
+    val panelStyle: PanelStyle get() = PanelStyle(borderThickness, cornerRadius)
 }
+
+/**
+ * How one panel is outlined, overriding [ComicStyle] for that panel alone.
+ *
+ * Only the frame is a panel's own business: the gutter is the space between panels and so can
+ * never belong to one of them. Like every other distance, both are fractions of the page width.
+ */
+data class PanelStyle(val borderThickness: Float, val cornerRadius: Float)
 
 /**
  * The most a corner may be rounded, which is half of the widest a panel can be.

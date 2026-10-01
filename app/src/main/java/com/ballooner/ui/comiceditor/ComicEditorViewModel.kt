@@ -26,6 +26,7 @@ import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.PanelMatching
+import com.ballooner.domain.comic.PanelStyle
 import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.anchoredIn
@@ -48,6 +49,7 @@ import com.ballooner.domain.comic.withoutCutAt
 import com.ballooner.domain.comic.withScope
 import com.ballooner.domain.comic.withTailAt
 import com.ballooner.domain.comic.withTailWidthAt
+import com.ballooner.domain.comic.withoutPanelStyles
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -286,7 +288,7 @@ class ComicEditorViewModel @Inject constructor(
 
     fun selectTool(tool: LayoutTool) = updateContent { it.copy(tool = tool).withSelection(emptyList()) }
 
-    /** Chooses the panel the Placement step works on. */
+    /** Chooses the panel being worked on, which is the one a step's controls apply to. */
     fun selectPanel(index: Int?) = updateContent { content ->
         content.copy(activePanel = index?.takeIf { it in content.comic.panels.indices })
     }
@@ -405,7 +407,7 @@ class ComicEditorViewModel @Inject constructor(
         val opened = contentOrNull()?.comic ?: return
         beforeLayoutKind = opened
         undoDepthBeforeLayoutKind = undoStack.size
-        updateContent { it.copy(layoutKind = kind).withSelection(emptyList()) }
+        updateContent { it.copy(layoutKind = kind, activePanel = null).withSelection(emptyList()) }
         val comic = contentOrNull()?.comic ?: return
         if (layoutKindOf(comic) == kind) return
         when (kind) {
@@ -523,8 +525,23 @@ class ComicEditorViewModel @Inject constructor(
 
     fun setStyle(style: ComicStyle) {
         val content = contentOrNull() ?: return
-        // Style moves and resizes every panel but never changes how many there are.
-        commit(content.comic.copy(style = style), undoable = false)
+        // Style moves and resizes every panel but never changes how many there are. Restyling the
+        // comic as a whole takes back the frames individual panels were given.
+        commit(content.comic.copy(style = style).withoutPanelStyles(), undoable = false)
+    }
+
+    /**
+     * Frames one panel on its own, overriding the comic style for that panel alone.
+     *
+     * It lasts only until the comic style is touched again, which restyles the whole page and so
+     * has the last word.
+     */
+    fun setPanelStyle(index: Int, style: PanelStyle) {
+        val content = contentOrNull() ?: return
+        val panel = content.comic.panels.getOrNull(index) ?: return
+        if (panel.style == style) return
+        val panels = content.comic.panels.toMutableList().also { it[index] = panel.copy(style = style) }
+        commit(content.comic.copy(panels = panels), undoable = false)
     }
 
     /**

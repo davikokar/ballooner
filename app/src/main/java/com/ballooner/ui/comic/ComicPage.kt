@@ -28,6 +28,7 @@ import com.ballooner.domain.comic.Polygon
 import com.ballooner.domain.comic.inDrawingOrder
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
+import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.PaperWhite
 import com.ballooner.ui.theme.toFontFamily
@@ -93,9 +94,11 @@ fun DrawScope.drawComicPage(
     editingBalloon: Long? = null,
 ) {
     if (viewport.scale <= 0f) return
+    val shapes = panelShapes(comic.layout, comic.pageHeight, comic.style)
+    // A focused panel is still that panel, so it is cut out with its own corners.
+    val focusIndex = focus?.let { wanted -> shapes.indexOfFirst { it == wanted } }?.takeIf { it >= 0 }
     val drawEverything = {
         drawPage(comic, viewport)
-        val shapes = panelShapes(comic.layout, comic.pageHeight, comic.style)
         shapes.forEachIndexed { index, shape ->
             drawPanelImage(comic, index, shape, viewport, images, imageAlpha)
         }
@@ -104,14 +107,14 @@ fun DrawScope.drawComicPage(
         if (balloonAlpha > 0f) {
             drawBalloons(comic, shapes, viewport, balloonAlpha, textMeasurer, true, editingBalloon)
         }
-        shapes.forEach { drawPanelBorder(comic, it, viewport) }
+        shapes.forEachIndexed { index, shape -> drawPanelBorder(comic, index, shape, viewport) }
         if (balloonAlpha > 0f) {
             drawBalloons(comic, shapes, viewport, balloonAlpha, textMeasurer, false, editingBalloon)
         }
     }
     // Focusing shows one panel alone, so its neighbours are cut away rather than hidden.
     if (focus != null) {
-        clipPath(focus.toPath(viewport, comic.style.cornerRadius)) { drawEverything() }
+        clipPath(focus.toPath(viewport, comic.panelStyleAt(focusIndex).cornerRadius)) { drawEverything() }
     } else {
         drawEverything()
     }
@@ -131,12 +134,13 @@ private fun DrawScope.drawBalloons(
         if ((panelIndex != null) != panelScoped) return@forEach
         val panel = panelIndex?.let { shapes.getOrNull(it) }
         if (panelIndex != null && panel == null) return@forEach
+        val panelStyle = comic.panelStyleAt(panelIndex)
         val geometry = balloonGeometry(
             balloon = balloon,
             panel = panel?.bounds,
             pageHeight = comic.pageHeight,
             viewport = viewport,
-            borderThickness = balloon.borderWidth(comic.style),
+            borderThickness = balloon.borderWidth(panelStyle),
         )
         val draw = {
             drawBalloon(
@@ -152,7 +156,7 @@ private fun DrawScope.drawBalloons(
         }
         // A panel balloon is cut off at its panel's edge; a comic balloon is free of them.
         if (panel != null) {
-            clipPath(panel.toPath(viewport, comic.style.cornerRadius)) { draw() }
+            clipPath(panel.toPath(viewport, panelStyle.cornerRadius)) { draw() }
         } else {
             draw()
         }
@@ -202,7 +206,7 @@ private fun DrawScope.drawPanelImage(
     images: PanelImageSource,
     imageAlpha: Float,
 ) {
-    val path = shape.toPath(viewport, comic.style.cornerRadius)
+    val path = shape.toPath(viewport, comic.panelStyleAt(index).cornerRadius)
     val image = comic.panels.getOrNull(index)?.image
     val bitmap = image?.let { images.bitmapFor(it.sourceUri) }
     clipPath(path) {
@@ -227,11 +231,17 @@ private fun DrawScope.drawPanelImage(
     }
 }
 
-private fun DrawScope.drawPanelBorder(comic: Comic, shape: Polygon, viewport: PageViewport) {
-    val borderWidth = comic.style.borderThickness * viewport.scale
+private fun DrawScope.drawPanelBorder(
+    comic: Comic,
+    index: Int,
+    shape: Polygon,
+    viewport: PageViewport,
+) {
+    val panelStyle = comic.panelStyleAt(index)
+    val borderWidth = panelStyle.borderThickness * viewport.scale
     if (borderWidth > 0f) {
         drawPath(
-            path = shape.toPath(viewport, comic.style.cornerRadius),
+            path = shape.toPath(viewport, panelStyle.cornerRadius),
             color = InkBlack,
             style = Stroke(width = borderWidth),
         )

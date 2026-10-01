@@ -242,3 +242,11 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         )
     }
 }
+
+/** A panel can now be framed on its own, overriding the comic style. Null means it is not. */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `comic_panel` ADD COLUMN `borderThickness` REAL")
+        db.execSQL("ALTER TABLE `comic_panel` ADD COLUMN `cornerRadius` REAL")
+    }
+}

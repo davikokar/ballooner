@@ -392,10 +392,23 @@ class BalloonStepTest {
             scope = BalloonScope.Panel(0),
             borderThickness = 0.02f,
         )
-        val panelStyle = ComicStyle(borderThickness = 0.007f)
+        val panelStyle = ComicStyle(borderThickness = 0.007f).panelStyle
 
         assertEquals(0.007f, balloon.borderWidth(panelStyle), TOLERANCE)
         assertEquals(0.02f, balloon.copy(matchPanelBorder = false).borderWidth(panelStyle), TOLERANCE)
+    }
+
+    @Test
+    fun `a balloon matching a panel with no border has no outline of its own`() = runTest {
+        val balloon = Balloon(
+            id = 1,
+            type = BalloonType.SPEAK,
+            scope = BalloonScope.Panel(0),
+            borderThickness = 0.02f,
+        )
+
+        // Matching means matching: a page drawn without panel borders has none on its balloons.
+        assertEquals(0f, balloon.borderWidth(ComicStyle(borderThickness = 0f).panelStyle), TOLERANCE)
     }
 
     @Test

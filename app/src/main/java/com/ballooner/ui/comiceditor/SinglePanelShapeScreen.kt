@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.PageSizing
-import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.Panel
 import com.ballooner.ui.comic.PanelImageSource
 
 /**
@@ -21,12 +21,13 @@ import com.ballooner.ui.comic.PanelImageSource
 fun SinglePanelShapeScreen(
     sizing: PageSizing,
     panelRatio: Float,
-    image: PanelImage?,
+    panel: Panel?,
     images: PanelImageSource,
     style: ComicStyle,
     onChange: (PageSizing) -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
+    onPanelOptions: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -43,10 +44,13 @@ fun SinglePanelShapeScreen(
                 // The panel as it will really be: a ratio the page cannot reach is held back, and
                 // the preview has to say so rather than promise the number on the slider. An auto
                 // panel has no shape to show until an image gives it one.
-                ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || image != null },
-                panels = listOf(image),
+                ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panel?.image != null },
+                panels = listOfNotNull(panel),
                 images = images,
                 style = style,
+                // The comic has one panel, so there is nothing to choose between: it is always
+                // the panel the Panel options apply to and needs no picking out.
+                onPanelOptions = onPanelOptions,
                 modifier = Modifier.weight(1f),
             )
         }

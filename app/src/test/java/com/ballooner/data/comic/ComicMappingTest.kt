@@ -12,6 +12,7 @@ import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.PanelStyle
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.model.BalloonFont
@@ -38,6 +39,19 @@ class ComicMappingTest {
             name = "Styled",
             sizing = PageSizing.Ratio(WIDE_RATIO),
             style = ComicStyle(gutter = 0.03f, borderThickness = 0.01f, cornerRadius = 0.02f),
+        )
+
+        assertEquals(comic, roundTrip(comic))
+    }
+
+    @Test
+    fun `a panel's own frame survives a round trip`() {
+        val comic = Comic(
+            layout = Layout(Grid(rows = 1, columns = 2)),
+            panels = listOf(
+                Panel(style = PanelStyle(borderThickness = 0.02f, cornerRadius = 0.3f)),
+                Panel(),
+            ),
         )
 
         assertEquals(comic, roundTrip(comic))

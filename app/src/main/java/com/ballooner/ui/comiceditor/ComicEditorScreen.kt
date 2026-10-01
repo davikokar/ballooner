@@ -1,7 +1,9 @@
 package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -30,16 +32,12 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -61,6 +59,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.Comic
@@ -70,8 +69,10 @@ import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MAX_CORNER_RADIUS
 import com.ballooner.domain.comic.MIN_BALLOON_BORDER
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
+import com.ballooner.domain.comic.PanelStyle
 import com.ballooner.domain.comic.panelIndex
 import com.ballooner.domain.comic.panelShapes
+import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 import com.ballooner.ui.comic.ComicPage
@@ -94,6 +95,7 @@ fun ComicEditorScreen(
     onSave: () -> Unit = {},
 ) {
     var showOptions by rememberSaveable { mutableStateOf(false) }
+    var showPanelOptions by rememberSaveable { mutableStateOf(false) }
     var showBalloonStyle by rememberSaveable { mutableStateOf(false) }
     when (state) {
         ComicEditorUiState.Loading -> Box(modifier.fillMaxSize(), Alignment.Center) {
@@ -151,16 +153,19 @@ fun ComicEditorScreen(
                 }
                 // A single panel is the whole comic, so its own preview says everything the
                 // canvas would.
+                // The Panel flyout restyles one panel, so it waits until exactly one is chosen.
+                val onPanelOptions = state.styledPanel()?.let { { showPanelOptions = true } }
                 if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.SINGLE) {
                     SinglePanelShapeScreen(
                         sizing = state.comic.sizing,
                         panelRatio = state.comic.panelRatio(),
-                        image = state.comic.panels.firstOrNull()?.image,
+                        panel = state.comic.panels.firstOrNull(),
                         images = images,
                         style = state.comic.style,
                         onChange = actions::setSizing,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
+                        onPanelOptions = onPanelOptions,
                     )
                     return@Column
                 }
@@ -171,15 +176,18 @@ fun ComicEditorScreen(
                         panelRatio = state.comic.panelRatio(),
                         horizontal = grid.rows == 1,
                         panelCount = maxOf(grid.rows, grid.columns),
-                        panels = state.comic.panels.map { it.image },
+                        panels = state.comic.panels,
                         images = images,
                         style = state.comic.style,
+                        selectedPanel = state.activePanel,
                         onChange = actions::setSizing,
                         onStrip = { across, count ->
                             if (across) actions.applyPreset(1, count) else actions.applyPreset(count, 1)
                         },
+                        onSelectPanel = actions::selectPanel,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
+                        onPanelOptions = onPanelOptions,
                     )
                     return@Column
                 }
@@ -197,6 +205,7 @@ fun ComicEditorScreen(
                         onUnmerge = actions::unmergeSelection,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
+                        onPanelOptions = onPanelOptions,
                     )
                     return@Column
                 }
@@ -205,13 +214,16 @@ fun ComicEditorScreen(
                         comic = state.comic,
                         images = images,
                         canUndo = state.canUndo,
+                        selectedPanel = state.activePanel,
                         onCut = actions::addCut,
                         onStartCutDrag = actions::startBoundaryDrag,
                         onMoveCutEnd = actions::moveCutEnd,
                         onEndCutDrag = actions::endCutDrag,
+                        onSelectPanel = actions::selectPanel,
                         onUndo = actions::undo,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
+                        onPanelOptions = onPanelOptions,
                     )
                     return@Column
                 }
@@ -281,6 +293,14 @@ fun ComicEditorScreen(
             style = content.comic.style,
             onChange = actions::setStyle,
             onDismiss = { showOptions = false },
+        )
+    }
+    val styledPanel = content?.styledPanel()
+    if (showPanelOptions && content != null && styledPanel != null) {
+        PanelOptionsSheet(
+            style = content.comic.panelStyleAt(styledPanel),
+            onChange = { actions.setPanelStyle(styledPanel, it) },
+            onDismiss = { showPanelOptions = false },
         )
     }
     val styled = content?.comic?.balloons?.firstOrNull { it.id == content.selectedBalloon }
@@ -412,6 +432,56 @@ private fun ComicOptionsSheet(
             StyleControls(style, onChange)
         }
     }
+}
+
+/**
+ * One panel's own frame, which overrides the comic style for that panel alone.
+ *
+ * Only the border and the corners are here: the gutter is the space between panels, so it can
+ * never belong to one of them. What is set here lasts until the comic is restyled as a whole,
+ * which has the last word and puts every panel back on the comic style.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PanelOptionsSheet(
+    style: PanelStyle,
+    onChange: (PanelStyle) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Panel style", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                text = "This panel only. Changing the comic style puts it back.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            StyleSlider("Border", style.borderThickness, 0f, MAX_PANEL_BORDER) {
+                onChange(style.copy(borderThickness = it))
+            }
+            StyleSlider("Corners", style.cornerRadius, 0f, MAX_CORNER_RADIUS) {
+                onChange(style.copy(cornerRadius = it))
+            }
+        }
+    }
+}
+
+/**
+ * The one panel the Panel flyout styles, or null while that is not exactly one panel.
+ *
+ * Each preset already has a way of picking a panel out, so this reads the choice the user has
+ * already made there rather than asking them to make it twice.
+ */
+private fun ComicEditorUiState.Content.styledPanel(): Int? = when (layoutKind) {
+    // One panel is the whole comic: there is nothing to choose between.
+    LayoutKind.SINGLE -> comic.panels.indices.firstOrNull()
+    // The grid picks panels out by their cells, which is what merging already works on.
+    LayoutKind.GRID -> selection.singleOrNull()?.let { panelIndexOfCell(comic, it) }
+    LayoutKind.STRIP, LayoutKind.CUSTOM -> activePanel?.takeIf { it in comic.panels.indices }
+    null -> null
 }
 
 @Composable
@@ -581,23 +651,21 @@ private fun BalloonStyleSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        var tab by rememberSaveable { mutableStateOf(0) }
+        var tab by rememberSaveable { mutableStateOf(BALLOON_STYLE_TABS.first()) }
         Column(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("Balloon style", style = MaterialTheme.typography.headlineSmall)
-            TabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
-                BALLOON_STYLE_TABS.forEachIndexed { index, title ->
-                    Tab(
-                        selected = tab == index,
-                        onClick = { tab = index },
-                        text = { Text(title, style = MaterialTheme.typography.labelLarge) },
-                    )
-                }
-            }
+            // The same pill the Step switch is, so a tab reads the same wherever it is.
+            PillSwitch(
+                options = BALLOON_STYLE_TABS,
+                selected = tab,
+                label = { _, title -> title },
+                onSelect = { tab = it },
+            )
             when (tab) {
-                0 -> BalloonTextStyle(balloon, actions)
+                TEXT_TAB -> BalloonTextStyle(balloon, actions)
                 else -> BalloonShapeStyle(balloon, actions)
             }
         }
@@ -609,21 +677,23 @@ private fun BalloonStyleSheet(
 private fun BalloonTextStyle(balloon: Balloon, actions: ComicEditorActions) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Named in the same column the sliders below put their labels in, so the whole tab
+            // reads down one edge.
+            Text("Font", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(STYLE_LABEL_WIDTH))
             FontDropdown(
                 font = balloon.font,
                 onChange = { actions.setBalloonFont(balloon.id, it) },
                 modifier = Modifier.weight(1f),
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = balloon.autoSize,
-                    onCheckedChange = { actions.setBalloonAutoSize(balloon.id, it) },
-                )
-                Text("autosize", style = MaterialTheme.typography.bodyMedium)
-            }
+            Checkbox(
+                checked = balloon.autoSize,
+                onCheckedChange = { actions.setBalloonAutoSize(balloon.id, it) },
+                modifier = Modifier.size(32.dp),
+            )
+            Text("autosize", style = MaterialTheme.typography.labelSmall)
         }
         StyleSlider(
             label = "Size",
@@ -658,17 +728,18 @@ private fun BalloonShapeStyle(balloon: Balloon, actions: ComicEditorActions) {
         ) {
             actions.setBalloonBorderThickness(balloon.id, it)
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Checkbox(
                 checked = balloon.matchPanelBorder,
                 onCheckedChange = { actions.setBalloonMatchPanelBorder(balloon.id, it) },
+                modifier = Modifier.size(32.dp),
             )
-            Text("match panel border", style = MaterialTheme.typography.bodyMedium)
+            Text("match panel border", style = MaterialTheme.typography.labelSmall)
         }
     }
 }
 
-private val BALLOON_STYLE_TABS = listOf("Text", "Balloon")
+private val BALLOON_STYLE_TABS = listOf(TEXT_TAB, "Balloon")
 
 /** The balloon's typeface, each choice shown in the letters it would set the words in. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -678,22 +749,35 @@ private fun FontDropdown(
     onChange: (BalloonFont) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scheme = MaterialTheme.colorScheme
     var open by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
         expanded = open,
         onExpandedChange = { open = it },
         modifier = modifier,
     ) {
-        OutlinedTextField(
-            value = font.label(),
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            label = { Text("Font") },
-            textStyle = LocalTextStyle.current.copy(fontFamily = font.toFontFamily()),
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
-            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-        )
+        // A bordered line rather than a text field: nothing is typed here, and a field's label
+        // and padding cost more height than the whole row is worth.
+        Row(
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth()
+                .height(32.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .border(BorderStroke(1.dp, scheme.outlineVariant), RoundedCornerShape(4.dp))
+                .padding(start = 8.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = font.label(),
+                style = MaterialTheme.typography.labelLarge,
+                fontFamily = font.toFontFamily(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            ExposedDropdownMenuDefaults.TrailingIcon(expanded = open)
+        }
         ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             BalloonFont.entries.forEach { choice ->
                 DropdownMenuItem(
@@ -714,10 +798,13 @@ private fun StyleControls(style: ComicStyle, onChange: (ComicStyle) -> Unit) {
         // There is no margin control: the page margin is the gutter, so every gap in the comic is
         // the same width whichever side of a panel it is on.
         StyleSlider("Gutter", style.gutter, 0f, 0.1f) { onChange(style.copy(gutter = it)) }
-        StyleSlider("Border", style.borderThickness, 0f, 0.02f) { onChange(style.copy(borderThickness = it)) }
+        StyleSlider("Border", style.borderThickness, 0f, MAX_PANEL_BORDER) { onChange(style.copy(borderThickness = it)) }
         StyleSlider("Corners", style.cornerRadius, 0f, MAX_CORNER_RADIUS) { onChange(style.copy(cornerRadius = it)) }
     }
 }
+
+/** The heaviest a panel border may be, whether the comic or one panel is asking for it. */
+private const val MAX_PANEL_BORDER = 0.02f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -731,7 +818,7 @@ private fun StyleSlider(
 ) {
     val current = value.coerceIn(from, to)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(76.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(STYLE_LABEL_WIDTH))
         Slider(
             value = current,
             onValueChange = onChange,
@@ -758,6 +845,12 @@ private fun StyleSlider(
 /** A page-width fraction written the way the control reads it out: "1.5%" of the page's width. */
 internal fun percentOfPage(value: Float): String =
     "${(value * 1000f).roundToInt() / 10f}%"
+
+/** Wide enough for the longest label a style control carries ("Border size"). */
+private val STYLE_LABEL_WIDTH = 76.dp
+
+/** The Balloon style sheet's first tab, named once so the sheet can switch on it. */
+private const val TEXT_TAB = "Text"
 
 @Composable
 private fun LayoutChangeDialog(warning: LayoutChangeWarning, onConfirm: () -> Unit, onCancel: () -> Unit) {

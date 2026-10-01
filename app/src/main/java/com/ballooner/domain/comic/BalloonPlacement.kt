@@ -161,18 +161,29 @@ fun Balloon.tailTip(panel: PageRect?, pageHeight: Float): PagePoint {
     return PagePoint(centre.x + cos(angle) * reach, centre.y + sin(angle) * reach)
 }
 
-/** Where the tail meets the body, off to one side, which is where its width handle sits. */
+/**
+ * Where the tail's width is taken hold of: out along the tail, part way to the tip, and off to
+ * the side by half the tail's base width.
+ *
+ * It is carried clear of the body on purpose. The balloon's words are typed into a field laid
+ * over the body, and that field takes any touch that lands on it, so a handle sitting against
+ * the body's edge cannot be grabbed at all. Sliding it along the tail costs nothing:
+ * [withTailWidthAt] reads only the distance off the tail's axis, so the handle still reports
+ * exactly the width it is drawn at.
+ */
 fun Balloon.tailWidthHandle(panel: PageRect?, pageHeight: Float): PagePoint {
     val centre = centreOnPage(panel, pageHeight)
     val angle = Math.toRadians(tailAngleDegrees.toDouble()).toFloat()
-    val edge = ellipseEdgeRadius(width / 2f, height / 2f, angle)
+    val along = ellipseEdgeRadius(width / 2f, height / 2f, angle) + tailLength * TAIL_WIDTH_HANDLE_REACH
     val halfBase = tailWidth * min(width / 2f, height / 2f)
-    // Out along the tail to the body's edge, then perpendicular to it by half the tail's width.
     return PagePoint(
-        centre.x + cos(angle) * edge - sin(angle) * halfBase,
-        centre.y + sin(angle) * edge + cos(angle) * halfBase,
+        centre.x + cos(angle) * along - sin(angle) * halfBase,
+        centre.y + sin(angle) * along + cos(angle) * halfBase,
     )
 }
+
+/** How far down the tail the width handle rides, as a fraction of the tail's length. */
+private const val TAIL_WIDTH_HANDLE_REACH = 0.5f
 
 /** Widens or narrows the tail base so it reaches [target]. */
 fun Balloon.withTailWidthAt(target: PagePoint, panel: PageRect?, pageHeight: Float): Balloon {

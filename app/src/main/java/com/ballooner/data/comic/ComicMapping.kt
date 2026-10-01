@@ -12,6 +12,7 @@ import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.PanelStyle
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
@@ -89,6 +90,8 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
             zoom = panel.image?.zoom ?: 1f,
             angleDegrees = panel.image?.angleDegrees ?: 0f,
             sourceAspect = panel.image?.sourceAspect,
+            borderThickness = panel.style?.borderThickness,
+            cornerRadius = panel.style?.cornerRadius,
         )
     },
     balloons = balloons.map { balloon ->
@@ -136,6 +139,12 @@ private fun ComicPanelEntity.toDomain() = Panel(
             angleDegrees = angleDegrees,
             sourceAspect = sourceAspect,
         )
+    },
+    // Either both are stored or the panel never had a frame of its own.
+    style = if (borderThickness != null && cornerRadius != null) {
+        PanelStyle(borderThickness, cornerRadius)
+    } else {
+        null
     },
 )
 

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.ballooner.data.AppDatabase
 import com.ballooner.data.MIGRATION_10_11
+import com.ballooner.data.MIGRATION_11_12
 import com.ballooner.data.MIGRATION_6_7
 import com.ballooner.data.MIGRATION_7_8
 import com.ballooner.data.MIGRATION_8_9
@@ -60,7 +61,14 @@ class ComicDatabaseTest {
 
     private fun openDatabase(): AppDatabase {
         database = Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+                MIGRATION_8_9,
+                MIGRATION_9_10,
+                MIGRATION_10_11,
+                MIGRATION_11_12,
+            )
             .build()
         repository = RoomComicRepository(database.comicDao())
         return database

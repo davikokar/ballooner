@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -61,10 +64,12 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PageSizing
+import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.TALL_RATIO
 import com.ballooner.domain.comic.WIDE_RATIO
+import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.domain.comic.transformed
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
@@ -195,25 +200,29 @@ internal fun PanelShapeChooser(
  * The panels drawn on a drafting ground, showing the shape as it will really be.
  *
  * [ratio] is one panel's shape; a null one means there is nothing to show yet. [style] is the
- * comic's own, so the Comic style controls are seen here too rather than only on the canvas. Any
- * image already in a panel is drawn in it, and can be pinched, dragged, and twisted — see
- * [PreviewImage].
+ * comic's own, so the Comic style controls are seen here too rather than only on the canvas, and
+ * any panel carrying a frame of its own is drawn wearing it. Any image already in a panel is
+ * drawn in it, and can be pinched, dragged, and twisted — see [PreviewImage].
  */
 @Composable
 internal fun PanelPreview(
     ratio: Float?,
-    panels: List<PanelImage?>,
+    panels: List<Panel>,
     images: PanelImageSource,
     style: ComicStyle,
     modifier: Modifier = Modifier,
     rows: Int = 1,
     columns: Int = 1,
+    selected: Int? = null,
+    onSelect: ((Int) -> Unit)? = null,
+    onPanelOptions: (() -> Unit)? = null,
     emptyMessage: String = "The panel takes the shape of the image you choose next.",
 ) {
-    val anyImage = panels.any { it != null && images.bitmapFor(it.sourceUri) != null }
+    val anyImage = panels.any { panel -> panel.image?.let { images.bitmapFor(it.sourceUri) } != null }
     PreviewSurface(
         modifier = modifier,
         hint = "Pinch and drag to look around".takeIf { anyImage },
+        onPanelOptions = onPanelOptions,
     ) {
         if (ratio == null) {
             Text(
@@ -222,17 +231,17 @@ internal fun PanelPreview(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            PanelLattice(ratio, panels, images, style, rows, columns)
+            PanelLattice(ratio, panels, images, style, rows, columns, selected, onSelect)
         }
     }
 }
 
 /**
- * The panel outline a preview strokes: the comic's own border weight, held to a hairline at the
+ * The panel outline a preview strokes: the panel's own border weight, held to a hairline at the
  * thinnest so panels that are there to be tapped on cannot vanish at a zero border.
  */
-internal fun previewBorderWidth(comic: Comic, viewport: PageViewport): Float =
-    (comic.style.borderThickness * viewport.scale).coerceAtLeast(MIN_PREVIEW_BORDER)
+internal fun previewBorderWidth(comic: Comic, index: Int, viewport: PageViewport): Float =
+    (comic.panelStyleAt(index).borderThickness * viewport.scale).coerceAtLeast(MIN_PREVIEW_BORDER)
 
 /** In pixels, since a preview is drawn straight onto a canvas. */
 private const val MIN_PREVIEW_BORDER = 2f
@@ -242,11 +251,16 @@ private const val MIN_PREVIEW_BORDER = 2f
  *
  * What goes on the ground differs: a lattice of frames for the shape presets, the real page for
  * the grid, which has merged panels to show.
+ *
+ * [onPanelOptions] opens the Panel style controls for the one panel that is selected. A null one
+ * leaves the button offered but dimmed, since what is missing is a choice of panel rather than
+ * the ability to style one.
  */
 @Composable
 internal fun PreviewSurface(
     modifier: Modifier = Modifier,
     hint: String? = null,
+    onPanelOptions: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -282,6 +296,7 @@ internal fun PreviewSurface(
                     modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp),
                 )
             }
+            PanelOptionsButton(onClick = onPanelOptions)
         }
         Box(
             modifier = Modifier
@@ -302,15 +317,49 @@ internal fun PreviewSurface(
     }
 }
 
+/**
+ * The same gear the Comic style wears, because it opens the same kind of thing for one panel.
+ *
+ * Not an `IconButton`: that reserves a 48dp touch target however small its glyph, which would
+ * push the preview down the screen by more than the gear is worth.
+ */
+@Composable
+private fun PanelOptionsButton(onClick: (() -> Unit)?) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .padding(start = 8.dp)
+            .size(24.dp)
+            // On the clickable chain, not on the icon: on the icon it becomes a node of its own
+            // and the button itself is left with no label and no enabled state to read.
+            .semantics { contentDescription = "Panel options" }
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Settings,
+            contentDescription = null,
+            tint = if (onClick != null) {
+                scheme.onSurfaceVariant
+            } else {
+                scheme.onSurface.copy(alpha = 0.38f)
+            },
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
 /** The panels themselves, in reading order. One panel and a strip are both just small lattices. */
 @Composable
 private fun PanelLattice(
     ratio: Float,
-    panels: List<PanelImage?>,
+    panels: List<Panel>,
     images: PanelImageSource,
     style: ComicStyle,
     rows: Int,
     columns: Int,
+    selected: Int?,
+    onSelect: ((Int) -> Unit)?,
 ) {
     val down = rows.coerceAtLeast(1)
     val across = columns.coerceAtLeast(1)
@@ -320,8 +369,6 @@ private fun PanelLattice(
         // distance is read at the same fraction the comic will draw it at.
         val pageWidth = maxWidth
         val gap = pageWidth * style.gutter
-        val border = (pageWidth * style.borderThickness).coerceAtLeast(MIN_PREVIEW_FRAME)
-        val corner = pageWidth * style.cornerRadius
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(gap),
@@ -333,12 +380,16 @@ private fun PanelLattice(
                 ) {
                     repeat(across) { column ->
                         val index = row * across + column
+                        val panel = panels.getOrNull(index)
+                        val frame = panel?.style ?: style.panelStyle
                         PanelFrame(
                             ratio = ratio,
-                            placement = panels.getOrNull(index),
+                            placement = panel?.image,
                             images = images,
-                            border = border,
-                            corner = corner,
+                            border = (pageWidth * frame.borderThickness).coerceAtLeast(MIN_PREVIEW_FRAME),
+                            corner = pageWidth * frame.cornerRadius,
+                            selected = index == selected,
+                            onSelect = onSelect?.let { select -> { select(index) } },
                             key = index,
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
@@ -359,6 +410,8 @@ private fun PanelFrame(
     images: PanelImageSource,
     border: Dp,
     corner: Dp,
+    selected: Boolean,
+    onSelect: (() -> Unit)?,
     key: Int,
     modifier: Modifier = Modifier,
 ) {
@@ -369,10 +422,20 @@ private fun PanelFrame(
         modifier = modifier
             .clip(shape)
             .background(scheme.surfaceContainerLowest)
-            .border(BorderStroke(border, scheme.onSurface), shape),
+            .border(BorderStroke(border, scheme.onSurface), shape)
+            .then(if (onSelect != null) Modifier.clickable(onClick = onSelect) else Modifier),
     ) {
         if (bitmap != null) {
             PreviewImage(ratio = ratio, placement = placement, bitmap = bitmap, key = key)
+        }
+        // Drawn over the image, so the panel being styled is clear whatever is inside it.
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(scheme.primary.copy(alpha = 0.2f), shape)
+                    .border(BorderStroke(2.dp, scheme.primary), shape),
+            )
         }
     }
 }

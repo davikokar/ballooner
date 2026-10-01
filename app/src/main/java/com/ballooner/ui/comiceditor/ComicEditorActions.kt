@@ -5,6 +5,7 @@ import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.GridAxis
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageSizing
+import com.ballooner.domain.comic.PanelStyle
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
@@ -21,6 +22,7 @@ interface ComicEditorActions {
     fun discardLayoutKind()
     fun setSizing(sizing: PageSizing)
     fun setStyle(style: ComicStyle)
+    fun setPanelStyle(index: Int, style: PanelStyle)
     fun startBoundaryDrag()
     fun moveBoundary(axis: GridAxis, index: Int, delta: Float)
     fun endBoundaryDrag()
@@ -75,6 +77,8 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun discardLayoutKind() = this@asActions.discardLayoutKind()
     override fun setSizing(sizing: PageSizing) = this@asActions.setSizing(sizing)
     override fun setStyle(style: ComicStyle) = this@asActions.setStyle(style)
+    override fun setPanelStyle(index: Int, style: PanelStyle) =
+        this@asActions.setPanelStyle(index, style)
     override fun startBoundaryDrag() = this@asActions.startBoundaryDrag()
     override fun moveBoundary(axis: GridAxis, index: Int, delta: Float) =
         this@asActions.moveBoundary(axis, index, delta)

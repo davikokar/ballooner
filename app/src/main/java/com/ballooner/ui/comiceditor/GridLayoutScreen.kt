@@ -31,6 +31,7 @@ import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.gridPanels
 import com.ballooner.domain.comic.panelShapes
+import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.imageDrawSpec
@@ -67,6 +68,7 @@ fun GridLayoutScreen(
     onUnmerge: () -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
+    onPanelOptions: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val grid = comic.layout.grid
@@ -94,6 +96,7 @@ fun GridLayoutScreen(
             PreviewSurface(
                 modifier = Modifier.weight(1f),
                 hint = "Tap cells to join them".takeIf { selection.isEmpty() },
+                onPanelOptions = onPanelOptions,
             ) {
                 GridPage(
                     comic = comic,
@@ -145,9 +148,9 @@ private fun GridPage(
             },
     ) {
         val viewport = PageViewport(0f, 0f, size.width)
-        val radius = comic.style.cornerRadius
         shapes.forEachIndexed { index, shape ->
-            val path = shape.toPath(viewport, radius)
+            val frame = comic.panelStyleAt(index)
+            val path = shape.toPath(viewport, frame.cornerRadius)
             val image = comic.panels.getOrNull(index)?.image
             val bitmap = image?.let { images.bitmapFor(it.sourceUri) }
             clipPath(path) {
@@ -175,14 +178,27 @@ private fun GridPage(
                     }
                 }
             }
-            drawPath(path, color = InkBlack, style = Stroke(width = previewBorderWidth(comic, viewport)))
+            drawPath(path, color = InkBlack, style = Stroke(width = previewBorderWidth(comic, index, viewport)))
         }
         cells.filter { it.span in selection }.forEach { cell ->
-            val path = cell.shape.toPath(viewport, radius)
+            val path = cell.shape.toPath(viewport, comic.style.cornerRadius)
             drawPath(path, color = scheme.primary.copy(alpha = 0.3f))
             drawPath(path, color = scheme.primary, style = Stroke(width = 8f))
         }
     }
+}
+
+/**
+ * The panel the cell [span] is part of, by index in reading order, or null when it is not on the
+ * page. A grid has no cuts, so a cell always lies wholly within one panel.
+ */
+internal fun panelIndexOfCell(comic: Comic, span: Span): Int? {
+    val cell = gridPanels(comic.layout.grid, comic.pageHeight, comic.style)
+        .firstOrNull { it.span == span } ?: return null
+    val centre = cell.shape.centroid
+    return panelShapes(comic.layout, comic.pageHeight, comic.style)
+        .indexOfFirst { it.contains(centre) }
+        .takeIf { it >= 0 }
 }
 
 /** Only offered when the selection can actually take them, so they say what is possible. */

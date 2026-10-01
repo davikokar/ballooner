@@ -137,6 +137,14 @@ the parts owned by later steps are shown dimmed and are not interactive.
   rather than the number that was asked for. Once the panel has an image it is drawn inside the
   frame and can be pinched, dragged, and twisted. That is **looking, not placing**: nothing there
   is written to the comic, and the Placement step remains the only place an image is positioned.
+  Its top-right corner carries the **Panel options button**.
+- **Panel options button**: The gear in the top-right corner of the Panel preview, drawn as the
+  Options button is because it opens the same kind of thing for one panel. Offered in all four
+  Preset options, and dimmed until exactly one panel is chosen. Opens the **Panel flyout**.
+- **Selected panel**: The one panel the Preset options are working on, which is the panel the
+  Panel flyout restyles. Chosen by tapping a panel in the Panel preview, except in **Single**,
+  where the comic's one panel is always it, and in **Grid**, where it is the cell already picked
+  out for merging.
 - **Reference panel**: The panel that gives the Page its height, which is the first panel of the
   Grid. For a Single comic that is the only panel.
 - **Panel shape**: The proportions the Reference panel is held at. Offered as **Square**, **2:3**,
@@ -168,6 +176,16 @@ and each slider reads its value out as that percentage beside the track.
   setting of its own, so there is no margin control.
 - **Border thickness**: The panel outline weight.
 - **Corner radius**: How rounded panel corners are.
+
+### Panel style
+
+- **Panel flyout** (`PanelOptionsSheet`): The sheet the Panel options button opens from the
+  bottom. It offers only **Border thickness** and **Corner radius**, and only for the Selected
+  panel, overriding the Comic style for that panel alone. The Gutter is not here: it is the space
+  between panels and so can never belong to one of them.
+- **Panel frame**: What the Panel flyout sets — one panel's own border and corners. A panel has
+  none until it is given one, and every panel loses the one it was given the moment any Comic
+  style control moves, since restyling the comic as a whole has the last word.
 
 ### Placement step
 
@@ -234,15 +252,17 @@ and each slider reads its value out as that percentage beside the track.
   selected, since there is nothing to say.
 - **Balloon style flyout** (`BalloonStyleSheet`): The sheet the balloon's **Balloon style handle**
   opens from the bottom, holding everything about how that balloon is drawn. It is split into a
-  **Text tab** and a **Balloon tab**. All of it belongs to the one balloon.
+  **Text tab** and a **Balloon tab**, chosen with the same **pill switch** the Step switch uses so
+  a tab reads the same wherever it is. All of it belongs to the one balloon.
 - **Text tab**: Holds the Font selector and **autosize** checkbox on one line, then the Text size
-  slider.
+  slider. Its labels sit in the same column the sliders put theirs in, so the tab reads down one
+  edge.
 - **Balloon tab**: Holds the Shape slider, the Border size slider, and the **match panel border**
   checkbox.
 - **Auto size**: When set, the balloon sizes its own text to fill itself, and the Text size slider
   has nothing to choose.
-- **Font selector**: A dropdown of the typefaces, each shown in its own letters. A new balloon is
-  lettered in Anime Ace.
+- **Font selector**: A compact dropdown of the typefaces, each shown in its own letters. A new
+  balloon is lettered in Anime Ace.
 - **Text size slider**: Changes the selected balloon's text size, unless it is sizing itself.
   Like the other style sliders it is drawn as a plain filled bar with no thumb, which costs less
   height than Material's.
@@ -250,8 +270,9 @@ and each slider reads its value out as that percentage beside the track.
   roundness.
 - **Border size slider**: Changes how thickly the selected balloon is outlined, unless it is
   matching the panel border.
-- **Match panel border**: When set, the balloon is outlined as thickly as the panel borders and
-  the Border size slider has nothing to choose. A new balloon matches.
+- **Match panel border**: When set, the balloon is outlined at exactly the Border thickness the
+  panels are, including none at all when the panels have no border, and the Border size slider has
+  nothing to choose. A new balloon matches.
 - **Balloon move handle**: The round handle in the middle of the selected balloon's top edge.
   Dragging it carries the balloon.
 - **Balloon resize handle**: The round handle on its bottom-right corner, which changes its width
@@ -260,8 +281,11 @@ and each slider reads its value out as that percentage beside the track.
 - **Balloon style handle**: The round handle on its top-left corner, which opens the Balloon style
   flyout.
 - **Tail handles**: Two solid blue dots on the selected balloon's tail: one at its tip, which aims
-  and lengthens it, and one where the tail leaves the body, which widens or narrows it. When both
-  are under the finger the nearer one is taken, since a short tail puts them close together.
+  and lengthens it, and a smaller one beside the tail half way down, which widens or narrows it.
+  The width one is carried clear of the body on purpose — the balloon's words are typed into a
+  field laid over the body, and that field takes any touch landing on it, so a handle against the
+  body's edge cannot be grabbed. When both are under the finger the nearer one is taken, since a
+  short tail puts them close together.
 - **Balloon text entry**: The selected balloon's words are typed into the balloon itself, in the
   letters and at the size they will be read in. An empty balloon invites them with "Say
   something". There is no text box anywhere else.

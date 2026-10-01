@@ -1,7 +1,10 @@
 package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -32,6 +35,7 @@ import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.panelShapes
+import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.imageDrawSpec
@@ -54,13 +58,16 @@ fun CustomLayoutScreen(
     comic: Comic,
     images: PanelImageSource,
     canUndo: Boolean,
+    selectedPanel: Int?,
     onCut: (from: NormalizedPoint, to: NormalizedPoint, scope: CutScope) -> Unit,
     onStartCutDrag: () -> Unit,
     onMoveCutEnd: (index: Int, start: Boolean, to: NormalizedPoint) -> Unit,
     onEndCutDrag: (index: Int) -> Unit,
+    onSelectPanel: (Int?) -> Unit,
     onUndo: () -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
+    onPanelOptions: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -73,16 +80,20 @@ fun CustomLayoutScreen(
             hint = if (comic.layout.cuts.isEmpty()) {
                 "Drag across a panel to cut it"
             } else {
-                "Drag both handles off the page to remove it"
+                // Any longer and it wraps under the Panel options button beside it.
+                "Drag both handles off to remove it"
             },
+            onPanelOptions = onPanelOptions,
         ) {
             CuttingPage(
                 comic = comic,
                 images = images,
+                selectedPanel = selectedPanel,
                 onCut = onCut,
                 onStartCutDrag = onStartCutDrag,
                 onMoveCutEnd = onMoveCutEnd,
                 onEndCutDrag = onEndCutDrag,
+                onSelectPanel = onSelectPanel,
             )
             if (canUndo) {
                 FloatingAction(
@@ -103,10 +114,12 @@ private data class CutHandle(val index: Int, val start: Boolean, val point: Page
 private fun CuttingPage(
     comic: Comic,
     images: PanelImageSource,
+    selectedPanel: Int?,
     onCut: (NormalizedPoint, NormalizedPoint, CutScope) -> Unit,
     onStartCutDrag: () -> Unit,
     onMoveCutEnd: (Int, Boolean, NormalizedPoint) -> Unit,
     onEndCutDrag: (Int) -> Unit,
+    onSelectPanel: (Int?) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
@@ -119,6 +132,7 @@ private fun CuttingPage(
         }
     }
     val latest = rememberUpdatedState(comic.pageHeight to handles)
+    val latestShapes = rememberUpdatedState(shapes)
     var start by remember { mutableStateOf<Offset?>(null) }
     var end by remember { mutableStateOf<Offset?>(null) }
     var held by remember { mutableStateOf<CutHandle?>(null) }
@@ -128,6 +142,18 @@ private fun CuttingPage(
             // The whole ground, not just the page: a handle swung off the page is still drawn
             // here, and anything that can be seen has to be grabbable.
             .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    // Nothing is consumed: a press that is going to become a drag belongs to the
+                    // cutting gesture, and this only hears about it if no one else claimed it.
+                    val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                    val point = pageViewport(size.toSize(), latest.value.first).toPage(up.position)
+                    onSelectPanel(
+                        latestShapes.value.indexOfFirst { it.contains(point) }.takeIf { it >= 0 },
+                    )
+                }
+            }
             // Keyed on nothing: keying on the comic would tear the handler down the moment a cut
             // moves and the rest of the drag would be lost.
             .pointerInput(Unit) {
@@ -194,7 +220,8 @@ private fun CuttingPage(
     ) {
         val viewport = pageViewport(size, comic.pageHeight)
         shapes.forEachIndexed { index, shape ->
-            val path = shape.toPath(viewport, comic.style.cornerRadius)
+            val frame = comic.panelStyleAt(index)
+            val path = shape.toPath(viewport, frame.cornerRadius)
             val image = comic.panels.getOrNull(index)?.image
             val bitmap = image?.let { images.bitmapFor(it.sourceUri) }
             clipPath(path) {
@@ -222,7 +249,11 @@ private fun CuttingPage(
                     }
                 }
             }
-            drawPath(path, color = InkBlack, style = Stroke(width = previewBorderWidth(comic, viewport)))
+            drawPath(path, color = InkBlack, style = Stroke(width = previewBorderWidth(comic, index, viewport)))
+            if (index == selectedPanel) {
+                drawPath(path, color = scheme.primary.copy(alpha = 0.3f))
+                drawPath(path, color = scheme.primary, style = Stroke(width = 8f))
+            }
         }
         drawCutHandles(handles, viewport, scheme.primary)
         val from = start

@@ -94,7 +94,10 @@ fun DrawScope.drawBalloon(
     outlineColor: Color,
     alpha: Float = 1f,
 ) {
-    val strokeWidth = max(pageScale * geometry.borderThickness, 2f)
+    // Exactly what a panel border of the same thickness comes out at, so a balloon told to match
+    // its panel really does — including matching a panel that has no border at all.
+    val strokeWidth = pageScale * geometry.borderThickness
+    val outlined = strokeWidth > 0f
 
     if (geometry.type == BalloonType.THINK) {
         drawThinkTail(geometry, bodyColor, outlineColor, strokeWidth, alpha)
@@ -103,7 +106,9 @@ fun DrawScope.drawBalloon(
             .roundToInt().coerceIn(9, 20)
         val cloud = cloudPath(geometry, bumpCount)
         drawPath(cloud, color = bodyColor, alpha = alpha)
-        drawPath(cloud, color = outlineColor, alpha = alpha, style = Stroke(width = strokeWidth))
+        if (outlined) {
+            drawPath(cloud, color = outlineColor, alpha = alpha, style = Stroke(width = strokeWidth))
+        }
         return
     }
 
@@ -121,12 +126,14 @@ fun DrawScope.drawBalloon(
     }
 
     drawPath(silhouette, color = bodyColor, alpha = alpha)
-    drawPath(
-        path = silhouette,
-        color = outlineColor,
-        alpha = alpha,
-        style = Stroke(width = strokeWidth, pathEffect = geometry.type.outlineDash(strokeWidth)),
-    )
+    if (outlined) {
+        drawPath(
+            path = silhouette,
+            color = outlineColor,
+            alpha = alpha,
+            style = Stroke(width = strokeWidth, pathEffect = geometry.type.outlineDash(strokeWidth)),
+        )
+    }
 }
 
 /** Radius from the centre to the ellipse edge along [angleRad]. */
@@ -227,12 +234,14 @@ private fun DrawScope.drawThinkTail(
         val centre = g.edge + (g.tip - g.edge) * t
         val radius = min(g.radiusX, g.radiusY) * (0.22f * (1f - t) + 0.06f)
         drawCircle(color = bodyColor, radius = radius, center = centre, alpha = alpha)
-        drawCircle(
-            color = outlineColor,
-            radius = radius,
-            center = centre,
-            alpha = alpha,
-            style = Stroke(width = strokeWidth),
-        )
+        if (strokeWidth > 0f) {
+            drawCircle(
+                color = outlineColor,
+                radius = radius,
+                center = centre,
+                alpha = alpha,
+                style = Stroke(width = strokeWidth),
+            )
+        }
     }
 }

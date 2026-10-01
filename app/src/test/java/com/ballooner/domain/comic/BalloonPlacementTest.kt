@@ -2,6 +2,7 @@ package com.ballooner.domain.comic
 
 import com.ballooner.domain.model.BalloonType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,13 +47,16 @@ class BalloonPlacementTest {
     }
 
     @Test
-    fun `the tail width handle sits where the tail leaves the body`() {
-        // Its tail points straight down, so the handle is level with the bottom of the body.
+    fun `the tail width handle rides the tail clear of the body`() {
+        // Its tail points straight down, so the handle is below the bottom of the body.
         val balloon = comicBalloon(0.5f, 0.5f)
 
         val handle = balloon.tailWidthHandle(panel = null, pageHeight = pageHeight)
 
-        assertEquals(0.5f * pageHeight + balloon.height / 2f, handle.y, TOLERANCE)
+        // Anything over the body is covered by the field the balloon's words are typed into,
+        // which takes the touch first and leaves the handle unreachable.
+        assertFalse("the handle must not sit over the body", balloon.contains(handle, null, pageHeight))
+        assertTrue("it belongs to the tail, so it stays short of the tip", handle.y < balloon.tailTip(null, pageHeight).y)
         assertTrue("the handle should sit off to one side", handle.x < 0.5f)
     }
 

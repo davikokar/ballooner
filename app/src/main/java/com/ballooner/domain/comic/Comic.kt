@@ -26,8 +26,13 @@ data class PanelImage(
     val sourceAspect: Float? = null,
 )
 
-/** One panel's content. The panel's shape is derived from the layout and is not stored here. */
-data class Panel(val image: PanelImage? = null)
+/**
+ * One panel's content. The panel's shape is derived from the layout and is not stored here.
+ *
+ * [style] is a frame of this panel's own; null means it is drawn as the comic style says, which
+ * is where every panel starts and where it returns the moment the comic style is touched again.
+ */
+data class Panel(val image: PanelImage? = null, val style: PanelStyle? = null)
 
 /** Which part of the comic a balloon belongs to. */
 sealed interface BalloonScope {
@@ -65,8 +70,8 @@ data class Balloon(
      * [borderThickness]. */
     val matchPanelBorder: Boolean = true,
 ) {
-    /** How thickly this balloon is outlined on a page drawn in [style], in page units. */
-    fun borderWidth(style: ComicStyle): Float =
+    /** How thickly this balloon is outlined beside a panel framed in [style], in page units. */
+    fun borderWidth(style: PanelStyle): Float =
         if (matchPanelBorder) style.borderThickness else borderThickness
 }
 
@@ -87,5 +92,21 @@ data class Comic(
     /** Derived, never stored: the page is shaped by its panels rather than the other way round. */
     val pageHeight: Float get() = pageHeightOf(sizing, layout, style, panels)
 }
+
+/**
+ * How the panel at [index] is framed: its own [PanelStyle] when it has been given one, and the
+ * comic's otherwise. A null or unknown index is the comic's own style.
+ */
+fun Comic.panelStyleAt(index: Int?): PanelStyle =
+    index?.let { panels.getOrNull(it)?.style } ?: style.panelStyle
+
+/**
+ * The same comic with every panel back on the comic style.
+ *
+ * A comic-wide change restyles the whole page, so the frames individual panels were given no
+ * longer describe a decision the user can see being made and are dropped rather than kept.
+ */
+fun Comic.withoutPanelStyles(): Comic =
+    if (panels.none { it.style != null }) this else copy(panels = panels.map { it.copy(style = null) })
 
 fun Comic.panelShapes(): List<Polygon> = panelShapes(layout, pageHeight, style)

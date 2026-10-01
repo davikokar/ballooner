@@ -25,7 +25,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.PageSizing
-import com.ballooner.domain.comic.PanelImage
+import com.ballooner.domain.comic.Panel
 import com.ballooner.ui.comic.PanelImageSource
 
 /** The fewest panels a strip may hold. One panel is the Single preset, not a strip. */
@@ -43,13 +43,16 @@ fun StripLayoutScreen(
     panelRatio: Float,
     horizontal: Boolean,
     panelCount: Int,
-    panels: List<PanelImage?>,
+    panels: List<Panel>,
     images: PanelImageSource,
     style: ComicStyle,
+    selectedPanel: Int?,
     onChange: (PageSizing) -> Unit,
     onStrip: (horizontal: Boolean, count: Int) -> Unit,
+    onSelectPanel: (Int) -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
+    onPanelOptions: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val count = panelCount.coerceAtLeast(MIN_STRIP_PANELS)
@@ -88,13 +91,16 @@ fun StripLayoutScreen(
                 onChange = onChange,
             )
             PanelPreview(
-                ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panels.firstOrNull() != null },
+                ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panels.firstOrNull()?.image != null },
                 panels = panels,
                 images = images,
                 style = style,
                 modifier = Modifier.weight(1f),
                 rows = if (horizontal) 1 else count,
                 columns = if (horizontal) count else 1,
+                selected = selectedPanel,
+                onSelect = onSelectPanel,
+                onPanelOptions = onPanelOptions,
                 emptyMessage = "Every panel takes the shape of the first image you choose next.",
             )
         }
