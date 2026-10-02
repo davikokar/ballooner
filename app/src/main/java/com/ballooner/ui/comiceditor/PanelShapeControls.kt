@@ -219,10 +219,8 @@ internal fun PanelPreview(
     onPanelOptions: (() -> Unit)? = null,
     emptyMessage: String = "The panel takes the shape of the image you choose next.",
 ) {
-    val anyImage = panels.any { panel -> panel.image?.let { images.bitmapFor(it.sourceUri) } != null }
     PreviewSurface(
         modifier = modifier,
-        hint = "Pinch and drag to look around".takeIf { anyImage },
         offersPanelOptions = offersPanelOptions,
         onPanelOptions = onPanelOptions,
     ) {
@@ -287,7 +285,7 @@ internal fun PreviewSurface(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Panel preview",
+                text = "Panels",
                 style = MaterialTheme.typography.labelMedium,
                 color = scheme.onSurface,
             )
