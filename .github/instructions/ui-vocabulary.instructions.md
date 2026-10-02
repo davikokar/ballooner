@@ -160,12 +160,13 @@ the parts owned by later steps are shown dimmed and are not interactive.
   bar; the button is the only thing left. A double tap anywhere on the **Preview heading** — the
   strip between the Expand button and the Panel options button — does the same. Offered in all
   four Preset options, and the state is kept as the user moves between them.
-- **Row lock**: The padlock on the left of each row of the **Grid** preview. Closed, the row
-  follows the grid's own division and its vertical gutters move in step with every other closed
-  row. Open, the row is **free**: it divides its own width, and its gutters move alone. Freeing a
-  row changes nothing until one of its gutters is dragged, and closing the lock puts the row back
-  on the grid. Dimmed on a row a merged panel crosses, which cannot be freed until the merge is
-  undone. A row too short to hold the lock goes without one.
+- **Row lock**: The small padlock astride the left edge of the **Grid** preview's drafting ground,
+  one per row, clear of the panels. Closed, the row follows the grid's own division and its
+  vertical gutters move in step with every other closed row. Open, the row is **free**: it divides
+  its own width, and its gutters move alone. Freeing a row changes nothing until one of its
+  gutters is dragged, and closing the lock puts the row back on the grid. Dimmed on a row a merged
+  panel crosses, which cannot be freed until the merge is undone. Not offered while the page is
+  turned, whose rows run across. A row too short to hold the lock goes without one.
 - **Turn button**: The round handle in the bottom-right corner of an expanded Panel preview, which
   lays the page on its side and back again. Only the view turns — nothing is written to the comic,
   and the page is the shape it always was. It is how a page wider than it is tall is looked at on

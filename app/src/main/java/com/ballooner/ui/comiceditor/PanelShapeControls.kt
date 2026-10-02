@@ -308,8 +308,9 @@ private const val MIN_PREVIEW_BORDER = 2f
  * this caller has no room to give and the button is not offered. An expanded card also offers to
  * turn the page on its side, which is how a wide page is looked at on a tall screen.
  *
- * [floating] is what sits over the page — merge buttons, an undo — rather than being part of it,
- * so it keeps its own way up when the page is turned.
+ * [floating] is what sits over the page — merge buttons, an undo, the row locks — rather than
+ * being part of it, so it keeps its own way up when the page is turned. It is told whether the
+ * page is turned, since a control tied to the page's upright layout has nothing to say then.
  */
 @Composable
 internal fun PreviewSurface(
@@ -319,7 +320,7 @@ internal fun PreviewSurface(
     onPanelOptions: (() -> Unit)? = null,
     expanded: Boolean = false,
     onExpanded: ((Boolean) -> Unit)? = null,
-    floating: @Composable BoxScope.() -> Unit = {},
+    floating: @Composable BoxScope.(turned: Boolean) -> Unit = {},
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -384,13 +385,14 @@ internal fun PreviewSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(scheme.surfaceContainer)
+                // Rounded by the background rather than by a clip: a control may sit astride the
+                // ground's edge, and a clip would cut it in half.
+                .background(scheme.surfaceContainer, RoundedCornerShape(8.dp))
                 .border(
                     border = BorderStroke(1.dp, scheme.surfaceContainerHigh),
                     shape = RoundedCornerShape(8.dp),
                 )
-                .padding(8.dp),
+                .padding(PREVIEW_GROUND_INSET),
             contentAlignment = Alignment.Center,
         ) {
             DraftingDots(colour = scheme.outline)
@@ -402,7 +404,7 @@ internal fun PreviewSurface(
                 content = content,
             )
             // Over the page rather than in it, so a turned page does not take them with it.
-            floating()
+            floating(turned)
             if (expanded) {
                 RoundHandle(
                     description = if (turned) "Lay the page flat" else "Turn the page on its side",
@@ -439,6 +441,9 @@ private fun Modifier.quarterTurn(): Modifier = this
         }
     }
     .graphicsLayer { rotationZ = 90f }
+
+/** How far inside its own edge the drafting ground lays out what it holds. */
+internal val PREVIEW_GROUND_INSET = 8.dp
 
 /**
  * The corner brackets that give the card the whole step and hand it back, drawn as the panel

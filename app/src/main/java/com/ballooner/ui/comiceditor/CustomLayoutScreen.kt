@@ -89,7 +89,7 @@ fun CustomLayoutScreen(
             onPanelOptions = onPanelOptions,
             expanded = expanded,
             onExpanded = onExpanded,
-            floating = {
+            floating = { _ ->
                 if (canUndo) {
                     FloatingAction(
                         label = "Undo",

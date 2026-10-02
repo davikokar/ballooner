@@ -1,6 +1,7 @@
 package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +38,8 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,7 @@ import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.imageDrawSpec
+import com.ballooner.ui.comic.pageViewport
 import com.ballooner.ui.comic.toPath
 import com.ballooner.ui.theme.InkBlack
 import kotlin.math.roundToInt
@@ -132,7 +136,7 @@ fun GridLayoutScreen(
                 onPanelOptions = onPanelOptions,
                 expanded = expanded,
                 onExpanded = onExpanded,
-                floating = {
+                floating = { turned ->
                     MergeActions(
                         canMerge = canMerge,
                         canUnmerge = canUnmerge,
@@ -140,6 +144,9 @@ fun GridLayoutScreen(
                         onUnmerge = onUnmerge,
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
                     )
+                    // A turned page has its rows running across, so a lock beside each one would
+                    // be pointing at nothing.
+                    if (!turned) RowLocks(comic = comic, onRowFree = onRowFree)
                 },
             ) {
                 GridPage(
@@ -185,13 +192,10 @@ private fun GridPage(
     // torn down on its own first step. These are read as the drag runs instead.
     val latest = rememberUpdatedState(GridPageInputs(comic.pageHeight, cells, boundaries, content))
 
-    BoxWithConstraints(modifier = Modifier.aspectRatio(1f / comic.pageHeight)) {
-        // The page fills this box exactly, so a page unit is its width.
-        val pageScale = with(LocalDensity.current) { maxWidth.toPx() }
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
+    Canvas(
+        modifier = Modifier
+            .aspectRatio(1f / comic.pageHeight)
+            .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     // The page fills this canvas exactly, so a page unit is its width.
                     val viewport = PageViewport(0f, 0f, size.width.toFloat())
@@ -289,52 +293,86 @@ private fun GridPage(
                 },
             )
         }
-        }
-        RowLocks(comic = comic, pageScale = pageScale, onRowFree = onRowFree)
     }
 }
 
 /**
  * The lock each row wears, which is the whole of whether that row divides its own width.
  *
- * It rides on the page rather than beside it, so it stays with its row however the preview is
- * sized or turned. A row too short to hold the handle goes without one rather than have it
- * overlap its neighbours.
+ * The locks sit astride the ground's own edge, clear of the panels, so they read as something
+ * said about the row rather than something drawn on it. They are placed against the same fitted
+ * page the renderer uses, so they line up with their rows whatever the preview's size. A row too
+ * short to hold one goes without rather than have them overlap.
  */
 @Composable
-private fun BoxScope.RowLocks(
-    comic: Comic,
-    pageScale: Float,
-    onRowFree: (row: Int, free: Boolean) -> Unit,
-) {
+private fun BoxScope.RowLocks(comic: Comic, onRowFree: (row: Int, free: Boolean) -> Unit) {
     val grid = comic.layout.grid
     val content = remember(comic) { contentRect(comic.pageHeight, comic.style) }
     val tracks = remember(comic) {
         gridTracks(grid.rowWeights, content.top, content.height, comic.style.gutter)
     }
-    val handle = with(LocalDensity.current) { HANDLE_SIZE.toPx() }
-    val inset = with(LocalDensity.current) { ROW_LOCK_INSET.toPx() }
-    tracks.forEachIndexed { row, track ->
-        if ((track.end - track.start) * pageScale < handle + inset) return@forEachIndexed
-        val free = grid.isRowFree(row)
-        // A merged panel covering more than one row has no rectangle once those rows stop
-        // agreeing, so such a row cannot be freed until the merge is undone.
-        val locked = !free && grid.spans.any { it.rowCount > 1 && row in it.firstRow..it.lastRow }
-        val x = content.left * pageScale + inset
-        val y = (track.start + track.end) / 2f * pageScale - handle / 2f
-        RoundHandle(
-            description = when {
-                locked -> "This row is part of a merged panel"
-                free -> "Put this row back on the grid"
-                else -> "Let this row size its own panels"
-            },
-            onClick = { onRowFree(row, !free) }.takeUnless { locked },
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset { IntOffset(x.roundToInt(), y.roundToInt()) },
-        ) { tint ->
-            LockGlyph(open = free, tint = if (locked) tint.copy(alpha = 0.38f) else tint)
+    val density = LocalDensity.current
+    val reach = with(density) { ROW_LOCK_SIZE.toPx() }
+    val edge = with(density) { PREVIEW_GROUND_INSET.toPx() }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val viewport = pageViewport(
+            available = Size(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat()),
+            pageHeight = comic.pageHeight,
+        )
+        tracks.forEachIndexed { row, track ->
+            if ((track.end - track.start) * viewport.scale < reach) return@forEachIndexed
+            val free = grid.isRowFree(row)
+            // A merged panel covering more than one row has no rectangle once those rows stop
+            // agreeing, so such a row cannot be freed until the merge is undone.
+            val merged = !free && grid.spans.any { it.rowCount > 1 && row in it.firstRow..it.lastRow }
+            val centre = viewport.toScreen(0f, (track.start + track.end) / 2f)
+            RowLock(
+                free = free,
+                merged = merged,
+                onClick = { onRowFree(row, !free) },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    // Centred on the ground's own edge, which is one inset left of here.
+                    .offset {
+                        IntOffset(
+                            x = (-edge - reach / 2f).roundToInt(),
+                            y = (centre.y - reach / 2f).roundToInt(),
+                        )
+                    },
+            )
         }
+    }
+}
+
+@Composable
+private fun RowLock(
+    free: Boolean,
+    merged: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier
+            .size(ROW_LOCK_SIZE)
+            .semantics {
+                contentDescription = when {
+                    merged -> "This row is part of a merged panel"
+                    free -> "Put this row back on the grid"
+                    else -> "Let this row size its own panels"
+                }
+            }
+            .clickable(enabled = !merged, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        LockGlyph(
+            open = free,
+            tint = when {
+                merged -> scheme.onSurfaceVariant.copy(alpha = 0.38f)
+                free -> scheme.primary
+                else -> scheme.onSurfaceVariant
+            },
+        )
     }
 }
 
@@ -370,9 +408,9 @@ private fun LockGlyph(open: Boolean, tint: Color) {
     }
 }
 
-/** How far a row lock sits inside the page's own edge. */
-private val ROW_LOCK_INSET = 6.dp
-private val LOCK_GLYPH_SIZE = 16.dp
+/** The lock is a glyph astride the ground's edge, not a handle on the page: it stays small. */
+private val ROW_LOCK_SIZE = 20.dp
+private val LOCK_GLYPH_SIZE = 14.dp
 
 /** The values a running gutter drag keeps reading as the grid changes under it. */
 private data class GridPageInputs(
