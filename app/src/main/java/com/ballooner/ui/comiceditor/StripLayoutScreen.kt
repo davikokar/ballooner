@@ -53,6 +53,8 @@ fun StripLayoutScreen(
     onStrip: (horizontal: Boolean, count: Int) -> Unit,
     onSelectPanel: (Int) -> Unit,
     resize: PanelResize,
+    expanded: Boolean,
+    onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
     onPanelOptions: (() -> Unit)?,
@@ -68,37 +70,39 @@ fun StripLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "STRIP", onBack = onBack, onOptions = onOptions)
+        if (!expanded) LayoutOptionBreadcrumb(current = "STRIP", onBack = onBack, onOptions = onOptions)
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            LayoutControlBar {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Orientation",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DirectionButton(across = true, active = horizontal) { onStrip(true, count) }
-                        DirectionButton(across = false, active = !horizontal) { onStrip(false, count) }
+            if (!expanded) {
+                LayoutControlBar {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Orientation",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            DirectionButton(across = true, active = horizontal) { onStrip(true, count) }
+                            DirectionButton(across = false, active = !horizontal) { onStrip(false, count) }
+                        }
+                    }
+                    Stepper(label = "Panels", value = count, min = MIN_STRIP_PANELS) {
+                        onStrip(horizontal, it)
                     }
                 }
-                Stepper(label = "Panels", value = count, min = MIN_STRIP_PANELS) {
-                    onStrip(horizontal, it)
-                }
+                PanelShapeChooser(
+                    sizing = sizing,
+                    // Every panel of a strip is the same shape, so the first image decides all of them.
+                    autoCaption = "First image",
+                    onChange = onChange,
+                    uniform = grid.hasEvenWeights(),
+                )
             }
-            PanelShapeChooser(
-                sizing = sizing,
-                // Every panel of a strip is the same shape, so the first image decides all of them.
-                autoCaption = "First image",
-                onChange = onChange,
-                uniform = grid.hasEvenWeights(),
-            )
             PanelPreview(
                 ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panels.firstOrNull()?.image != null },
                 panels = panels,
@@ -112,6 +116,8 @@ fun StripLayoutScreen(
                 resize = resize,
                 offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
+                expanded = expanded,
+                onExpanded = onExpanded,
                 emptyMessage = "Every panel takes the shape of the first image you choose next.",
             )
         }

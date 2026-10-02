@@ -106,34 +106,39 @@ fun ComicEditorScreen(
             // whole, so going back throws them away where everywhere else simply steps back.
             val inLayoutOptions = state.step == EditorStep.LAYOUT && state.layoutKind != null
             val onPresetPicker = state.step == EditorStep.LAYOUT && state.layoutKind == null
-            EditorHeader(
-                step = state.step,
-                onSelectStep = actions::selectStep,
-                canUndo = state.canUndo,
-                // The picker changes nothing until a preset is opened, so there is nothing to undo.
-                onUndo = if (onPresetPicker) null else actions::undo,
-                onBack = when {
-                    inLayoutOptions -> actions::discardLayoutKind
-                    // Back into the Layout step means back to the options that were left, not to
-                    // the picker: the preset has already been chosen.
-                    state.step == EditorStep.PLACEMENT -> ({
-                        actions.selectStep(EditorStep.LAYOUT)
-                        actions.selectLayoutKind(layoutKindOf(state.comic))
-                    })
-                    state.step == EditorStep.BALLOONS -> ({ actions.selectStep(EditorStep.PLACEMENT) })
-                    else -> null
-                },
-                onNext = when {
-                    inLayoutOptions -> ({ actions.selectStep(EditorStep.PLACEMENT) })
-                    // On the picker, moving on means opening the preset the comic already is.
-                    state.step == EditorStep.LAYOUT -> ({ actions.selectLayoutKind(layoutKindOf(state.comic)) })
-                    state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
-                    // The last step has nowhere to go but out, with the comic in hand.
-                    state.step == EditorStep.BALLOONS -> onSave
-                    else -> null
-                },
-                nextLabel = if (state.step == EditorStep.BALLOONS) "Save" else "Next",
-            )
+            // An expanded preview is given the whole screen, chrome included; the preview's own
+            // Collapse button is what gives it back.
+            if (!state.expandedPreview) {
+                EditorHeader(
+                    step = state.step,
+                    onSelectStep = actions::selectStep,
+                    canUndo = state.canUndo,
+                    // The picker changes nothing until a preset is opened, so there is nothing to undo.
+                    onUndo = if (onPresetPicker) null else actions::undo,
+                    onBack = when {
+                        inLayoutOptions -> actions::discardLayoutKind
+                        // Back into the Layout step means back to the options that were left, not to
+                        // the picker: the preset has already been chosen.
+                        state.step == EditorStep.PLACEMENT -> ({
+                            actions.selectStep(EditorStep.LAYOUT)
+                            actions.selectLayoutKind(layoutKindOf(state.comic))
+                        })
+                        state.step == EditorStep.BALLOONS -> ({ actions.selectStep(EditorStep.PLACEMENT) })
+                        else -> null
+                    },
+                    onNext = when {
+                        inLayoutOptions -> ({ actions.selectStep(EditorStep.PLACEMENT) })
+                        // On the picker, moving on means opening the preset the comic already is.
+                        state.step == EditorStep.LAYOUT ->
+                            ({ actions.selectLayoutKind(layoutKindOf(state.comic)) })
+                        state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
+                        // The last step has nowhere to go but out, with the comic in hand.
+                        state.step == EditorStep.BALLOONS -> onSave
+                        else -> null
+                    },
+                    nextLabel = if (state.step == EditorStep.BALLOONS) "Save" else "Next",
+                )
+            }
             // The workspace sits on its own ground so the chrome above it reads as a separate
             // surface rather than as the top of the canvas.
             Column(
@@ -162,6 +167,8 @@ fun ComicEditorScreen(
                         panel = state.comic.panels.firstOrNull(),
                         images = images,
                         style = state.comic.style,
+                        expanded = state.expandedPreview,
+                        onExpanded = actions::expandPreview,
                         onChange = actions::setSizing,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
@@ -189,6 +196,8 @@ fun ComicEditorScreen(
                                 end = actions::endBoundaryDrag,
                             )
                         },
+                        expanded = state.expandedPreview,
+                        onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
                         onPanelOptions = onPanelOptions,
@@ -207,6 +216,8 @@ fun ComicEditorScreen(
                         onToggleSelection = actions::toggleSelection,
                         onMerge = actions::mergeSelection,
                         onUnmerge = actions::unmergeSelection,
+                        expanded = state.expandedPreview,
+                        onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
                         onPanelOptions = onPanelOptions,
@@ -225,6 +236,8 @@ fun ComicEditorScreen(
                         onEndCutDrag = actions::endCutDrag,
                         onSelectPanel = actions::selectPanel,
                         onUndo = actions::undo,
+                        expanded = state.expandedPreview,
+                        onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
                         onPanelOptions = onPanelOptions,

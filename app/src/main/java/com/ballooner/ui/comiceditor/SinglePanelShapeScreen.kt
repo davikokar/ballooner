@@ -24,6 +24,8 @@ fun SinglePanelShapeScreen(
     panel: Panel?,
     images: PanelImageSource,
     style: ComicStyle,
+    expanded: Boolean,
+    onExpanded: (Boolean) -> Unit,
     onChange: (PageSizing) -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
@@ -33,12 +35,14 @@ fun SinglePanelShapeScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "SINGLE", onBack = onBack, onOptions = onOptions)
+        if (!expanded) LayoutOptionBreadcrumb(current = "SINGLE", onBack = onBack, onOptions = onOptions)
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PanelShapeChooser(sizing = sizing, autoCaption = "Fit image", onChange = onChange)
+            if (!expanded) {
+                PanelShapeChooser(sizing = sizing, autoCaption = "Fit image", onChange = onChange)
+            }
             PanelPreview(
                 // The panel as it will really be: a ratio the page cannot reach is held back, and
                 // the preview has to say so rather than promise the number on the slider. An auto
@@ -50,6 +54,8 @@ fun SinglePanelShapeScreen(
                 // No Panel options here: the one panel is the whole comic, so styling it and
                 // styling the comic are the same thing and the Options button already does it.
                 modifier = Modifier.weight(1f),
+                expanded = expanded,
+                onExpanded = onExpanded,
             )
         }
     }

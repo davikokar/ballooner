@@ -30,6 +30,7 @@ interface ComicEditorActions {
     fun endCutDrag(index: Int)
     fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope)
     fun selectPanel(index: Int?)
+    fun expandPreview(expanded: Boolean)
     fun focusPanel(index: Int?)
     fun focusNeighbour(forward: Boolean)
     fun swapPanelImages(from: Int, to: Int)
@@ -89,6 +90,7 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope) =
         this@asActions.addCut(from, to, scope)
     override fun selectPanel(index: Int?) = this@asActions.selectPanel(index)
+    override fun expandPreview(expanded: Boolean) = this@asActions.expandPreview(expanded)
     override fun focusPanel(index: Int?) = this@asActions.focusPanel(index)
     override fun focusNeighbour(forward: Boolean) = this@asActions.focusNeighbour(forward)
     override fun swapPanelImages(from: Int, to: Int) = this@asActions.swapPanelImages(from, to)

@@ -294,6 +294,9 @@ class ComicEditorViewModel @Inject constructor(
         content.copy(activePanel = index?.takeIf { it in content.comic.panels.indices })
     }
 
+    /** Gives the Panel preview the whole screen, or hands the screen back to the editor. */
+    fun expandPreview(expanded: Boolean) = updateContent { it.copy(expandedPreview = expanded) }
+
     fun setPanelImage(index: Int, sourceUri: String?, sourceAspect: Float? = null) {
         val content = contentOrNull() ?: return
         val panel = content.comic.panels.getOrNull(index) ?: return

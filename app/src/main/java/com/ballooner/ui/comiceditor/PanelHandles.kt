@@ -184,7 +184,7 @@ internal fun HandleIcon(icon: ImageVector, tint: Color) {
 
 /** Corner brackets that open outwards to fill the canvas, and face inwards to give it back. */
 @Composable
-private fun ExpandGlyph(expanded: Boolean, tint: Color) {
+internal fun ExpandGlyph(expanded: Boolean, tint: Color) {
     Canvas(modifier = Modifier.size(GLYPH_SIZE)) {
         val thickness = size.minDimension * 0.14f
         val arm = size.minDimension * 0.32f

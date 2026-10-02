@@ -111,29 +111,16 @@ fun ComicEditorRoute(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    TextField(
-                        value = content?.comic?.name.orEmpty(),
-                        onValueChange = viewModel::setName,
-                        singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = saveComic, enabled = content != null && !exporting) {
-                        Icon(Icons.Default.Share, contentDescription = "Save as PNG")
-                    }
-                },
-            )
+            // The expanded Panel preview takes the whole screen, so the bar stands aside for it.
+            if (content?.expandedPreview != true) {
+                EditorTopBar(
+                    name = content?.comic?.name.orEmpty(),
+                    onName = viewModel::setName,
+                    onNavigateBack = onNavigateBack,
+                    onSave = saveComic,
+                    canSave = content != null && !exporting,
+                )
+            }
         },
     ) { padding ->
         ComicEditorScreen(
@@ -150,4 +137,39 @@ fun ComicEditorRoute(
             onSave = saveComic,
         )
     }
+}
+
+/** The comic's own bar: its name, the way out, and the way to a PNG. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditorTopBar(
+    name: String,
+    onName: (String) -> Unit,
+    onNavigateBack: () -> Unit,
+    onSave: () -> Unit,
+    canSave: Boolean,
+) {
+    TopAppBar(
+        title = {
+            TextField(
+                value = name,
+                onValueChange = onName,
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                ),
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        },
+        actions = {
+            IconButton(onClick = onSave, enabled = canSave) {
+                Icon(Icons.Default.Share, contentDescription = "Save as PNG")
+            }
+        },
+    )
 }

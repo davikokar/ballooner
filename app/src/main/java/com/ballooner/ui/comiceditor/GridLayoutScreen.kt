@@ -67,6 +67,8 @@ fun GridLayoutScreen(
     onToggleSelection: (Span) -> Unit,
     onMerge: () -> Unit,
     onUnmerge: () -> Unit,
+    expanded: Boolean,
+    onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
     onPanelOptions: (() -> Unit)?,
@@ -79,27 +81,31 @@ fun GridLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "GRID", onBack = onBack, onOptions = onOptions)
+        if (!expanded) LayoutOptionBreadcrumb(current = "GRID", onBack = onBack, onOptions = onOptions)
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            LayoutControlBar {
-                Stepper(label = "Rows", value = down, min = MIN_GRID_SIDE) { onGrid(it, across) }
-                Stepper(label = "Columns", value = across, min = MIN_GRID_SIDE) { onGrid(down, it) }
+            if (!expanded) {
+                LayoutControlBar {
+                    Stepper(label = "Rows", value = down, min = MIN_GRID_SIDE) { onGrid(it, across) }
+                    Stepper(label = "Columns", value = across, min = MIN_GRID_SIDE) { onGrid(down, it) }
+                }
+                PanelShapeChooser(
+                    sizing = comic.sizing,
+                    // Every cell of a grid is the same shape, so the first image decides all of them.
+                    autoCaption = "First image",
+                    onChange = onChange,
+                    uniform = grid.hasEvenWeights(),
+                )
             }
-            PanelShapeChooser(
-                sizing = comic.sizing,
-                // Every cell of a grid is the same shape, so the first image decides all of them.
-                autoCaption = "First image",
-                onChange = onChange,
-                uniform = grid.hasEvenWeights(),
-            )
             PreviewSurface(
                 modifier = Modifier.weight(1f),
                 hint = "Tap cells to join them".takeIf { selection.isEmpty() },
                 offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
+                expanded = expanded,
+                onExpanded = onExpanded,
             ) {
                 GridPage(
                     comic = comic,

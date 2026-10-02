@@ -65,6 +65,8 @@ fun CustomLayoutScreen(
     onEndCutDrag: (index: Int) -> Unit,
     onSelectPanel: (Int?) -> Unit,
     onUndo: () -> Unit,
+    expanded: Boolean,
+    onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
     onOptions: () -> Unit,
     onPanelOptions: (() -> Unit)?,
@@ -74,7 +76,7 @@ fun CustomLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LayoutOptionBreadcrumb(current = "CUSTOM", onBack = onBack, onOptions = onOptions)
+        if (!expanded) LayoutOptionBreadcrumb(current = "CUSTOM", onBack = onBack, onOptions = onOptions)
         PreviewSurface(
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             hint = if (comic.layout.cuts.isEmpty()) {
@@ -85,6 +87,8 @@ fun CustomLayoutScreen(
             },
             offersPanelOptions = true,
             onPanelOptions = onPanelOptions,
+            expanded = expanded,
+            onExpanded = onExpanded,
         ) {
             CuttingPage(
                 comic = comic,

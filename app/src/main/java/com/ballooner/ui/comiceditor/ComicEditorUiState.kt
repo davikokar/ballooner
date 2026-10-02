@@ -66,6 +66,12 @@ sealed interface ComicEditorUiState {
          * saved with the comic and changes nothing in it.
          */
         val focusedPanel: Int? = null,
+        /**
+         * Whether the Panel preview has been given the whole screen. View state, like
+         * [focusedPanel]: the editor's chrome stands aside for it and nothing in the comic
+         * changes.
+         */
+        val expandedPreview: Boolean = false,
         /** The balloon being edited in the Balloon step, by id. */
         val selectedBalloon: Long? = null,
         val canMerge: Boolean = false,

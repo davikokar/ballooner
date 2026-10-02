@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -244,12 +245,16 @@ internal fun PanelPreview(
     resize: PanelResize? = null,
     offersPanelOptions: Boolean = false,
     onPanelOptions: (() -> Unit)? = null,
+    expanded: Boolean = false,
+    onExpanded: ((Boolean) -> Unit)? = null,
     emptyMessage: String = "The panel takes the shape of the image you choose next.",
 ) {
     PreviewSurface(
         modifier = modifier,
         offersPanelOptions = offersPanelOptions,
         onPanelOptions = onPanelOptions,
+        expanded = expanded,
+        onExpanded = onExpanded,
     ) {
         if (ratio == null) {
             Text(
@@ -294,6 +299,9 @@ private const val MIN_PREVIEW_BORDER = 2f
  * [onPanelOptions] opens the Panel style controls for the one panel that is selected. A null one
  * leaves the button offered but dimmed, since what is missing is a choice of panel rather than
  * the ability to style one.
+ *
+ * [onExpanded] gives the card over to the whole step and takes it back again; a null one means
+ * this caller has no room to give and the button is not offered.
  */
 @Composable
 internal fun PreviewSurface(
@@ -301,6 +309,8 @@ internal fun PreviewSurface(
     hint: String? = null,
     offersPanelOptions: Boolean = false,
     onPanelOptions: (() -> Unit)? = null,
+    expanded: Boolean = false,
+    onExpanded: ((Boolean) -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -318,23 +328,44 @@ internal fun PreviewSurface(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Panels",
-                style = MaterialTheme.typography.labelMedium,
-                color = scheme.onSurface,
-            )
-            if (hint != null) {
+            if (onExpanded != null) {
+                ExpandPreviewButton(expanded = expanded, onClick = { onExpanded(!expanded) })
+            }
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp)
+                    // The strip between the two buttons does what the left one does, so the card
+                    // can be opened up without aiming at something 24dp wide.
+                    .then(
+                        if (onExpanded == null) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(expanded) {
+                                detectTapGestures(onDoubleTap = { onExpanded(!expanded) })
+                            }
+                        },
+                    ),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = hint,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = scheme.outline,
-                    textAlign = TextAlign.End,
-                    // A hint too long for the row wraps under itself rather than over the label.
-                    modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp),
+                    text = "Panels",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurface,
                 )
+                if (hint != null) {
+                    Text(
+                        text = hint,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = scheme.outline,
+                        textAlign = TextAlign.End,
+                        // A hint too long for the row wraps under itself rather than over the label.
+                        modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp),
+                    )
+                }
             }
             if (offersPanelOptions) PanelOptionsButton(onClick = onPanelOptions)
         }
@@ -354,6 +385,25 @@ internal fun PreviewSurface(
             DraftingDots(colour = scheme.outline)
             content()
         }
+    }
+}
+
+/**
+ * The corner brackets that give the card the whole step and hand it back, drawn as the panel
+ * handle that does the same thing to the page.
+ *
+ * Not an `IconButton`, for the same reason [PanelOptionsButton] is not.
+ */
+@Composable
+private fun ExpandPreviewButton(expanded: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .semantics { contentDescription = if (expanded) "Collapse panels" else "Expand panels" }
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        ExpandGlyph(expanded = expanded, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

@@ -150,6 +150,12 @@ the parts owned by later steps are shown dimmed and are not interactive.
   **Grid**, and **Custom**, and dimmed until exactly one panel is chosen. Not offered in
   **Single**, where the comic is one panel and so styling it is styling the comic — the Options
   button already does that. Opens the **Panel flyout**.
+- **Expand button**: The corner brackets in the top-left corner of the Panel preview, facing out
+  to give the preview the whole screen and in to hand it back. Expanding hides the Breadcrumb,
+  every control above the preview, the Editor action row, the Step switch, and the comic's top
+  bar; the button is the only thing left. A double tap anywhere on the **Preview heading** — the
+  strip between the Expand button and the Panel options button — does the same. Offered in all
+  four Preset options, and the state is kept as the user moves between them.
 - **Selected panel**: The one panel the Preset options are working on, which is the panel the
   Panel flyout restyles. Chosen by tapping a panel in the Panel preview, except in **Grid**,
   where it is the cell already picked out for merging.
