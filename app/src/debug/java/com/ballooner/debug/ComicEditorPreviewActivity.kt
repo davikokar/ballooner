@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.data.comic.ComicRepository
-import com.ballooner.data.comic.ComicSummary
+import com.ballooner.data.comic.SavedComic
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
@@ -80,10 +80,13 @@ private class InMemoryComicRepository : ComicRepository {
     )
 
     override fun observeComic(id: Long) = comic.map { it }
-    override fun observeComics() = comic.map { listOf(ComicSummary(1L, it.name, 0L)) }
+    override fun observeComics() = comic.map { listOf(SavedComic(1L, 0L, it)) }
     override suspend fun createComic(comic: Comic) = 1L
     override suspend fun saveComic(id: Long, comic: Comic) {
         this.comic.value = comic
+    }
+    override suspend fun renameComic(id: Long, name: String) {
+        comic.value = comic.value.copy(name = name)
     }
     override suspend fun deleteComic(id: Long) = Unit
 }

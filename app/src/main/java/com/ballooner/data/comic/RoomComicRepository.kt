@@ -12,9 +12,9 @@ class RoomComicRepository @Inject constructor(
     override fun observeComic(id: Long): Flow<Comic?> =
         dao.observeComic(id).map { parts -> parts?.toDomain() }
 
-    override fun observeComics(): Flow<List<ComicSummary>> =
+    override fun observeComics(): Flow<List<SavedComic>> =
         dao.observeComics().map { comics ->
-            comics.map { ComicSummary(id = it.id, name = it.name, updatedAt = it.updatedAt) }
+            comics.map { SavedComic(id = it.comic.id, updatedAt = it.comic.updatedAt, comic = it.toDomain()) }
         }
 
     override suspend fun createComic(comic: Comic): Long {
@@ -28,6 +28,9 @@ class RoomComicRepository @Inject constructor(
         val createdAt = dao.createdAt(id) ?: return
         dao.saveComic(comic.toParts(id = id, createdAt = createdAt, updatedAt = System.currentTimeMillis()))
     }
+
+    override suspend fun renameComic(id: Long, name: String) =
+        dao.renameComic(id, name, System.currentTimeMillis())
 
     override suspend fun deleteComic(id: Long) = dao.deleteComic(id)
 }

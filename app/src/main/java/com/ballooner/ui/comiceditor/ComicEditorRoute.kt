@@ -106,7 +106,10 @@ fun ComicEditorRoute(
     }
 
     val saveComic = {
-        exporter.launch("${content?.comic?.name.orEmpty().ifBlank { "comic" }}.png")
+        // Read at the moment of saving rather than from this composition: the title dialog sets
+        // the name and exports in one go, before any recomposition could refresh a captured one.
+        val named = (viewModel.uiState.value as? ComicEditorUiState.Content)?.comic?.name
+        exporter.launch("${named.orEmpty().ifBlank { "comic" }}.png")
     }
 
     Scaffold(

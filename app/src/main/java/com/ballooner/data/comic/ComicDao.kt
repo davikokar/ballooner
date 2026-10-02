@@ -32,8 +32,9 @@ interface ComicDao {
     @Query("SELECT * FROM comic WHERE id = :id")
     fun observeComic(id: Long): Flow<ComicWithParts?>
 
+    @Transaction
     @Query("SELECT * FROM comic ORDER BY updatedAt DESC")
-    fun observeComics(): Flow<List<ComicEntity>>
+    fun observeComics(): Flow<List<ComicWithParts>>
 
     @Query("SELECT createdAt FROM comic WHERE id = :id")
     suspend fun createdAt(id: Long): Long?

@@ -22,19 +22,25 @@ import kotlinx.coroutines.withContext
  * Loads the bitmaps behind a comic's panel images, keeping what it has already decoded.
  *
  * Decoding is capped well above what any panel needs on screen but well below a full camera
- * image, because the document is redrawn from these on every frame.
+ * image, because the document is redrawn from these on every frame. A caller showing comics at
+ * thumbnail size should ask for [THUMBNAIL_EDGE_PIXELS] instead: a list holds many comics at
+ * once, and editing-sized copies of all of them would be a great deal of memory for pictures a
+ * few hundred pixels across.
  */
 @Composable
-fun rememberPanelImageSource(sourceUris: Set<String>): PanelImageSource {
+fun rememberPanelImageSource(
+    sourceUris: Set<String>,
+    maxEdge: Int = MAX_EDGE_PIXELS,
+): PanelImageSource {
     val context = LocalContext.current
-    val loaded = remember { mutableStateMapOf<String, ImageBitmap>() }
+    val loaded = remember(maxEdge) { mutableStateMapOf<String, ImageBitmap>() }
 
-    LaunchedEffect(sourceUris) {
+    LaunchedEffect(sourceUris, maxEdge) {
         // A page filled in one trip to the picker would otherwise appear one image at a time.
         coroutineScope {
             sourceUris.filterNot { it in loaded }.map { uri ->
                 async {
-                    withContext(Dispatchers.IO) { decode(context, uri) }?.let { loaded[uri] = it }
+                    withContext(Dispatchers.IO) { decode(context, uri, maxEdge) }?.let { loaded[uri] = it }
                 }
             }.awaitAll()
         }
@@ -77,3 +83,6 @@ suspend fun loadImagesForExport(context: Context, sourceUris: Set<String>): Pane
 
 private const val MAX_EDGE_PIXELS = 2048
 private const val EXPORT_EDGE_PIXELS = 4096
+
+/** Enough for a comic drawn a few hundred pixels across, and no more. */
+const val THUMBNAIL_EDGE_PIXELS = 512

@@ -47,6 +47,24 @@ fun pageViewport(available: Size, pageHeight: Float): PageViewport {
 }
 
 /**
+ * Fills [available] with a page [pageHeight] tall, centred, cropping whichever way it overflows.
+ *
+ * A list of comics shows them all at one size, so a page shaped unlike the space it is given is
+ * cropped rather than letterboxed or squashed.
+ */
+fun pageCoverViewport(available: Size, pageHeight: Float): PageViewport {
+    if (available.width <= 0f || available.height <= 0f || pageHeight <= 0f) {
+        return PageViewport(0f, 0f, 0f)
+    }
+    val scale = maxOf(available.width, available.height / pageHeight)
+    return PageViewport(
+        originX = (available.width - scale) / 2f,
+        originY = (available.height - scale * pageHeight) / 2f,
+        scale = scale,
+    )
+}
+
+/**
  * The viewport the comic is drawn through: the whole page, or one panel filling the space when
  * [focus] is given.
  *

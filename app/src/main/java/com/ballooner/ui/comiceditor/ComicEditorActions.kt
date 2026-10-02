@@ -14,6 +14,7 @@ import com.ballooner.domain.model.BalloonType
 /** What the editor screen can ask of the editor, so the screen itself stays stateless. */
 interface ComicEditorActions {
     fun selectStep(step: EditorStep)
+    fun setName(name: String)
     fun selectTool(tool: LayoutTool)
     fun toggleSelection(span: Span)
     fun mergeSelection()
@@ -71,6 +72,7 @@ interface ComicEditorActions {
 
 fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorActions {
     override fun selectStep(step: EditorStep) = this@asActions.selectStep(step)
+    override fun setName(name: String) = this@asActions.setName(name)
     override fun selectTool(tool: LayoutTool) = this@asActions.selectTool(tool)
     override fun toggleSelection(span: Span) = this@asActions.toggleSelection(span)
     override fun mergeSelection() = this@asActions.mergeSelection()

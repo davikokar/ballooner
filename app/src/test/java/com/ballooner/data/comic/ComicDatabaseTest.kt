@@ -229,7 +229,36 @@ class ComicDatabaseTest {
         repository.createComic(Comic(name = "First"))
         repository.createComic(Comic(name = "Second"))
 
-        assertEquals(setOf("First", "Second"), repository.observeComics().first().map { it.name }.toSet())
+        val listed = repository.observeComics().first()
+        assertEquals(setOf("First", "Second"), listed.map { it.comic.name }.toSet())
+    }
+
+    @Test
+    fun `the comic list carries whole documents, so a comic can be drawn without opening it`() = runTest {
+        openDatabase()
+        val comic = Comic(
+            name = "Drawn",
+            layout = Layout(Grid(rows = 2, columns = 2)),
+            panels = List(4) { Panel(PanelImage("image$it")) },
+        )
+
+        repository.createComic(comic)
+
+        val listed = repository.observeComics().first().single()
+        assertEquals(4, listed.comic.panels.size)
+        assertEquals(2, listed.comic.layout.grid.rows)
+    }
+
+    @Test
+    fun `renaming a comic leaves the rest of its document alone`() = runTest {
+        openDatabase()
+        val id = repository.createComic(Comic(name = "Before", panels = List(1) { Panel(PanelImage("a")) }))
+
+        repository.renameComic(id, "After")
+
+        val restored = repository.observeComic(id).first()!!
+        assertEquals("After", restored.name)
+        assertEquals("a", restored.panels.single().image?.sourceUri)
     }
 
     @Test

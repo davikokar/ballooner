@@ -16,7 +16,7 @@ class FakeComicRepository(initial: Comic = Comic()) : ComicRepository {
     override fun observeComic(id: Long) = comics.map { it[id] }
 
     override fun observeComics() = comics.map { all ->
-        all.map { (id, comic) -> ComicSummary(id = id, name = comic.name, updatedAt = id) }
+        all.map { (id, comic) -> SavedComic(id = id, updatedAt = id, comic = comic) }
     }
 
     override suspend fun createComic(comic: Comic): Long {
@@ -28,6 +28,11 @@ class FakeComicRepository(initial: Comic = Comic()) : ComicRepository {
     override suspend fun saveComic(id: Long, comic: Comic) {
         if (id !in comics.value) return
         comics.value = comics.value + (id to comic)
+    }
+
+    override suspend fun renameComic(id: Long, name: String) {
+        val comic = comics.value[id] ?: return
+        comics.value = comics.value + (id to comic.copy(name = name))
     }
 
     override suspend fun deleteComic(id: Long) {

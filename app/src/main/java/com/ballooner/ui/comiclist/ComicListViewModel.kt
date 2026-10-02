@@ -3,7 +3,7 @@ package com.ballooner.ui.comiclist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ballooner.data.comic.ComicRepository
-import com.ballooner.data.comic.ComicSummary
+import com.ballooner.data.comic.SavedComic
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PageSizing
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +18,7 @@ import javax.inject.Inject
 sealed interface ComicListUiState {
     data object Loading : ComicListUiState
     data object Empty : ComicListUiState
-    data class Content(val comics: List<ComicSummary>) : ComicListUiState
+    data class Content(val comics: List<SavedComic>) : ComicListUiState
 }
 
 @HiltViewModel
@@ -49,5 +49,9 @@ class ComicListViewModel @Inject constructor(
 
     fun deleteComic(id: Long) {
         viewModelScope.launch { repository.deleteComic(id) }
+    }
+
+    fun renameComic(id: Long, name: String) {
+        viewModelScope.launch { repository.renameComic(id, name) }
     }
 }
