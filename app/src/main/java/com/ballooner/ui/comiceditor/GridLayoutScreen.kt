@@ -106,19 +106,21 @@ fun GridLayoutScreen(
                 onPanelOptions = onPanelOptions,
                 expanded = expanded,
                 onExpanded = onExpanded,
+                floating = {
+                    MergeActions(
+                        canMerge = canMerge,
+                        canUnmerge = canUnmerge,
+                        onMerge = onMerge,
+                        onUnmerge = onUnmerge,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+                    )
+                },
             ) {
                 GridPage(
                     comic = comic,
                     images = images,
                     selection = selection,
                     onToggle = onToggleSelection,
-                )
-                MergeActions(
-                    canMerge = canMerge,
-                    canUnmerge = canUnmerge,
-                    onMerge = onMerge,
-                    onUnmerge = onUnmerge,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
                 )
             }
         }

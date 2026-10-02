@@ -156,6 +156,12 @@ the parts owned by later steps are shown dimmed and are not interactive.
   bar; the button is the only thing left. A double tap anywhere on the **Preview heading** — the
   strip between the Expand button and the Panel options button — does the same. Offered in all
   four Preset options, and the state is kept as the user moves between them.
+- **Turn button**: The round handle in the bottom-right corner of an expanded Panel preview, which
+  lays the page on its side and back again. Only the view turns — nothing is written to the comic,
+  and the page is the shape it always was. It is how a page wider than it is tall is looked at on
+  a tall screen, which is what a horizontal **Strip** is. Offered only while expanded, and putting
+  the preview away lays the page flat. Whatever floats over the page — **Merge**, **Unmerge**,
+  **Undo** — keeps its own way up.
 - **Selected panel**: The one panel the Preset options are working on, which is the panel the
   Panel flyout restyles. Chosen by tapping a panel in the Panel preview, except in **Grid**,
   where it is the cell already picked out for merging.

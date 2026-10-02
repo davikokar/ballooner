@@ -89,6 +89,15 @@ fun CustomLayoutScreen(
             onPanelOptions = onPanelOptions,
             expanded = expanded,
             onExpanded = onExpanded,
+            floating = {
+                if (canUndo) {
+                    FloatingAction(
+                        label = "Undo",
+                        onClick = onUndo,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+                    )
+                }
+            },
         ) {
             CuttingPage(
                 comic = comic,
@@ -100,13 +109,6 @@ fun CustomLayoutScreen(
                 onEndCutDrag = onEndCutDrag,
                 onSelectPanel = onSelectPanel,
             )
-            if (canUndo) {
-                FloatingAction(
-                    label = "Undo",
-                    onClick = onUndo,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
-                )
-            }
         }
     }
 }

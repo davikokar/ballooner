@@ -55,13 +55,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -300,8 +303,12 @@ private const val MIN_PREVIEW_BORDER = 2f
  * leaves the button offered but dimmed, since what is missing is a choice of panel rather than
  * the ability to style one.
  *
- * [onExpanded] gives the card over to the whole step and takes it back again; a null one means
- * this caller has no room to give and the button is not offered.
+ * [onExpanded] gives the card over to the whole screen and takes it back again; a null one means
+ * this caller has no room to give and the button is not offered. An expanded card also offers to
+ * turn the page on its side, which is how a wide page is looked at on a tall screen.
+ *
+ * [floating] is what sits over the page — merge buttons, an undo — rather than being part of it,
+ * so it keeps its own way up when the page is turned.
  */
 @Composable
 internal fun PreviewSurface(
@@ -311,9 +318,12 @@ internal fun PreviewSurface(
     onPanelOptions: (() -> Unit)? = null,
     expanded: Boolean = false,
     onExpanded: ((Boolean) -> Unit)? = null,
+    floating: @Composable BoxScope.() -> Unit = {},
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    // Turning is a way of looking at an expanded card, so putting it away lays the page flat.
+    var turned by rememberSaveable(expanded) { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -383,10 +393,51 @@ internal fun PreviewSurface(
             contentAlignment = Alignment.Center,
         ) {
             DraftingDots(colour = scheme.outline)
-            content()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (turned) Modifier.quarterTurn() else Modifier),
+                contentAlignment = Alignment.Center,
+                content = content,
+            )
+            // Over the page rather than in it, so a turned page does not take them with it.
+            floating()
+            if (expanded) {
+                RoundHandle(
+                    description = if (turned) "Lay the page flat" else "Turn the page on its side",
+                    onClick = { turned = !turned },
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                ) { tint -> HandleIcon(Icons.Default.Refresh, tint) }
+            }
         }
     }
 }
+
+/**
+ * Lays the content out against the ground turned on its side, then turns it back to fill it.
+ *
+ * Only the view turns: nothing is written to the comic. A page wider than it is tall leaves most
+ * of a phone screen empty, and this is how it is looked at the long way round instead.
+ */
+private fun Modifier.quarterTurn(): Modifier = this
+    .layout { measurable, constraints ->
+        val placeable = measurable.measure(
+            Constraints(
+                minWidth = constraints.minHeight,
+                maxWidth = constraints.maxHeight,
+                minHeight = constraints.minWidth,
+                maxHeight = constraints.maxWidth,
+            ),
+        )
+        // The turn is about the content's own centre, so it is placed so that centre is ours.
+        layout(placeable.height, placeable.width) {
+            placeable.place(
+                x = (placeable.height - placeable.width) / 2,
+                y = (placeable.width - placeable.height) / 2,
+            )
+        }
+    }
+    .graphicsLayer { rotationZ = 90f }
 
 /**
  * The corner brackets that give the card the whole step and hand it back, drawn as the panel
