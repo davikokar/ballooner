@@ -120,6 +120,39 @@ class GridBoundariesTest {
     }
 
     @Test
+    fun `the first column line of any row leaves the page the size it was`() {
+        // Every row that follows the grid shares one list of column weights, so the bottom row's
+        // leftmost gutter resizes the reference cell exactly as the top row's does.
+        val comic = Comic(
+            sizing = PageSizing.Ratio(SQUARE_RATIO),
+            style = noStyle,
+            layout = Layout(Grid(rows = 3, columns = 3)),
+            panels = List(9) { Panel() },
+        )
+
+        (0 until 3).forEach { row ->
+            val moved = comic.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1, row), delta = 0.1f)
+
+            assertEquals("row $row", comic.pageHeight, moved.pageHeight, TOLERANCE)
+        }
+    }
+
+    @Test
+    fun `the first column line of a freed row leaves the page alone`() {
+        val comic = Comic(
+            sizing = PageSizing.Ratio(SQUARE_RATIO),
+            style = noStyle,
+            layout = Layout(Grid(rows = 3, columns = 3).withRowFreed(2)),
+            panels = List(9) { Panel() },
+        )
+
+        val moved = comic.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1, row = 2), delta = 0.1f)
+
+        assertEquals(comic.pageHeight, moved.pageHeight, TOLERANCE)
+        assertEquals(comic.sizing, moved.sizing)
+    }
+
+    @Test
     fun `moving a later line leaves the sizing alone`() {
         val comic = Comic(
             sizing = PageSizing.FromImage,

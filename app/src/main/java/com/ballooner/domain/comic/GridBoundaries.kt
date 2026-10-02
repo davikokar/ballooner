@@ -136,12 +136,27 @@ fun Comic.withBoundaryMoved(line: GridLine, delta: Float): Comic {
     val grid = layout.grid.withBoundaryMoved(line, delta)
     if (grid == layout.grid) return this
     val moved = copy(layout = layout.copy(grid = grid))
-    // Any other line leaves the reference cell — the top-left one — alone, and so must leave the
-    // sizing alone: an Auto comic would otherwise quietly stop following its image.
-    val reference = line.index == 1 &&
-        (line.axis == GridAxis.ROW || (line.row ?: 0) == 0)
-    if (!reference) return moved
+    // Any other line leaves the reference cell alone, and so must leave the sizing alone: an
+    // Auto comic would otherwise quietly stop following its image.
+    if (!layout.grid.movesReference(line)) return moved
     return moved.copy(sizing = PageSizing.Ratio(referenceRatioOf(moved.layout, style, pageHeight)))
+}
+
+/**
+ * Whether moving [line] changes the share the reference cell takes, which is the one thing that
+ * reshapes the page.
+ *
+ * The question is not which row the line was grabbed in but which weights it edits: every row
+ * that follows the grid shares one list, so the leftmost gutter of the bottom row resizes the
+ * top-left cell just as surely as the top row's own does.
+ */
+private fun Grid.movesReference(line: GridLine): Boolean = when {
+    line.index != 1 -> false
+    line.axis == GridAxis.ROW -> true
+    // The reference cell's width comes from the top row's own division when it has one, and from
+    // the grid's otherwise. Either way, only a line editing that same list moves it.
+    isRowFree(0) -> line.row == 0
+    else -> line.row?.let { !isRowFree(it) } ?: true
 }
 
 /**
