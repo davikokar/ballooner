@@ -216,6 +216,13 @@ fun ComicEditorScreen(
                         onToggleSelection = actions::toggleSelection,
                         onMerge = actions::mergeSelection,
                         onUnmerge = actions::unmergeSelection,
+                        resize = remember(actions) {
+                            PanelResize(
+                                start = actions::startBoundaryDrag,
+                                move = actions::moveBoundary,
+                                end = actions::endBoundaryDrag,
+                            )
+                        },
                         expanded = state.expandedPreview,
                         onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,

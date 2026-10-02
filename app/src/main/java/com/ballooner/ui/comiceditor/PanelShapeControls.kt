@@ -680,7 +680,7 @@ private fun Modifier.gutterDrag(
 private fun Offset.axis(axis: GridAxis): Float = if (axis == GridAxis.COLUMN) x else y
 
 /** How far from a gutter a touch may land and still be a drag of it. */
-private val GUTTER_GRAB_RADIUS = 20.dp
+internal val GUTTER_GRAB_RADIUS = 20.dp
 
 /**
  * The grip drawn in each gutter, which is the only sign that it can be dragged.

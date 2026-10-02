@@ -162,7 +162,7 @@ private data class LayoutInputs(
     val content: PageRect,
 )
 
-private fun List<GridBoundary>.nearestTo(
+internal fun List<GridBoundary>.nearestTo(
     position: Offset,
     viewport: PageViewport,
     radius: Float,

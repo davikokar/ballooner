@@ -140,11 +140,14 @@ the parts owned by later steps are shown dimmed and are not interactive.
   frame and can be pinched, dragged, and twisted. That is **looking, not placing**: nothing there
   is written to the comic, and the Placement step remains the only place an image is positioned.
   Its top-right corner carries the **Panel options button**.
-- **Gutter grip**: The short rounded bar drawn in the middle of a gutter of the Panel preview,
-  dragged to take size from the panel on one side and give it to the other. Only those two panels
-  change; the page keeps its shape. The grab reaches over the panels either side, since a gutter
-  alone is too narrow to aim at. Offered in **Strip**. While panels are unequal no Shape tile is
-  active, and choosing one puts every panel back to one size.
+- **Gutter grip**: The short rounded bar drawn in a gutter of the Panel preview, dragged to take
+  size from the panel on one side and give it to the other. The page keeps its shape. The grab
+  reaches over the panels either side, since a gutter alone is too narrow to aim at. Offered in
+  **Strip** and **Grid**. In a Grid both axes are offered, and a grip sits in the first track of
+  the other axis so a row grip and a column grip can never land on the same spot. A grid line runs
+  the whole way across, so a drag resizes two whole rows or two whole columns and the cells always
+  stay in step. While panels are unequal no Shape tile is active, and choosing one puts every
+  panel back to one size.
 - **Panel options button**: The gear in the top-right corner of the Panel preview, drawn as the
   Options button is because it opens the same kind of thing for one panel. Offered in **Strip**,
   **Grid**, and **Custom**, and dimmed until exactly one panel is chosen. Not offered in

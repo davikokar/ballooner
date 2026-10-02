@@ -126,6 +126,30 @@ class GridBoundariesTest {
     }
 
     @Test
+    fun `moving a line of each axis leaves every cell aligned with its neighbours`() {
+        val comic = Comic(
+            sizing = PageSizing.Ratio(SQUARE_RATIO),
+            style = noStyle,
+            layout = Layout(Grid(rows = 2, columns = 2)),
+            panels = List(4) { Panel() },
+        )
+
+        val moved = comic
+            .withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.15f)
+            .withBoundaryMoved(GridAxis.ROW, index = 1, delta = -0.1f)
+
+        // A grid line runs the whole way across, so the two cells of a row keep one top and one
+        // height, and the two cells of a column keep one left and one width. Nothing can collide.
+        val shapes = moved.panelShapes().map { it.bounds }
+        assertEquals(shapes[0].top, shapes[1].top, TOLERANCE)
+        assertEquals(shapes[0].height, shapes[1].height, TOLERANCE)
+        assertEquals(shapes[0].left, shapes[2].left, TOLERANCE)
+        assertEquals(shapes[0].width, shapes[2].width, TOLERANCE)
+        assertTrue("the first column widens", shapes[0].width > shapes[1].width)
+        assertTrue("the first row shortens", shapes[0].height < shapes[2].height)
+    }
+
+    @Test
     fun `evening the weights gives every cell the same share again`() {
         val dragged = Grid(rows = 2, columns = 3)
             .withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.2f)

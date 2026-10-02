@@ -1,6 +1,7 @@
 package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,22 +15,38 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.Comic
+import com.ballooner.domain.comic.Grid
+import com.ballooner.domain.comic.GridAxis
+import com.ballooner.domain.comic.GridBoundary
+import com.ballooner.domain.comic.GridPanel
+import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.contentRect
+import com.ballooner.domain.comic.gridBoundaries
 import com.ballooner.domain.comic.gridPanels
+import com.ballooner.domain.comic.gridTracks
 import com.ballooner.domain.comic.hasEvenWeights
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.comic.panelStyleAt
@@ -38,6 +55,7 @@ import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.imageDrawSpec
 import com.ballooner.ui.comic.toPath
 import com.ballooner.ui.theme.InkBlack
+import kotlin.math.roundToInt
 import kotlin.math.roundToInt
 
 /**
@@ -67,6 +85,7 @@ fun GridLayoutScreen(
     onToggleSelection: (Span) -> Unit,
     onMerge: () -> Unit,
     onUnmerge: () -> Unit,
+    resize: PanelResize,
     expanded: Boolean,
     onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
@@ -121,6 +140,7 @@ fun GridLayoutScreen(
                     images = images,
                     selection = selection,
                     onToggle = onToggleSelection,
+                    resize = resize,
                 )
             }
         }
@@ -131,7 +151,9 @@ fun GridLayoutScreen(
  * The page as it will really be drawn, and the surface cells are chosen on.
  *
  * Images are drawn against the panels in reading order and cells are selected against the grid's
- * own spans, which is what merging works on.
+ * own spans, which is what merging works on. Dragging a gutter resizes the two rows or the two
+ * columns it separates; a grid line runs the whole way across, so a drag never leaves the cells
+ * either side of it out of step with the rest of their row or column.
  */
 @Composable
 private fun GridPage(
@@ -139,11 +161,20 @@ private fun GridPage(
     images: PanelImageSource,
     selection: List<Span>,
     onToggle: (Span) -> Unit,
+    resize: PanelResize,
 ) {
     val scheme = MaterialTheme.colorScheme
     val cells = remember(comic) { gridPanels(comic.layout.grid, comic.pageHeight, comic.style) }
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
-    val latest = rememberUpdatedState(cells)
+    val boundaries = remember(comic) {
+        gridBoundaries(comic.layout.grid, comic.pageHeight, comic.style)
+    }
+    val content = remember(comic) { contentRect(comic.pageHeight, comic.style) }
+    val grabRadius = with(LocalDensity.current) { GUTTER_GRAB_RADIUS.toPx() }
+    var held by remember { mutableStateOf<GridBoundary?>(null) }
+    // A drag edits the comic on every move, so the gesture cannot be keyed on it: it would be
+    // torn down on its own first step. These are read as the drag runs instead.
+    val latest = rememberUpdatedState(GridPageInputs(comic.pageHeight, cells, boundaries, content))
 
     Canvas(
         modifier = Modifier
@@ -153,9 +184,47 @@ private fun GridPage(
                     // The page fills this canvas exactly, so a page unit is its width.
                     val viewport = PageViewport(0f, 0f, size.width.toFloat())
                     val point = viewport.toPage(offset)
-                    latest.value.firstOrNull { it.shape.contains(point) }
+                    latest.value.cells.firstOrNull { it.shape.contains(point) }
                         ?.let { onToggle(it.span) }
                 }
+            }
+            .pointerInput(Unit) {
+                var line: GridBoundary? = null
+                var origin = Offset.Zero
+                fun viewport() = PageViewport(0f, 0f, size.width.toFloat())
+                detectDragGestures(
+                    onDragStart = { start ->
+                        origin = start
+                        line = latest.value.boundaries.nearestTo(start, viewport(), grabRadius)
+                        held = line
+                        if (line != null) resize.start()
+                    },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        val grabbed = line ?: return@detectDragGestures
+                        val box = latest.value.content
+                        val extent =
+                            if (grabbed.axis == GridAxis.COLUMN) box.width else box.height
+                        val moved = if (grabbed.axis == GridAxis.COLUMN) {
+                            change.position.x - origin.x
+                        } else {
+                            change.position.y - origin.y
+                        }
+                        val scale = viewport().scale
+                        if (scale <= 0f || extent <= 0f) return@detectDragGestures
+                        resize.move(grabbed.axis, grabbed.index, moved / scale / extent)
+                    },
+                    onDragEnd = {
+                        if (line != null) resize.end()
+                        line = null
+                        held = null
+                    },
+                    onDragCancel = {
+                        if (line != null) resize.end()
+                        line = null
+                        held = null
+                    },
+                )
             },
     ) {
         val viewport = PageViewport(0f, 0f, size.width)
@@ -196,8 +265,78 @@ private fun GridPage(
             drawPath(path, color = scheme.primary.copy(alpha = 0.3f))
             drawPath(path, color = scheme.primary, style = Stroke(width = 8f))
         }
+        boundaries.forEach { boundary ->
+            drawGutterGrip(
+                boundary = boundary,
+                grid = comic.layout.grid,
+                content = content,
+                gutter = comic.style.gutter,
+                viewport = viewport,
+                colour = if (boundary.sameLineAs(held)) {
+                    scheme.primary
+                } else {
+                    scheme.primary.copy(alpha = 0.35f)
+                },
+            )
+        }
     }
 }
+
+/** The values a running gutter drag keeps reading as the grid changes under it. */
+private data class GridPageInputs(
+    val pageHeight: Float,
+    val cells: List<GridPanel>,
+    val boundaries: List<GridBoundary>,
+    val content: PageRect,
+)
+
+private fun GridBoundary.sameLineAs(other: GridBoundary?): Boolean =
+    other != null && axis == other.axis && index == other.index
+
+/**
+ * The grip that says a gutter can be dragged.
+ *
+ * It sits in the FIRST track of the other axis rather than in the middle of its line, so the
+ * grips of a row line and a column line can never land on the same spot.
+ */
+private fun DrawScope.drawGutterGrip(
+    boundary: GridBoundary,
+    grid: Grid,
+    content: PageRect,
+    gutter: Float,
+    viewport: PageViewport,
+    colour: Color,
+) {
+    val across = boundary.axis == GridAxis.COLUMN
+    val tracks = if (across) {
+        gridTracks(grid.rowWeights, content.top, content.height, gutter)
+    } else {
+        gridTracks(grid.columnWeights, content.left, content.width, gutter)
+    }
+    val track = tracks.firstOrNull() ?: return
+    val along = (track.start + track.end) / 2f
+    val centre = if (across) {
+        viewport.toScreen(boundary.position, along)
+    } else {
+        viewport.toScreen(along, boundary.position)
+    }
+    val thickness = (gutter * viewport.scale).coerceIn(GRIP_MIN_THICKNESS, GRIP_MAX_THICKNESS)
+    val length = ((track.end - track.start) * viewport.scale * GRIP_SHARE)
+        .coerceAtMost(GRIP_MAX_LENGTH)
+    val size = if (across) Size(thickness, length) else Size(length, thickness)
+    drawRoundRect(
+        color = colour,
+        topLeft = Offset(centre.x - size.width / 2f, centre.y - size.height / 2f),
+        size = size,
+        cornerRadius = CornerRadius(thickness / 2f),
+    )
+}
+
+/** In pixels, since a grip is drawn straight onto the page canvas. */
+private const val GRIP_MIN_THICKNESS = 6f
+private const val GRIP_MAX_THICKNESS = 12f
+private const val GRIP_MAX_LENGTH = 84f
+private const val GRIP_SHARE = 0.2f
 
 /**
  * The panel the cell [span] is part of, by index in reading order, or null when it is not on the
