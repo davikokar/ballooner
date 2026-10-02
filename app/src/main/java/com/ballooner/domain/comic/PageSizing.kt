@@ -79,6 +79,25 @@ fun pageHeightOf(
     return (contentHeight + 2f * style.pageMargin).coerceIn(MIN_PAGE_HEIGHT, MAX_PAGE_HEIGHT)
 }
 
+/**
+ * The shape the reference cell comes out at on a page of [pageHeight] — the inverse of
+ * [pageHeightOf].
+ *
+ * Moving the grid line beside the reference cell reshapes that cell, which would otherwise
+ * reshape the whole page and every other panel with it. Reading the ratio back out lets the page
+ * keep the height it had, so only the two panels either side of the line change.
+ */
+fun referenceRatioOf(layout: Layout, style: ComicStyle, pageHeight: Float): Float {
+    val grid = layout.grid
+    val gutter = style.gutter
+    val available = ((1f - 2f * style.pageMargin) - gutter * (grid.columns - 1)).coerceAtLeast(0f)
+    val width = available * grid.columnWeights.firstFraction()
+    val contentHeight = pageHeight - 2f * style.pageMargin
+    val height = (contentHeight - gutter * (grid.rows - 1)) * grid.rowWeights.firstFraction()
+    if (width <= 0f || height <= 0f) return SQUARE_RATIO
+    return width / height
+}
+
 /** The share of the whole extent taken by the first row or column. */
 private fun List<Float>.firstFraction(): Float {
     val total = sum()

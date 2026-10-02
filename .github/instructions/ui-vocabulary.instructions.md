@@ -122,7 +122,8 @@ the parts owned by later steps are shown dimmed and are not interactive.
   **Ratio**, **Custom**, **Auto** — over a **Panel preview**. Its preview carries no Panel
   options button: the comic is one panel, so the Comic style is already its panel style.
 - **Strip options**: The Strip preset's options. An **Orientation** pair of icon buttons and a
-  **Panels** stepper, then the Shape tiles and the Panel preview.
+  **Panels** stepper, then the Shape tiles and the Panel preview. Panels are resized by dragging
+  the **Gutter grip** between them.
 - **Grid options**: The Grid preset's options. A **Rows** stepper and a **Columns** stepper, then
   the Shape tiles and the Panel preview. Cells are chosen by tapping them in the preview, and
   **Merge** / **Unmerge** float over it when the selection allows.
@@ -139,6 +140,11 @@ the parts owned by later steps are shown dimmed and are not interactive.
   frame and can be pinched, dragged, and twisted. That is **looking, not placing**: nothing there
   is written to the comic, and the Placement step remains the only place an image is positioned.
   Its top-right corner carries the **Panel options button**.
+- **Gutter grip**: The short rounded bar drawn in the middle of a gutter of the Panel preview,
+  dragged to take size from the panel on one side and give it to the other. Only those two panels
+  change; the page keeps its shape. The grab reaches over the panels either side, since a gutter
+  alone is too narrow to aim at. Offered in **Strip**. While panels are unequal no Shape tile is
+  active, and choosing one puts every panel back to one size.
 - **Panel options button**: The gear in the top-right corner of the Panel preview, drawn as the
   Options button is because it opens the same kind of thing for one panel. Offered in **Strip**,
   **Grid**, and **Custom**, and dimmed until exactly one panel is chosen. Not offered in

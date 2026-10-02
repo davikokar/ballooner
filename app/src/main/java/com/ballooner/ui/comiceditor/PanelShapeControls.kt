@@ -5,6 +5,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +54,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -62,6 +67,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
+import com.ballooner.domain.comic.GridAxis
 import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
@@ -69,6 +75,7 @@ import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.SQUARE_RATIO
 import com.ballooner.domain.comic.TALL_RATIO
 import com.ballooner.domain.comic.WIDE_RATIO
+import com.ballooner.domain.comic.boundaryPositions
 import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.domain.comic.transformed
 import com.ballooner.ui.comic.PageViewport
@@ -85,13 +92,16 @@ internal const val MAX_UNITS = 24
  * The panel shape choices, shared by every preset that has a panel shape to choose.
  *
  * Every preset shapes its panels the same way, because the page takes its height from one
- * reference panel and the grid gives every other panel the same shape.
+ * reference panel and the grid gives every other panel the same shape. [uniform] says whether
+ * that still holds: panels resized by dragging a gutter are no longer one shape, so no tile is
+ * true of them and none is shown active until one is chosen again.
  */
 @Composable
 internal fun PanelShapeChooser(
     sizing: PageSizing,
     autoCaption: String,
     onChange: (PageSizing) -> Unit,
+    uniform: Boolean = true,
 ) {
     val ratio = (sizing as? PageSizing.Ratio)?.value
 
@@ -111,6 +121,7 @@ internal fun PanelShapeChooser(
     }
 
     val tile = when {
+        !uniform -> null
         sizing is PageSizing.FromImage -> ShapeTile.AUTO
         custom -> ShapeTile.CUSTOM
         ratio == SQUARE_RATIO -> ShapeTile.SQUARE
@@ -197,12 +208,27 @@ internal fun PanelShapeChooser(
 }
 
 /**
+ * Dragging the gutter between two panels, which takes size from one and gives it to the other.
+ *
+ * The three parts are one gesture: [start] remembers the layout the drag began from, [move]
+ * reports how far it has come since, and [end] folds the whole drag into one undo step.
+ */
+class PanelResize(
+    val start: () -> Unit,
+    val move: (axis: GridAxis, index: Int, delta: Float) -> Unit,
+    val end: () -> Unit,
+)
+
+/**
  * The panels drawn on a drafting ground, showing the shape as it will really be.
  *
  * [ratio] is one panel's shape; a null one means there is nothing to show yet. [style] is the
  * comic's own, so the Comic style controls are seen here too rather than only on the canvas, and
  * any panel carrying a frame of its own is drawn wearing it. Any image already in a panel is
  * drawn in it, and can be pinched, dragged, and twisted — see [PreviewImage].
+ *
+ * The weights are the grid's own, so panels that have been resized are shown at the sizes they
+ * were given. A [resize] makes the gutters between them draggable.
  */
 @Composable
 internal fun PanelPreview(
@@ -211,10 +237,11 @@ internal fun PanelPreview(
     images: PanelImageSource,
     style: ComicStyle,
     modifier: Modifier = Modifier,
-    rows: Int = 1,
-    columns: Int = 1,
+    rowWeights: List<Float> = listOf(1f),
+    columnWeights: List<Float> = listOf(1f),
     selected: Int? = null,
     onSelect: ((Int) -> Unit)? = null,
+    resize: PanelResize? = null,
     offersPanelOptions: Boolean = false,
     onPanelOptions: (() -> Unit)? = null,
     emptyMessage: String = "The panel takes the shape of the image you choose next.",
@@ -231,7 +258,17 @@ internal fun PanelPreview(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            PanelLattice(ratio, panels, images, style, rows, columns, selected, onSelect)
+            PanelLattice(
+                ratio = ratio,
+                panels = panels,
+                images = images,
+                style = style,
+                rowWeights = rowWeights,
+                columnWeights = columnWeights,
+                selected = selected,
+                onSelect = onSelect,
+                resize = resize,
+            )
         }
     }
 }
@@ -359,15 +396,35 @@ private fun PanelLattice(
     panels: List<Panel>,
     images: PanelImageSource,
     style: ComicStyle,
-    rows: Int,
-    columns: Int,
+    rowWeights: List<Float>,
+    columnWeights: List<Float>,
     selected: Int?,
     onSelect: ((Int) -> Unit)?,
+    resize: PanelResize?,
 ) {
-    val down = rows.coerceAtLeast(1)
-    val across = columns.coerceAtLeast(1)
-    // The whole lattice is sized so it fits the ground, and the cells divide it evenly.
-    BoxWithConstraints(modifier = Modifier.aspectRatio(ratio * across / down)) {
+    val down = rowWeights.size.coerceAtLeast(1)
+    val across = columnWeights.size.coerceAtLeast(1)
+    val scheme = MaterialTheme.colorScheme
+    val tracks = LatticeTracks(rowWeights, columnWeights, style.gutter)
+    var held by remember { mutableStateOf<LatticeLine?>(null) }
+    val latest = rememberUpdatedState(tracks)
+    val grabRadius = with(LocalDensity.current) { GUTTER_GRAB_RADIUS.toPx() }
+
+    // The whole lattice is sized so it fits the ground, and the weights divide it between cells.
+    BoxWithConstraints(
+        modifier = Modifier
+            .aspectRatio(latticeAspect(ratio, rowWeights, columnWeights, style.gutter))
+            // On the lattice rather than on an overlay: a gutter is too narrow to aim at, so the
+            // grab reaches over the panels either side, and only a node above them can take a
+            // touch the panels would otherwise have had.
+            .then(
+                if (resize == null) {
+                    Modifier
+                } else {
+                    Modifier.gutterDrag(latest, grabRadius, resize) { held = it }
+                },
+            ),
+    ) {
         // The lattice stands in for the page, so a page unit is its width and every style
         // distance is read at the same fraction the comic will draw it at.
         val pageWidth = maxWidth
@@ -378,7 +435,7 @@ private fun PanelLattice(
         ) {
             repeat(down) { row ->
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(rowWeights.weightAt(row)),
                     horizontalArrangement = Arrangement.spacedBy(gap),
                 ) {
                     repeat(across) { column ->
@@ -394,14 +451,176 @@ private fun PanelLattice(
                             selected = index == selected,
                             onSelect = onSelect?.let { select -> { select(index) } },
                             key = index,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            modifier = Modifier.weight(columnWeights.weightAt(column)).fillMaxHeight(),
                         )
                     }
                 }
             }
         }
+        if (resize != null) {
+            GutterGrips(
+                tracks = tracks,
+                held = held,
+                colour = scheme.primary.copy(alpha = 0.35f),
+                heldColour = scheme.primary,
+            )
+        }
     }
 }
+
+/** A weight of nothing would collapse a cell, and Compose will not lay one out at all. */
+private fun List<Float>.weightAt(index: Int): Float =
+    (getOrNull(index) ?: 1f).coerceAtLeast(MIN_LATTICE_WEIGHT)
+
+private const val MIN_LATTICE_WEIGHT = 0.01f
+
+/**
+ * The shape of the whole lattice: one page wide, over the height that holds the first cell at
+ * [ratio]. That is how the page itself is sized, so uneven weights reshape the preview exactly
+ * as they reshape the comic. The page margin is left out: the lattice draws panels, not a page.
+ */
+private fun latticeAspect(
+    ratio: Float,
+    rowWeights: List<Float>,
+    columnWeights: List<Float>,
+    gutter: Float,
+): Float {
+    val columnTotal = columnWeights.sum()
+    val rowTotal = rowWeights.sum()
+    val firstColumn = columnWeights.firstOrNull() ?: 0f
+    val firstRow = rowWeights.firstOrNull() ?: 0f
+    if (ratio <= 0f || firstColumn <= 0f || firstRow <= 0f) return ratio
+    val available = (1f - gutter * (columnWeights.size - 1)).coerceAtLeast(0f)
+    val width = available * firstColumn / columnTotal
+    if (width <= 0f) return ratio
+    val height = width / ratio * rowTotal / firstRow + gutter * (rowWeights.size - 1)
+    return if (height > 0f) 1f / height else ratio
+}
+
+/** One draggable gutter, [at] being where it sits across the lattice in pixels. */
+private data class LatticeLine(val axis: GridAxis, val index: Int, val at: Float)
+
+/** What the lattice divides its space by, which is all a gutter drag needs to know. */
+private data class LatticeTracks(
+    val rowWeights: List<Float>,
+    val columnWeights: List<Float>,
+    val gutter: Float,
+) {
+
+    /** Every gutter of a lattice [width] by [height] pixels, edges excluded. */
+    fun lines(width: Float, height: Float): List<LatticeLine> {
+        val gap = width * gutter
+        val columns = boundaryPositions(columnWeights, 0f, width, gap)
+            .mapIndexed { index, at -> LatticeLine(GridAxis.COLUMN, index + 1, at) }
+        val rows = boundaryPositions(rowWeights, 0f, height, gap)
+            .mapIndexed { index, at -> LatticeLine(GridAxis.ROW, index + 1, at) }
+        return columns + rows
+    }
+
+    fun nearest(position: Offset, width: Float, height: Float, radius: Float): LatticeLine? =
+        lines(width, height)
+            .minByOrNull { it.distanceTo(position) }
+            ?.takeIf { it.distanceTo(position) <= radius }
+}
+
+private fun LatticeLine.distanceTo(position: Offset): Float =
+    abs(at - if (axis == GridAxis.COLUMN) position.x else position.y)
+
+/**
+ * Dragging a gutter to resize the panels either side of it.
+ *
+ * The touch is watched on the initial pass, before the panels underneath see it, but is only
+ * taken once it has travelled far enough to be a drag rather than a tap. Until then a tap still
+ * selects the panel it landed on and an image can still be looked around.
+ */
+private fun Modifier.gutterDrag(
+    tracks: State<LatticeTracks>,
+    grabRadius: Float,
+    resize: PanelResize,
+    onHold: (LatticeLine?) -> Unit,
+) = pointerInput(Unit) {
+    val slop = viewConfiguration.touchSlop
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val width = size.width.toFloat()
+        val height = size.height.toFloat()
+        val line = tracks.value.nearest(down.position, width, height, grabRadius)
+            ?: return@awaitEachGesture
+        val extent = if (line.axis == GridAxis.COLUMN) width else height
+        if (extent <= 0f) return@awaitEachGesture
+
+        var origin: Float? = null
+        val from = down.position.axis(line.axis)
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            // A second finger means a pinch, which belongs to the image under it.
+            if (event.changes.size > 1) break
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            if (!change.pressed) break
+            val along = change.position.axis(line.axis)
+            val held = origin
+            if (held == null) {
+                if (abs(along - from) < slop) continue
+                origin = along
+                onHold(line)
+                resize.start()
+            } else {
+                resize.move(line.axis, line.index, (along - held) / extent)
+            }
+            change.consume()
+        }
+        if (origin != null) {
+            resize.end()
+            onHold(null)
+        }
+    }
+}
+
+private fun Offset.axis(axis: GridAxis): Float = if (axis == GridAxis.COLUMN) x else y
+
+/** How far from a gutter a touch may land and still be a drag of it. */
+private val GUTTER_GRAB_RADIUS = 20.dp
+
+/**
+ * The grip drawn in each gutter, which is the only sign that it can be dragged.
+ *
+ * It is drawn rather than laid out because a gutter is a gap between panels and has no view of
+ * its own; the grip is painted over that gap and takes no touches, so the panels keep theirs.
+ */
+@Composable
+private fun GutterGrips(
+    tracks: LatticeTracks,
+    held: LatticeLine?,
+    colour: Color,
+    heldColour: Color,
+) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val thickness = (size.width * tracks.gutter)
+            .coerceIn(GRIP_MIN_THICKNESS.toPx(), GRIP_MAX_THICKNESS.toPx())
+        tracks.lines(size.width, size.height).forEach { line ->
+            val across = line.axis == GridAxis.COLUMN
+            val span = if (across) size.height else size.width
+            val length = (span * GRIP_SHARE).coerceAtMost(GRIP_MAX_LENGTH.toPx())
+            val ink = if (line.axis == held?.axis && line.index == held.index) heldColour else colour
+            drawRoundRect(
+                color = ink,
+                topLeft = if (across) {
+                    Offset(line.at - thickness / 2f, (size.height - length) / 2f)
+                } else {
+                    Offset((size.width - length) / 2f, line.at - thickness / 2f)
+                },
+                size = if (across) Size(thickness, length) else Size(length, thickness),
+                cornerRadius = CornerRadius(thickness / 2f),
+            )
+        }
+    }
+}
+
+/** A grip is as thick as the gutter it sits in, within reason, and a short stroke of its length. */
+private val GRIP_MIN_THICKNESS = 2.dp
+private val GRIP_MAX_THICKNESS = 4.dp
+private val GRIP_MAX_LENGTH = 28.dp
+private const val GRIP_SHARE = 0.2f
 
 /** A preview frame keeps a visible edge however thin the comic's border is. */
 private val MIN_PREVIEW_FRAME = 1.dp

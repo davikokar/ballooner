@@ -41,6 +41,7 @@ import com.ballooner.domain.comic.straightened
 import com.ballooner.domain.comic.transformed
 import com.ballooner.domain.comic.unmergedAt
 import com.ballooner.domain.comic.withBoundaryMoved
+import com.ballooner.domain.comic.withEvenWeights
 import com.ballooner.domain.comic.withCentreOnPage
 import com.ballooner.domain.comic.withCut
 import com.ballooner.domain.comic.withCutEndMoved
@@ -461,9 +462,15 @@ class ComicEditorViewModel @Inject constructor(
      * The page is shaped by the reference panel, so this reshapes every panel at once but never
      * changes how many there are.
      */
+    /**
+     * Choosing a shape is also a way back to panels of one size: the tile promises every panel
+     * that shape, so any sizes dragged into the gutters are given up for it.
+     */
     fun setSizing(sizing: PageSizing) {
         val content = contentOrNull() ?: return
-        commit(content.comic.copy(sizing = sizing))
+        val comic = content.comic
+        val layout = comic.layout.copy(grid = comic.layout.grid.withEvenWeights())
+        commit(comic.copy(sizing = sizing, layout = layout))
     }
 
     /** Remembers the layout before a drag begins, so the whole drag counts as one change. */
@@ -474,8 +481,7 @@ class ComicEditorViewModel @Inject constructor(
     /** [delta] is the distance dragged since the drag began, as a fraction of the content extent. */
     fun moveBoundary(axis: GridAxis, index: Int, delta: Float) {
         val origin = beforeDrag ?: return
-        val grid = origin.layout.grid.withBoundaryMoved(axis, index, delta)
-        commit(origin.copy(layout = origin.layout.copy(grid = grid)), undoable = false)
+        commit(origin.withBoundaryMoved(axis, index, delta), undoable = false)
     }
 
     fun endBoundaryDrag() = endDragAsOneUndoStep()

@@ -91,6 +91,53 @@ class GridBoundariesTest {
     }
 
     @Test
+    fun `moving the first line reshapes only the panels either side of it`() {
+        val comic = Comic(
+            sizing = PageSizing.Ratio(SQUARE_RATIO),
+            style = noStyle,
+            layout = Layout(Grid(rows = 1, columns = 4)),
+            panels = List(4) { Panel() },
+        )
+
+        val moved = comic.withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.1f)
+
+        assertEquals(comic.pageHeight, moved.pageHeight, TOLERANCE)
+        val before = comic.panelShapes().map { it.bounds.width }
+        val after = moved.panelShapes().map { it.bounds.width }
+        assertEquals(before[2], after[2], TOLERANCE)
+        assertEquals(before[3], after[3], TOLERANCE)
+        assertTrue("the first panel widens", after[0] > before[0])
+        assertTrue("the second panel narrows", after[1] < before[1])
+    }
+
+    @Test
+    fun `moving a later line leaves the sizing alone`() {
+        val comic = Comic(
+            sizing = PageSizing.FromImage,
+            style = noStyle,
+            layout = Layout(Grid(rows = 1, columns = 3)),
+            panels = List(3) { Panel(PanelImage("image", sourceAspect = 2f)) },
+        )
+
+        val moved = comic.withBoundaryMoved(GridAxis.COLUMN, index = 2, delta = 0.1f)
+
+        assertEquals(PageSizing.FromImage, moved.sizing)
+        assertEquals(comic.pageHeight, moved.pageHeight, TOLERANCE)
+    }
+
+    @Test
+    fun `evening the weights gives every cell the same share again`() {
+        val dragged = Grid(rows = 2, columns = 3)
+            .withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.2f)
+            .withBoundaryMoved(GridAxis.ROW, index = 1, delta = -0.2f)
+
+        val evened = dragged.withEvenWeights()
+
+        assertEquals(listOf(1f, 1f), evened.rowWeights)
+        assertEquals(listOf(1f, 1f, 1f), evened.columnWeights)
+    }
+
+    @Test
     fun `moving a line moves the panels it separates`() {
         val grid = Grid(rows = 1, columns = 2).withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.25f)
 

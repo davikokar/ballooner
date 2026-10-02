@@ -24,8 +24,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.ComicStyle
+import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
+import com.ballooner.domain.comic.hasEvenWeights
 import com.ballooner.ui.comic.PanelImageSource
 
 /** The fewest panels a strip may hold. One panel is the Single preset, not a strip. */
@@ -35,14 +37,14 @@ internal const val MIN_STRIP_PANELS = 2
  * The Strip preset's own screen.
  *
  * A strip is a grid one cell deep, so its panels all share one shape and the same shape choices
- * the Single preset offers. What a strip adds is which way it runs and how many panels it holds.
+ * the Single preset offers. What a strip adds is which way it runs, how many panels it holds, and
+ * how the room is divided between them, which is the gutters being dragged.
  */
 @Composable
 fun StripLayoutScreen(
     sizing: PageSizing,
     panelRatio: Float,
-    horizontal: Boolean,
-    panelCount: Int,
+    grid: Grid,
     panels: List<Panel>,
     images: PanelImageSource,
     style: ComicStyle,
@@ -50,12 +52,18 @@ fun StripLayoutScreen(
     onChange: (PageSizing) -> Unit,
     onStrip: (horizontal: Boolean, count: Int) -> Unit,
     onSelectPanel: (Int) -> Unit,
+    resize: PanelResize,
     onBack: () -> Unit,
     onOptions: () -> Unit,
     onPanelOptions: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val count = panelCount.coerceAtLeast(MIN_STRIP_PANELS)
+    val horizontal = grid.rows == 1
+    val count = maxOf(grid.rows, grid.columns).coerceAtLeast(MIN_STRIP_PANELS)
+    // A strip that has been dragged carries uneven weights; one that has not, or one still being
+    // rebuilt to a new panel count, divides the room evenly.
+    val weights = (if (horizontal) grid.columnWeights else grid.rowWeights)
+        .takeIf { it.size == count } ?: List(count) { 1f }
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -89,6 +97,7 @@ fun StripLayoutScreen(
                 // Every panel of a strip is the same shape, so the first image decides all of them.
                 autoCaption = "First image",
                 onChange = onChange,
+                uniform = grid.hasEvenWeights(),
             )
             PanelPreview(
                 ratio = panelRatio.takeIf { sizing !is PageSizing.FromImage || panels.firstOrNull()?.image != null },
@@ -96,10 +105,11 @@ fun StripLayoutScreen(
                 images = images,
                 style = style,
                 modifier = Modifier.weight(1f),
-                rows = if (horizontal) 1 else count,
-                columns = if (horizontal) count else 1,
+                rowWeights = if (horizontal) listOf(1f) else weights,
+                columnWeights = if (horizontal) weights else listOf(1f),
                 selected = selectedPanel,
                 onSelect = onSelectPanel,
+                resize = resize,
                 offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
                 emptyMessage = "Every panel takes the shape of the first image you choose next.",

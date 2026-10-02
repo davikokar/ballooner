@@ -30,6 +30,7 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Span
 import com.ballooner.domain.comic.gridPanels
+import com.ballooner.domain.comic.hasEvenWeights
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.ui.comic.PageViewport
@@ -92,6 +93,7 @@ fun GridLayoutScreen(
                 // Every cell of a grid is the same shape, so the first image decides all of them.
                 autoCaption = "First image",
                 onChange = onChange,
+                uniform = grid.hasEvenWeights(),
             )
             PreviewSurface(
                 modifier = Modifier.weight(1f),

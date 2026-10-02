@@ -169,12 +169,10 @@ fun ComicEditorScreen(
                     return@Column
                 }
                 if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.STRIP) {
-                    val grid = state.comic.layout.grid
                     StripLayoutScreen(
                         sizing = state.comic.sizing,
                         panelRatio = state.comic.panelRatio(),
-                        horizontal = grid.rows == 1,
-                        panelCount = maxOf(grid.rows, grid.columns),
+                        grid = state.comic.layout.grid,
                         panels = state.comic.panels,
                         images = images,
                         style = state.comic.style,
@@ -184,6 +182,13 @@ fun ComicEditorScreen(
                             if (across) actions.applyPreset(1, count) else actions.applyPreset(count, 1)
                         },
                         onSelectPanel = actions::selectPanel,
+                        resize = remember(actions) {
+                            PanelResize(
+                                start = actions::startBoundaryDrag,
+                                move = actions::moveBoundary,
+                                end = actions::endBoundaryDrag,
+                            )
+                        },
                         onBack = actions::discardLayoutKind,
                         onOptions = { showOptions = true },
                         onPanelOptions = onPanelOptions,

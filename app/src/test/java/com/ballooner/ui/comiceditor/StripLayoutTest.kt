@@ -4,6 +4,7 @@ import com.ballooner.data.comic.FakeComicRepository
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
+import com.ballooner.domain.comic.GridAxis
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
@@ -92,6 +93,37 @@ class StripLayoutTest {
 
         val uris = content(viewModel).comic.panels.map { it.image?.sourceUri }
         assertEquals(listOf("a", "b", null, null), uris)
+    }
+
+    @Test
+    fun `dragging a gutter widens one panel and narrows its neighbour`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 1, columns = 3)))
+        advanceUntilIdle()
+
+        viewModel.startBoundaryDrag()
+        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.2f)
+        viewModel.endBoundaryDrag()
+        advanceUntilIdle()
+
+        val weights = grid(viewModel).columnWeights
+        assertEquals(1.6f, weights[0], 1e-4f)
+        assertEquals(0.4f, weights[1], 1e-4f)
+        assertEquals(1f, weights[2], 1e-4f)
+    }
+
+    @Test
+    fun `choosing a shape puts dragged panels back to one size`() = runTest {
+        val viewModel = editorFor(comic(Grid(rows = 1, columns = 3)))
+        advanceUntilIdle()
+        viewModel.startBoundaryDrag()
+        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.2f)
+        viewModel.endBoundaryDrag()
+
+        viewModel.setSizing(PageSizing.Ratio(WIDE_RATIO))
+        advanceUntilIdle()
+
+        assertEquals(listOf(1f, 1f, 1f), grid(viewModel).columnWeights)
+        assertEquals(PageSizing.Ratio(WIDE_RATIO), content(viewModel).comic.sizing)
     }
 
     @Test

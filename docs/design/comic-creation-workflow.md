@@ -105,6 +105,13 @@ Because the height is solved for every time rather than stored, a panel promised
 it: moving the margin or gutter slider re-solves the page instead of quietly breaking the
 promise. See [ADR-0009](../architecture/decisions/0009-the-page-takes-its-height-from-a-reference-panel.md).
 
+Resizing is the one edit that reshapes the reference panel itself. Dragging the grid line beside
+it would otherwise re-solve the page and move every other panel, so the shape is instead read
+back off the panel the drag has just made: the reference panel still supplies the page height, it
+has simply been given a new shape. A resize therefore changes only the two panels either side of
+the line, and none of the shape tiles is shown active afterwards, because the panels no longer
+share one shape. Choosing a tile puts them all back to it.
+
 ### Layout type
 
 A layout is **a grid plus an ordered list of cuts**. Every preset the user picks is a starting
