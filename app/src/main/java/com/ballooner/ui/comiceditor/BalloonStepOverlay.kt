@@ -40,6 +40,7 @@ import com.ballooner.domain.comic.tailTip
 import com.ballooner.domain.comic.tailWidthHandle
 import com.ballooner.ui.comic.PageViewport
 import com.ballooner.ui.comic.comicViewport
+import com.ballooner.ui.comic.toPath
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** What a drag on a selected balloon is doing. */
@@ -192,7 +193,17 @@ internal fun BalloonStepOverlay(
                 },
         ) {
             val viewport = comicViewport(size, comic.pageHeight, focus?.bounds)
-            if (viewport.scale <= 0f || selected == null) return@Canvas
+            if (viewport.scale <= 0f) return@Canvas
+            // The panel being lettered is outlined as the Placement step outlines the one being
+            // filled, so "the panel I am working on" looks the same in both steps.
+            activePanel?.let { shapes.getOrNull(it) }?.let { shape ->
+                drawPath(
+                    path = shape.toPath(viewport, comic.style.cornerRadius),
+                    color = SelectionStroke,
+                    style = Stroke(width = ACTIVE_PANEL_STROKE),
+                )
+            }
+            if (selected == null) return@Canvas
             val panel = panelOf(selected)
             // Only the tail's own handles are drawn: everything else the selected balloon offers
             // is a control of its own, sitting on the balloon.
@@ -264,5 +275,8 @@ private fun near(viewport: PageViewport, point: PagePoint, target: PagePoint, ra
 private val GRAB_RADIUS = 28.dp
 private val SelectionStroke = Color(0xFF2962FF)
 private val HandleRim = Color(0xCCFFFFFF)
+
+/** In pixels, to match the outline the Placement step puts on the panel being worked on. */
+private const val ACTIVE_PANEL_STROKE = 6f
 
 private operator fun Offset.minus(other: Offset) = Offset(x - other.x, y - other.y)
