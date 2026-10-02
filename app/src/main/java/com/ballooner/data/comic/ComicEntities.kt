@@ -23,6 +23,11 @@ data class ComicEntity(
     val columns: Int,
     val rowWeights: List<Float>,
     val columnWeights: List<Float>,
+    /**
+     * A picture chosen to stand for the comic in the list, or null to show the comic itself.
+     * It is not part of the document: nothing about the page changes because of it.
+     */
+    val coverUri: String? = null,
 )
 
 /**

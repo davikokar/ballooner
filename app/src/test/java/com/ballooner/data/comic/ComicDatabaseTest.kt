@@ -6,6 +6,7 @@ import com.ballooner.data.AppDatabase
 import com.ballooner.data.MIGRATION_10_11
 import com.ballooner.data.MIGRATION_11_12
 import com.ballooner.data.MIGRATION_12_13
+import com.ballooner.data.MIGRATION_13_14
 import com.ballooner.data.MIGRATION_6_7
 import com.ballooner.data.MIGRATION_7_8
 import com.ballooner.data.MIGRATION_8_9
@@ -71,6 +72,7 @@ class ComicDatabaseTest {
                 MIGRATION_10_11,
                 MIGRATION_11_12,
                 MIGRATION_12_13,
+                MIGRATION_13_14,
             )
             .build()
         repository = RoomComicRepository(database.comicDao())
@@ -259,6 +261,31 @@ class ComicDatabaseTest {
         val restored = repository.observeComic(id).first()!!
         assertEquals("After", restored.name)
         assertEquals("a", restored.panels.single().image?.sourceUri)
+    }
+
+    @Test
+    fun `a cover is kept when the document is saved over`() = runTest {
+        openDatabase()
+        val id = repository.createComic(Comic(name = "Covered"))
+        repository.setCover(id, "cover-image")
+
+        // The document says nothing about covers, so saving one must not take it away.
+        repository.saveComic(id, Comic(name = "Covered", panels = List(1) { Panel(PanelImage("a")) }))
+
+        assertEquals("cover-image", repository.observeComics().first().single().coverUri)
+    }
+
+    @Test
+    fun `a comic starts with no cover and can give it up again`() = runTest {
+        openDatabase()
+        val id = repository.createComic(Comic(name = "Bare"))
+
+        assertNull(repository.observeComics().first().single().coverUri)
+
+        repository.setCover(id, "cover-image")
+        repository.setCover(id, null)
+
+        assertNull(repository.observeComics().first().single().coverUri)
     }
 
     @Test

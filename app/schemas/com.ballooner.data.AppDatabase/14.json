@@ -1,0 +1,567 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 14,
+    "identityHash": "32f5dd41cfc31b54cb7e04eac1633d95",
+    "entities": [
+      {
+        "tableName": "comic",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `pageRatio` REAL, `pageMargin` REAL NOT NULL, `gutter` REAL NOT NULL, `borderThickness` REAL NOT NULL, `cornerRadius` REAL NOT NULL, `rows` INTEGER NOT NULL, `columns` INTEGER NOT NULL, `rowWeights` TEXT NOT NULL, `columnWeights` TEXT NOT NULL, `coverUri` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pageRatio",
+            "columnName": "pageRatio",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pageMargin",
+            "columnName": "pageMargin",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gutter",
+            "columnName": "gutter",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "borderThickness",
+            "columnName": "borderThickness",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cornerRadius",
+            "columnName": "cornerRadius",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rows",
+            "columnName": "rows",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "columns",
+            "columnName": "columns",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rowWeights",
+            "columnName": "rowWeights",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "columnWeights",
+            "columnName": "columnWeights",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverUri",
+            "columnName": "coverUri",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "comic_row_split",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`comicId` INTEGER NOT NULL, `row` INTEGER NOT NULL, `columnWeights` TEXT NOT NULL, PRIMARY KEY(`comicId`, `row`), FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "comicId",
+            "columnName": "comicId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "row",
+            "columnName": "row",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "columnWeights",
+            "columnName": "columnWeights",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "comicId",
+            "row"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_comic_row_split_comicId",
+            "unique": false,
+            "columnNames": [
+              "comicId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_comic_row_split_comicId` ON `${TABLE_NAME}` (`comicId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "comic",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "comicId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "comic_span",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`comicId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `firstRow` INTEGER NOT NULL, `firstColumn` INTEGER NOT NULL, `rowCount` INTEGER NOT NULL, `columnCount` INTEGER NOT NULL, PRIMARY KEY(`comicId`, `position`), FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "comicId",
+            "columnName": "comicId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstRow",
+            "columnName": "firstRow",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstColumn",
+            "columnName": "firstColumn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rowCount",
+            "columnName": "rowCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "columnCount",
+            "columnName": "columnCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "comicId",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_comic_span_comicId",
+            "unique": false,
+            "columnNames": [
+              "comicId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_comic_span_comicId` ON `${TABLE_NAME}` (`comicId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "comic",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "comicId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "comic_cut",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`comicId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `aU` REAL NOT NULL, `aV` REAL NOT NULL, `bU` REAL NOT NULL, `bV` REAL NOT NULL, `anchorU` REAL, `anchorV` REAL, PRIMARY KEY(`comicId`, `position`), FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "comicId",
+            "columnName": "comicId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aU",
+            "columnName": "aU",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aV",
+            "columnName": "aV",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bU",
+            "columnName": "bU",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bV",
+            "columnName": "bV",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "anchorU",
+            "columnName": "anchorU",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "anchorV",
+            "columnName": "anchorV",
+            "affinity": "REAL",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "comicId",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_comic_cut_comicId",
+            "unique": false,
+            "columnNames": [
+              "comicId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_comic_cut_comicId` ON `${TABLE_NAME}` (`comicId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "comic",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "comicId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "comic_panel",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`comicId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `sourceUri` TEXT, `centreU` REAL NOT NULL, `centreV` REAL NOT NULL, `zoom` REAL NOT NULL, `angleDegrees` REAL NOT NULL, `sourceAspect` REAL, `borderThickness` REAL, `cornerRadius` REAL, PRIMARY KEY(`comicId`, `position`), FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "comicId",
+            "columnName": "comicId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceUri",
+            "columnName": "sourceUri",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "centreU",
+            "columnName": "centreU",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centreV",
+            "columnName": "centreV",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "zoom",
+            "columnName": "zoom",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "angleDegrees",
+            "columnName": "angleDegrees",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceAspect",
+            "columnName": "sourceAspect",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "borderThickness",
+            "columnName": "borderThickness",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cornerRadius",
+            "columnName": "cornerRadius",
+            "affinity": "REAL",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "comicId",
+            "position"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_comic_panel_comicId",
+            "unique": false,
+            "columnNames": [
+              "comicId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_comic_panel_comicId` ON `${TABLE_NAME}` (`comicId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "comic",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "comicId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "comic_balloon",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`comicId` INTEGER NOT NULL, `balloonId` INTEGER NOT NULL, `panelIndex` INTEGER, `type` TEXT NOT NULL, `text` TEXT NOT NULL, `centreU` REAL NOT NULL, `centreV` REAL NOT NULL, `width` REAL NOT NULL, `height` REAL NOT NULL, `tailAngleDegrees` REAL NOT NULL, `tailLength` REAL NOT NULL, `tailWidth` REAL NOT NULL, `cornerRoundness` REAL NOT NULL, `fontSize` REAL NOT NULL, `autoSize` INTEGER NOT NULL, `font` TEXT NOT NULL, `borderThickness` REAL NOT NULL, `matchPanelBorder` INTEGER NOT NULL, PRIMARY KEY(`comicId`, `balloonId`), FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "comicId",
+            "columnName": "comicId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "balloonId",
+            "columnName": "balloonId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "panelIndex",
+            "columnName": "panelIndex",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centreU",
+            "columnName": "centreU",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centreV",
+            "columnName": "centreV",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "width",
+            "columnName": "width",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "height",
+            "columnName": "height",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tailAngleDegrees",
+            "columnName": "tailAngleDegrees",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tailLength",
+            "columnName": "tailLength",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tailWidth",
+            "columnName": "tailWidth",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cornerRoundness",
+            "columnName": "cornerRoundness",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fontSize",
+            "columnName": "fontSize",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoSize",
+            "columnName": "autoSize",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "font",
+            "columnName": "font",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "borderThickness",
+            "columnName": "borderThickness",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchPanelBorder",
+            "columnName": "matchPanelBorder",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "comicId",
+            "balloonId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_comic_balloon_comicId",
+            "unique": false,
+            "columnNames": [
+              "comicId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_comic_balloon_comicId` ON `${TABLE_NAME}` (`comicId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "comic",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "comicId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '32f5dd41cfc31b54cb7e04eac1633d95')"
+    ]
+  }
+}

@@ -42,7 +42,14 @@ fun ComicWithParts.toDomain(): Comic = Comic(
     balloons = balloons.sortedBy { it.balloonId }.map { it.toDomain() },
 )
 
-fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = ComicWithParts(
+fun Comic.toParts(
+    id: Long,
+    createdAt: Long,
+    updatedAt: Long,
+    // The cover belongs to the row rather than the document, so saving a document carries
+    // whatever cover the row already had rather than clearing it.
+    coverUri: String? = null,
+): ComicWithParts = ComicWithParts(
     comic = ComicEntity(
         id = id,
         name = name,
@@ -59,6 +66,7 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
         columns = layout.grid.columns,
         rowWeights = layout.grid.rowWeights,
         columnWeights = layout.grid.columnWeights,
+        coverUri = coverUri,
     ),
     rowSplits = layout.grid.rowSplits.entries.sortedBy { it.key }.map { (row, weights) ->
         ComicRowSplitEntity(comicId = id, row = row, columnWeights = weights)

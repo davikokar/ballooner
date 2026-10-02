@@ -88,6 +88,7 @@ private class InMemoryComicRepository : ComicRepository {
     override suspend fun renameComic(id: Long, name: String) {
         comic.value = comic.value.copy(name = name)
     }
+    override suspend fun setCover(id: Long, sourceUri: String?) = Unit
     override suspend fun deleteComic(id: Long) = Unit
 }
 

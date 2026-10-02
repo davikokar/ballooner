@@ -1,19 +1,23 @@
 package com.ballooner.ui.comiclist
 
 import android.widget.Toast
-import androidx.compose.foundation.border
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -41,10 +45,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,8 +60,6 @@ import com.ballooner.ui.comic.THUMBNAIL_EDGE_PIXELS
 import com.ballooner.ui.comic.rememberPanelImageSource
 import com.ballooner.ui.comic.shareComicPng
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
 
 @Composable
 fun ComicListRoute(
@@ -71,6 +74,8 @@ fun ComicListRoute(
         onCreateComic = { viewModel.createComic(onOpenComic) },
         onDeleteComic = viewModel::deleteComic,
         onRenameComic = viewModel::renameComic,
+        onDuplicateComic = viewModel::duplicateComic,
+        onCover = viewModel::setCover,
         onOpenSettings = onOpenSettings,
     )
 }
@@ -83,21 +88,32 @@ fun ComicListScreen(
     onCreateComic: () -> Unit,
     onDeleteComic: (Long) -> Unit,
     onRenameComic: (Long, String) -> Unit,
+    onDuplicateComic: (SavedComic) -> Unit,
+    onCover: (Long, String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<SavedComic?>(null) }
     var renaming by remember { mutableStateOf<Pair<Long, String>?>(null) }
     // Rendering a comic at full size takes a noticeable moment, so the comic says it is working.
     var sharing by remember { mutableStateOf<Long?>(null) }
+    // Which comic the picker was opened for, so its result knows where to land.
+    var coveringFor by remember { mutableStateOf<Long?>(null) }
 
     val comics = (state as? ComicListUiState.Content)?.comics.orEmpty()
     // One source for the whole list, so two comics sharing an image decode it once between them.
     val images = rememberPanelImageSource(
         sourceUris = comics.flatMapTo(mutableSetOf()) { saved ->
-            saved.comic.panels.mapNotNull { it.image?.sourceUri }
+            saved.comic.panels.mapNotNull { it.image?.sourceUri } + listOfNotNull(saved.coverUri)
         },
         maxEdge = THUMBNAIL_EDGE_PIXELS,
     )
+
+    val pickContract = remember { ActivityResultContracts.PickVisualMedia() }
+    val coverPicker = rememberLauncherForActivityResult(pickContract) { picked ->
+        val id = coveringFor
+        coveringFor = null
+        if (picked != null && id != null) onCover(id, picked.toString())
+    }
 
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -128,17 +144,26 @@ fun ComicListScreen(
                     text = "No comics yet. Tap + to start one.",
                     modifier = Modifier.align(Alignment.Center),
                 )
-                is ComicListUiState.Content -> LazyColumn(
+                is ComicListUiState.Content -> LazyVerticalGrid(
+                    columns = GridCells.Fixed(TILES_ACROSS),
                     modifier = Modifier.fillMaxSize().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(state.comics, key = { it.id }) { saved ->
-                        ComicRow(
+                        ComicTile(
                             saved = saved,
                             images = images,
                             sharing = sharing == saved.id,
                             onOpen = { onOpenComic(saved.id) },
                             onRename = { renaming = saved.id to saved.comic.name },
+                            onDuplicate = { onDuplicateComic(saved) },
+                            onCover = {
+                                coveringFor = saved.id
+                                coverPicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                                )
+                            },
                             onShare = {
                                 sharing = saved.id
                                 scope.launch {
@@ -215,44 +240,68 @@ fun ComicListScreen(
     }
 }
 
+/**
+ * One comic as the list shows it: its picture, then what it is called and what can be done to it.
+ *
+ * The picture is the cover when one has been chosen and the comic itself otherwise, and either
+ * way it is cropped to the tile rather than letterboxed, so every tile is the same shape.
+ */
 @Composable
-private fun ComicRow(
+private fun ComicTile(
     saved: SavedComic,
     images: PanelImageSource,
     sharing: Boolean,
     onOpen: () -> Unit,
     onRename: () -> Unit,
+    onDuplicate: () -> Unit,
+    onCover: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    OutlinedCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(TILE_ASPECT)
+            .clickable(onClick = onOpen),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(MaterialTheme.colorScheme.surfaceContainer),
         ) {
-            ComicThumbnail(
-                comic = saved.comic,
-                images = images,
-                modifier = Modifier
-                    .size(THUMBNAIL_SIZE)
-                    .clip(RoundedCornerShape(6.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp)),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = saved.comic.name.ifBlank { "Untitled" },
-                    style = MaterialTheme.typography.titleMedium,
+            val cover = saved.coverUri?.let { images.bitmapFor(it) }
+            if (cover != null) {
+                Image(
+                    bitmap = cover,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
                 )
-                Text(
-                    text = "Edited ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                        .format(Date(saved.updatedAt))}",
-                    style = MaterialTheme.typography.bodySmall,
+            } else {
+                ComicThumbnail(
+                    comic = saved.comic,
+                    images = images,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = saved.comic.name.ifBlank { "Untitled" },
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
             ComicMenu(
                 sharing = sharing,
                 onRename = onRename,
+                onDuplicate = onDuplicate,
+                onCover = onCover,
                 onShare = onShare,
                 onDelete = onDelete,
             )
@@ -265,13 +314,15 @@ private fun ComicRow(
 private fun ComicMenu(
     sharing: Boolean,
     onRename: () -> Unit,
+    onDuplicate: () -> Unit,
+    onCover: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
         if (sharing) {
-            // In the button's place, so the row neither jumps nor offers a second go at it.
+            // In the button's place, so the tile neither jumps nor offers a second go at it.
             Box(modifier = Modifier.size(SHARING_SPINNER_BOX), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(modifier = Modifier.size(SHARING_SPINNER), strokeWidth = 2.dp)
             }
@@ -286,6 +337,20 @@ private fun ComicMenu(
                 onClick = {
                     open = false
                     onRename()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Edit cover") },
+                onClick = {
+                    open = false
+                    onCover()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Duplicate") },
+                onClick = {
+                    open = false
+                    onDuplicate()
                 },
             )
             DropdownMenuItem(
@@ -306,8 +371,9 @@ private fun ComicMenu(
     }
 }
 
-/** Every comic is listed at one size, whatever shape its page is. */
-private val THUMBNAIL_SIZE = 64.dp
+/** Two tiles to a row, each standing taller than it is wide, as a comic page does. */
+private const val TILES_ACROSS = 2
+private const val TILE_ASPECT = 2f / 3f
 
 /** The spinner stands exactly where the options button was, so nothing moves. */
 private val SHARING_SPINNER_BOX = 48.dp

@@ -6,6 +6,7 @@ import com.ballooner.data.AppDatabase
 import com.ballooner.data.MIGRATION_10_11
 import com.ballooner.data.MIGRATION_11_12
 import com.ballooner.data.MIGRATION_12_13
+import com.ballooner.data.MIGRATION_13_14
 import com.ballooner.data.MIGRATION_1_2
 import com.ballooner.data.MIGRATION_2_3
 import com.ballooner.data.MIGRATION_3_4
@@ -44,6 +45,7 @@ object DatabaseModule {
                 MIGRATION_10_11,
                 MIGRATION_11_12,
                 MIGRATION_12_13,
+                MIGRATION_13_14,
             )
             .build()
 

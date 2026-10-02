@@ -51,6 +51,12 @@ interface ComicDao {
     @Query("UPDATE comic SET name = :name, updatedAt = :updatedAt WHERE id = :id")
     suspend fun renameComic(id: Long, name: String, updatedAt: Long)
 
+    @Query("SELECT coverUri FROM comic WHERE id = :id")
+    suspend fun coverUri(id: Long): String?
+
+    @Query("UPDATE comic SET coverUri = :coverUri, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setCover(id: Long, coverUri: String?, updatedAt: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRowSplits(splits: List<ComicRowSplitEntity>)
 

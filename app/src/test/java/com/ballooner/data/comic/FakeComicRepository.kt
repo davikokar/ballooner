@@ -9,6 +9,7 @@ class FakeComicRepository(initial: Comic = Comic()) : ComicRepository {
 
     private val comics = MutableStateFlow(mapOf(1L to initial))
     private var nextId = 2L
+    private var covers = emptyMap<Long, String>()
 
     /** What the editor has written, so tests can check that edits are persisted. */
     val saved: StateFlow<Map<Long, Comic>> = comics
@@ -16,7 +17,7 @@ class FakeComicRepository(initial: Comic = Comic()) : ComicRepository {
     override fun observeComic(id: Long) = comics.map { it[id] }
 
     override fun observeComics() = comics.map { all ->
-        all.map { (id, comic) -> SavedComic(id = id, updatedAt = id, comic = comic) }
+        all.map { (id, comic) -> SavedComic(id = id, updatedAt = id, comic = comic, coverUri = covers[id]) }
     }
 
     override suspend fun createComic(comic: Comic): Long {
@@ -33,6 +34,10 @@ class FakeComicRepository(initial: Comic = Comic()) : ComicRepository {
     override suspend fun renameComic(id: Long, name: String) {
         val comic = comics.value[id] ?: return
         comics.value = comics.value + (id to comic.copy(name = name))
+    }
+
+    override suspend fun setCover(id: Long, sourceUri: String?) {
+        covers = if (sourceUri == null) covers - id else covers + (id to sourceUri)
     }
 
     override suspend fun deleteComic(id: Long) {

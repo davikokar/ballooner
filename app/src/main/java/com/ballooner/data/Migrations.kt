@@ -272,3 +272,13 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         )
     }
 }
+
+/**
+ * A comic can now be listed under a picture of its own rather than under a drawing of itself.
+ * Null, which every existing comic migrates with, means show the comic.
+ */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `comic` ADD COLUMN `coverUri` TEXT")
+    }
+}

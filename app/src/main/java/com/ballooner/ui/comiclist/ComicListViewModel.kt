@@ -3,6 +3,8 @@ package com.ballooner.ui.comiclist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ballooner.data.comic.ComicRepository
+import com.ballooner.data.comic.ImportedImage
+import com.ballooner.data.comic.PanelImageImporter
 import com.ballooner.data.comic.SavedComic
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PageSizing
@@ -24,7 +26,14 @@ sealed interface ComicListUiState {
 @HiltViewModel
 class ComicListViewModel @Inject constructor(
     private val repository: ComicRepository,
+    private val imageImporter: PanelImageImporter,
 ) : ViewModel() {
+
+    /**
+     * Used by tests, whose uris are already local, so importing them is a no-op.
+     */
+    constructor(repository: ComicRepository) :
+        this(repository, PanelImageImporter { ImportedImage(it, null) })
 
     val uiState: StateFlow<ComicListUiState> = repository.observeComics()
         .map { comics -> if (comics.isEmpty()) ComicListUiState.Empty else ComicListUiState.Content(comics) }
@@ -53,5 +62,27 @@ class ComicListViewModel @Inject constructor(
 
     fun renameComic(id: Long, name: String) {
         viewModelScope.launch { repository.renameComic(id, name) }
+    }
+
+    /**
+     * Copies a comic, cover and all.
+     *
+     * The copy points at the same image files as the original: a panel image is a reference to a
+     * picture the app already holds, so copying the document copies what it refers to.
+     */
+    fun duplicateComic(saved: SavedComic) {
+        viewModelScope.launch {
+            val copy = saved.comic.copy(name = "${saved.comic.name.ifBlank { "Untitled" }} copy")
+            val id = repository.createComic(copy)
+            saved.coverUri?.let { repository.setCover(id, it) }
+        }
+    }
+
+    /** A picked image is only borrowed, so a copy of it is taken before it becomes the cover. */
+    fun setCover(id: Long, sourceUri: String) {
+        viewModelScope.launch {
+            val imported = imageImporter.import(sourceUri) ?: return@launch
+            repository.setCover(id, imported.uri)
+        }
     }
 }

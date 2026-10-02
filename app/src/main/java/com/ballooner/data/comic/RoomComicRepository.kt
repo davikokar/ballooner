@@ -14,7 +14,14 @@ class RoomComicRepository @Inject constructor(
 
     override fun observeComics(): Flow<List<SavedComic>> =
         dao.observeComics().map { comics ->
-            comics.map { SavedComic(id = it.comic.id, updatedAt = it.comic.updatedAt, comic = it.toDomain()) }
+            comics.map {
+                SavedComic(
+                    id = it.comic.id,
+                    updatedAt = it.comic.updatedAt,
+                    comic = it.toDomain(),
+                    coverUri = it.comic.coverUri,
+                )
+            }
         }
 
     override suspend fun createComic(comic: Comic): Long {
@@ -26,8 +33,19 @@ class RoomComicRepository @Inject constructor(
 
     override suspend fun saveComic(id: Long, comic: Comic) {
         val createdAt = dao.createdAt(id) ?: return
-        dao.saveComic(comic.toParts(id = id, createdAt = createdAt, updatedAt = System.currentTimeMillis()))
+        dao.saveComic(
+            comic.toParts(
+                id = id,
+                createdAt = createdAt,
+                updatedAt = System.currentTimeMillis(),
+                // The document says nothing about the cover, so the row keeps the one it has.
+                coverUri = dao.coverUri(id),
+            ),
+        )
     }
+
+    override suspend fun setCover(id: Long, sourceUri: String?) =
+        dao.setCover(id, sourceUri, System.currentTimeMillis())
 
     override suspend fun renameComic(id: Long, name: String) =
         dao.renameComic(id, name, System.currentTimeMillis())
