@@ -77,7 +77,9 @@ private fun Cut.applyTo(panels: List<Polygon>, pageHeight: Float, inset: Float):
 }
 
 private fun Grid.rectOf(span: Span, content: PageRect, gutter: Float): PageRect {
-    val columnTracks = gridTracks(columnWeights, content.left, content.width, gutter)
+    // A span covering more than one row only exists where those rows agree, so its own first row
+    // speaks for all of them.
+    val columnTracks = gridTracks(columnWeightsAt(span.firstRow), content.left, content.width, gutter)
     val rowTracks = gridTracks(rowWeights, content.top, content.height, gutter)
     val left = columnTracks[span.firstColumn].start
     val right = columnTracks[span.lastColumn].end

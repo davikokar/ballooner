@@ -250,3 +250,25 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         db.execSQL("ALTER TABLE `comic_panel` ADD COLUMN `cornerRadius` REAL")
     }
 }
+
+/**
+ * A row can now divide its own width (ADR-0010). A row that follows the grid is not stored, so
+ * every existing comic migrates with no rows of its own and is unchanged.
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_row_split` (" +
+                "`comicId` INTEGER NOT NULL, " +
+                "`row` INTEGER NOT NULL, " +
+                "`columnWeights` TEXT NOT NULL, " +
+                "PRIMARY KEY(`comicId`, `row`), " +
+                "FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_comic_row_split_comicId` " +
+                "ON `comic_row_split` (`comicId`)",
+        )
+    }
+}

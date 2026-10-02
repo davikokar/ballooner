@@ -8,18 +8,20 @@ import com.ballooner.data.comic.ComicCutEntity
 import com.ballooner.data.comic.ComicDao
 import com.ballooner.data.comic.ComicEntity
 import com.ballooner.data.comic.ComicPanelEntity
+import com.ballooner.data.comic.ComicRowSplitEntity
 import com.ballooner.data.comic.ComicSpanEntity
 import com.ballooner.data.comic.FloatListConverter
 
 @Database(
     entities = [
         ComicEntity::class,
+        ComicRowSplitEntity::class,
         ComicSpanEntity::class,
         ComicCutEntity::class,
         ComicPanelEntity::class,
         ComicBalloonEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 @TypeConverters(FloatListConverter::class)

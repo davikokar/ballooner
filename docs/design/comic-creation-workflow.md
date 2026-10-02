@@ -129,10 +129,17 @@ to express the same thing.
 In any grid the user can:
 
 - **Resize** — drag a grid line to change row or column proportions.
+- **Free a row** — a comics page is really a stack of tiers, and tiers rarely agree where their
+  panels begin and end. Each row carries a lock: unlocked, that row divides its own width and its
+  vertical gutters move independently of the rest of the grid; locked, it follows the grid's own
+  division along with every other locked row. Freeing a row changes nothing until it is dragged.
+  Only rows can be freed, never columns — see
+  [ADR-0010](../architecture/decisions/0010-a-page-is-a-stack-of-tiers.md).
 - **Merge** — tap panels to select two or more adjacent ones, then combine them into a single
   panel. Merging works horizontally and vertically, so a 3×3 grid can hold a wide panel spanning
   the top row, a tall panel spanning two rows of the left column, and so on. The selection must
-  form a rectangle; an L-shaped merge is refused.
+  form a rectangle; an L-shaped merge is refused, and so is one spanning a freed row, which no
+  longer agrees with its neighbours about where the merged panel's sides would be.
 - **Unmerge** — split a merged panel back into the cells it covers.
 
 **Cuts** are straight lines the user traces over the page, and the regions they separate become
@@ -315,7 +322,7 @@ Comic
     balloons: List<Balloon>               // z-order is list order
 
 Layout
-    grid: Grid(rows, columns, rowWeights, columnWeights, spans)
+    grid: Grid(rows, columns, rowWeights, columnWeights, rowSplits, spans)
     cuts: List<Cut>                       // applied in order, after the grid
 
 Span(firstRow, firstColumn, rowCount, columnCount)   // a merged panel; an unmerged cell is 1x1

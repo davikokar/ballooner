@@ -3,6 +3,7 @@ package com.ballooner.ui.comiceditor
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.GridAxis
+import com.ballooner.domain.comic.GridLine
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.PanelStyle
@@ -24,8 +25,9 @@ interface ComicEditorActions {
     fun setStyle(style: ComicStyle)
     fun setPanelStyle(index: Int, style: PanelStyle)
     fun startBoundaryDrag()
-    fun moveBoundary(axis: GridAxis, index: Int, delta: Float)
+    fun moveBoundary(line: GridLine, delta: Float)
     fun endBoundaryDrag()
+    fun setRowFree(row: Int, free: Boolean)
     fun moveCutEnd(index: Int, start: Boolean, to: NormalizedPoint)
     fun endCutDrag(index: Int)
     fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope)
@@ -81,9 +83,10 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun setPanelStyle(index: Int, style: PanelStyle) =
         this@asActions.setPanelStyle(index, style)
     override fun startBoundaryDrag() = this@asActions.startBoundaryDrag()
-    override fun moveBoundary(axis: GridAxis, index: Int, delta: Float) =
-        this@asActions.moveBoundary(axis, index, delta)
+    override fun moveBoundary(line: GridLine, delta: Float) =
+        this@asActions.moveBoundary(line, delta)
     override fun endBoundaryDrag() = this@asActions.endBoundaryDrag()
+    override fun setRowFree(row: Int, free: Boolean) = this@asActions.setRowFree(row, free)
     override fun moveCutEnd(index: Int, start: Boolean, to: NormalizedPoint) =
         this@asActions.moveCutEnd(index, start, to)
     override fun endCutDrag(index: Int) = this@asActions.endCutDrag(index)

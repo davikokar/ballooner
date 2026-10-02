@@ -31,6 +31,9 @@ fun ComicWithParts.toDomain(): Comic = Comic(
             columns = comic.columns,
             rowWeights = comic.rowWeights.ifEmpty { List(comic.rows) { 1f } },
             columnWeights = comic.columnWeights.ifEmpty { List(comic.columns) { 1f } },
+            rowSplits = rowSplits
+                .filter { it.row in 0 until comic.rows && it.columnWeights.isNotEmpty() }
+                .associate { it.row to it.columnWeights },
             spans = spans.sortedBy { it.position }.map { it.toDomain() },
         ),
         cuts = cuts.sortedBy { it.position }.map { it.toDomain() },
@@ -57,6 +60,9 @@ fun Comic.toParts(id: Long, createdAt: Long, updatedAt: Long): ComicWithParts = 
         rowWeights = layout.grid.rowWeights,
         columnWeights = layout.grid.columnWeights,
     ),
+    rowSplits = layout.grid.rowSplits.entries.sortedBy { it.key }.map { (row, weights) ->
+        ComicRowSplitEntity(comicId = id, row = row, columnWeights = weights)
+    },
     spans = layout.grid.spans.mapIndexed { position, span ->
         ComicSpanEntity(
             comicId = id,

@@ -25,6 +25,29 @@ data class ComicEntity(
     val columnWeights: List<Float>,
 )
 
+/**
+ * The column weights of one row that divides its own width. Rows that follow the grid's own
+ * division are not stored; they are implied. See ADR-0010.
+ */
+@Entity(
+    tableName = "comic_row_split",
+    primaryKeys = ["comicId", "row"],
+    foreignKeys = [
+        ForeignKey(
+            entity = ComicEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["comicId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("comicId")],
+)
+data class ComicRowSplitEntity(
+    val comicId: Long,
+    val row: Int,
+    val columnWeights: List<Float>,
+)
+
 /** One merged panel of the grid. Unmerged cells are not stored; they are implied. */
 @Entity(
     tableName = "comic_span",

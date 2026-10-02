@@ -27,3 +27,4 @@ for the required format and status rules.
 | [ADR-0007](decisions/0007-the-comic-editor-is-a-three-step-workflow.md) | The comic editor is a three-step workflow over one document | Active | 2026-09-26 |
 | [ADR-0008](decisions/0008-a-layout-is-a-grid-plus-ordered-cuts.md) | A layout is a grid with merged spans plus an ordered list of cuts | Active | 2026-09-26 |
 | [ADR-0009](decisions/0009-the-page-takes-its-height-from-a-reference-panel.md) | The page takes its height from a reference panel | Active | 2026-09-28 |
+| [ADR-0010](decisions/0010-a-page-is-a-stack-of-tiers.md) | A page is a stack of tiers, and a row may divide its own width | Active | 2026-10-02 |

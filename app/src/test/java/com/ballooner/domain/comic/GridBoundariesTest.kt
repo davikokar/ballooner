@@ -1,6 +1,8 @@
 package com.ballooner.domain.comic
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -19,11 +21,18 @@ class GridBoundariesTest {
 
         val columns = boundaries.filter { it.axis == GridAxis.COLUMN }
         val rows = boundaries.filter { it.axis == GridAxis.ROW }
-        assertEquals(listOf(1, 2), columns.map { it.index })
+        // A column line belongs to a row, so a grid two rows deep lists each of them twice.
+        assertEquals(listOf(0, 0, 1, 1), columns.map { it.line.row })
+        assertEquals(listOf(1, 2, 1, 2), columns.map { it.index })
         assertEquals(1f / 3f, columns[0].position, TOLERANCE)
         assertEquals(2f / 3f, columns[1].position, TOLERANCE)
         assertEquals(listOf(1), rows.map { it.index })
         assertEquals(0.5f, rows[0].position, TOLERANCE)
+        // Each column line runs only across its own row's band.
+        assertEquals(0f, columns[0].from, TOLERANCE)
+        assertEquals(0.5f, columns[0].to, TOLERANCE)
+        assertEquals(0.5f, columns[2].from, TOLERANCE)
+        assertEquals(1f, columns[2].to, TOLERANCE)
     }
 
     @Test
@@ -39,7 +48,7 @@ class GridBoundariesTest {
     fun `dragging a column line takes weight from one side and gives it to the other`() {
         val grid = Grid(rows = 1, columns = 2)
 
-        val moved = grid.withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.25f)
+        val moved = grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 0.25f)
 
         assertEquals(listOf(1.5f, 0.5f), moved.columnWeights)
         assertEquals(2f, moved.columnWeights.sum(), TOLERANCE)
@@ -49,7 +58,7 @@ class GridBoundariesTest {
     fun `dragging a row line leaves the columns alone`() {
         val grid = Grid(rows = 2, columns = 2)
 
-        val moved = grid.withBoundaryMoved(GridAxis.ROW, index = 1, delta = -0.25f)
+        val moved = grid.withBoundaryMoved(GridLine(GridAxis.ROW, 1), delta = -0.25f)
 
         assertEquals(listOf(0.5f, 1.5f), moved.rowWeights)
         assertEquals(listOf(1f, 1f), moved.columnWeights)
@@ -59,7 +68,7 @@ class GridBoundariesTest {
     fun `dragging the middle line of three columns leaves the third alone`() {
         val grid = Grid(rows = 1, columns = 3)
 
-        val moved = grid.withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.1f)
+        val moved = grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 0.1f)
 
         assertEquals(1f, moved.columnWeights[2], TOLERANCE)
         assertEquals(3f, moved.columnWeights.sum(), TOLERANCE)
@@ -69,7 +78,7 @@ class GridBoundariesTest {
     fun `a cell cannot be squeezed away entirely`() {
         val grid = Grid(rows = 1, columns = 2)
 
-        val moved = grid.withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 10f)
+        val moved = grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 10f)
 
         assertTrue("the shrunk cell keeps some width", moved.columnWeights[1] > 0f)
         assertEquals(2f, moved.columnWeights.sum(), TOLERANCE)
@@ -79,15 +88,15 @@ class GridBoundariesTest {
     fun `an edge is not a grid line`() {
         val grid = Grid(rows = 1, columns = 2)
 
-        assertEquals(grid, grid.withBoundaryMoved(GridAxis.COLUMN, index = 0, delta = 0.1f))
-        assertEquals(grid, grid.withBoundaryMoved(GridAxis.COLUMN, index = 2, delta = 0.1f))
+        assertEquals(grid, grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 0), delta = 0.1f))
+        assertEquals(grid, grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 2), delta = 0.1f))
     }
 
     @Test
     fun `a nonsense drag changes nothing`() {
         val grid = Grid(rows = 1, columns = 2)
 
-        assertEquals(grid, grid.withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = Float.NaN))
+        assertEquals(grid, grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = Float.NaN))
     }
 
     @Test
@@ -99,7 +108,7 @@ class GridBoundariesTest {
             panels = List(4) { Panel() },
         )
 
-        val moved = comic.withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.1f)
+        val moved = comic.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 0.1f)
 
         assertEquals(comic.pageHeight, moved.pageHeight, TOLERANCE)
         val before = comic.panelShapes().map { it.bounds.width }
@@ -119,7 +128,7 @@ class GridBoundariesTest {
             panels = List(3) { Panel(PanelImage("image", sourceAspect = 2f)) },
         )
 
-        val moved = comic.withBoundaryMoved(GridAxis.COLUMN, index = 2, delta = 0.1f)
+        val moved = comic.withBoundaryMoved(GridLine(GridAxis.COLUMN, 2), delta = 0.1f)
 
         assertEquals(PageSizing.FromImage, moved.sizing)
         assertEquals(comic.pageHeight, moved.pageHeight, TOLERANCE)
@@ -135,8 +144,8 @@ class GridBoundariesTest {
         )
 
         val moved = comic
-            .withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.15f)
-            .withBoundaryMoved(GridAxis.ROW, index = 1, delta = -0.1f)
+            .withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 0.15f)
+            .withBoundaryMoved(GridLine(GridAxis.ROW, 1), delta = -0.1f)
 
         // A grid line runs the whole way across, so the two cells of a row keep one top and one
         // height, and the two cells of a column keep one left and one width. Nothing can collide.
@@ -150,20 +159,105 @@ class GridBoundariesTest {
     }
 
     @Test
-    fun `evening the weights gives every cell the same share again`() {
+    fun `freeing a row copies the division it already has`() {
+        val grid = Grid(rows = 2, columns = 2)
+            .withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 0.2f)
+
+        val freed = grid.withRowFreed(1)
+
+        assertTrue("the row is free", freed.isRowFree(1))
+        assertEquals(grid.columnWeights, freed.columnWeightsAt(1))
+    }
+
+    @Test
+    fun `a freed row is divided on its own and leaves the rest of the grid alone`() {
+        val grid = Grid(rows = 2, columns = 2).withRowFreed(1)
+
+        val moved = grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1, row = 1), delta = 0.25f)
+
+        assertEquals(listOf(1.5f, 0.5f), moved.columnWeightsAt(1))
+        assertEquals(listOf(1f, 1f), moved.columnWeightsAt(0))
+        assertEquals(listOf(1f, 1f), moved.columnWeights)
+    }
+
+    @Test
+    fun `a row that follows the grid moves every other row that follows it`() {
+        val grid = Grid(rows = 3, columns = 2).withRowFreed(2)
+
+        val moved = grid.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1, row = 1), delta = 0.25f)
+
+        assertEquals(listOf(1.5f, 0.5f), moved.columnWeightsAt(0))
+        assertEquals(listOf(1.5f, 0.5f), moved.columnWeightsAt(1))
+        assertEquals(listOf(1f, 1f), moved.columnWeightsAt(2))
+    }
+
+    @Test
+    fun `aligning a row puts it back on the grid`() {
+        val grid = Grid(rows = 2, columns = 2)
+            .withRowFreed(1)
+            .withBoundaryMoved(GridLine(GridAxis.COLUMN, 1, row = 1), delta = 0.25f)
+
+        val aligned = grid.withRowAligned(1)
+
+        assertFalse("the row follows the grid again", aligned.isRowFree(1))
+        assertEquals(listOf(1f, 1f), aligned.columnWeightsAt(1))
+    }
+
+    @Test
+    fun `a row cannot be freed while a merged panel crosses it`() {
+        val grid = Grid(rows = 2, columns = 2, spans = listOf(Span(0, 0, rowCount = 2)))
+
+        assertEquals(grid, grid.withRowFreed(0))
+        assertEquals(grid, grid.withRowFreed(1))
+    }
+
+    @Test
+    fun `a merge spanning rows is refused once one of them is free`() {
+        val grid = Grid(rows = 2, columns = 2).withRowFreed(1)
+
+        val acrossRows = grid.mergedFrom(listOf(Span(0, 0), Span(1, 0)))
+        val withinARow = grid.mergedFrom(listOf(Span(1, 0), Span(1, 1)))
+
+        assertNull("a vertical merge has no rectangle to cover", acrossRows)
+        assertTrue("a merge inside one row is still fine", withinARow != null)
+    }
+
+    @Test
+    fun `a free row divides only its own panels`() {
+        val comic = Comic(
+            sizing = PageSizing.Ratio(SQUARE_RATIO),
+            style = noStyle,
+            layout = Layout(Grid(rows = 2, columns = 2).withRowFreed(1)),
+            panels = List(4) { Panel() },
+        )
+
+        val moved = comic.withBoundaryMoved(GridLine(GridAxis.COLUMN, 1, row = 1), delta = 0.2f)
+
+        val before = comic.panelShapes().map { it.bounds.width }
+        val after = moved.panelShapes().map { it.bounds.width }
+        assertEquals(before[0], after[0], TOLERANCE)
+        assertEquals(before[1], after[1], TOLERANCE)
+        assertTrue("the freed row's first panel widens", after[2] > before[2])
+        assertTrue("its second panel narrows", after[3] < before[3])
+    }
+
+    @Test
+    fun `evening the weights puts every row back on the grid`() {
         val dragged = Grid(rows = 2, columns = 3)
-            .withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.2f)
-            .withBoundaryMoved(GridAxis.ROW, index = 1, delta = -0.2f)
+            .withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 0.2f)
+            .withBoundaryMoved(GridLine(GridAxis.ROW, 1), delta = -0.2f)
+            .withRowFreed(1)
 
         val evened = dragged.withEvenWeights()
 
         assertEquals(listOf(1f, 1f), evened.rowWeights)
         assertEquals(listOf(1f, 1f, 1f), evened.columnWeights)
+        assertEquals(emptyMap<Int, List<Float>>(), evened.rowSplits)
     }
 
     @Test
     fun `moving a line moves the panels it separates`() {
-        val grid = Grid(rows = 1, columns = 2).withBoundaryMoved(GridAxis.COLUMN, index = 1, delta = 0.25f)
+        val grid = Grid(rows = 1, columns = 2).withBoundaryMoved(GridLine(GridAxis.COLUMN, 1), delta = 0.25f)
 
         val shapes = panelShapes(Layout(grid), 1f, noStyle)
 

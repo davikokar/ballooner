@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.ballooner.data.AppDatabase
 import com.ballooner.data.MIGRATION_10_11
 import com.ballooner.data.MIGRATION_11_12
+import com.ballooner.data.MIGRATION_12_13
 import com.ballooner.data.MIGRATION_6_7
 import com.ballooner.data.MIGRATION_7_8
 import com.ballooner.data.MIGRATION_8_9
@@ -22,6 +23,7 @@ import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.Span
+import com.ballooner.domain.comic.columnWeightsAt
 import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.model.BalloonType
 import kotlinx.coroutines.flow.first
@@ -68,6 +70,7 @@ class ComicDatabaseTest {
                 MIGRATION_9_10,
                 MIGRATION_10_11,
                 MIGRATION_11_12,
+                MIGRATION_12_13,
             )
             .build()
         repository = RoomComicRepository(database.comicDao())
@@ -177,6 +180,20 @@ class ComicDatabaseTest {
         )
 
         assertEquals(weights, repository.observeComic(id).first()?.layout?.grid?.columnWeights)
+    }
+
+    @Test
+    fun `a row that divides its own width keeps it across a reload`() = runTest {
+        openDatabase()
+        val splits = mapOf(1 to listOf(3f, 1f))
+
+        val id = repository.createComic(
+            Comic(layout = Layout(Grid(rows = 2, columns = 2, rowSplits = splits))),
+        )
+
+        val restored = repository.observeComic(id).first()!!.layout.grid
+        assertEquals(splits, restored.rowSplits)
+        assertEquals(listOf(1f, 1f), restored.columnWeightsAt(0))
     }
 
     @Test

@@ -223,6 +223,7 @@ fun ComicEditorScreen(
                                 end = actions::endBoundaryDrag,
                             )
                         },
+                        onRowFree = actions::setRowFree,
                         expanded = state.expandedPreview,
                         onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,

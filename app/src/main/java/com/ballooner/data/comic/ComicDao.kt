@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 data class ComicWithParts(
     @Embedded val comic: ComicEntity,
     @Relation(parentColumn = "id", entityColumn = "comicId")
+    val rowSplits: List<ComicRowSplitEntity>,
+    @Relation(parentColumn = "id", entityColumn = "comicId")
     val spans: List<ComicSpanEntity>,
     @Relation(parentColumn = "id", entityColumn = "comicId")
     val cuts: List<ComicCutEntity>,
@@ -49,6 +51,9 @@ interface ComicDao {
     suspend fun renameComic(id: Long, name: String, updatedAt: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRowSplits(splits: List<ComicRowSplitEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSpans(spans: List<ComicSpanEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -59,6 +64,9 @@ interface ComicDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBalloons(balloons: List<ComicBalloonEntity>)
+
+    @Query("DELETE FROM comic_row_split WHERE comicId = :comicId")
+    suspend fun deleteRowSplits(comicId: Long)
 
     @Query("DELETE FROM comic_span WHERE comicId = :comicId")
     suspend fun deleteSpans(comicId: Long)
@@ -79,10 +87,12 @@ interface ComicDao {
     @Transaction
     suspend fun saveComic(parts: ComicWithParts) {
         updateComic(parts.comic)
+        deleteRowSplits(parts.comic.id)
         deleteSpans(parts.comic.id)
         deleteCuts(parts.comic.id)
         deletePanels(parts.comic.id)
         deleteBalloons(parts.comic.id)
+        insertRowSplits(parts.rowSplits)
         insertSpans(parts.spans)
         insertCuts(parts.cuts)
         insertPanels(parts.panels)

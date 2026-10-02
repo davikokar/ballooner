@@ -105,7 +105,7 @@ internal fun LayoutStepOverlay(
                             } else {
                                 0f
                             }
-                            actions.moveBoundary(line.axis, line.index, delta)
+                            actions.moveBoundary(line.line, delta)
                         } else if (tracing != null) {
                             tracing = dragOrigin to current
                         }
@@ -144,14 +144,17 @@ internal fun LayoutStepOverlay(
 
 private fun DrawScope.drawBoundary(boundary: GridBoundary, viewport: PageViewport, comic: Comic) {
     val dashes = PathEffect.dashPathEffect(floatArrayOf(12f, 12f))
-    val pageHeight = comic.pageHeight
-    val (start, end) = if (boundary.axis == GridAxis.COLUMN) {
-        viewport.toScreen(boundary.position, 0f) to viewport.toScreen(boundary.position, pageHeight)
-    } else {
-        viewport.toScreen(0f, boundary.position) to viewport.toScreen(1f, boundary.position)
-    }
+    val (start, end) = boundary.endsOnScreen(viewport)
     drawLine(color = BoundaryColour, start = start, end = end, strokeWidth = 2f, pathEffect = dashes)
 }
+
+/** Where a line begins and ends on screen, which for a column line is its own row's band. */
+internal fun GridBoundary.endsOnScreen(viewport: PageViewport): Pair<Offset, Offset> =
+    if (axis == GridAxis.COLUMN) {
+        viewport.toScreen(position, from) to viewport.toScreen(position, to)
+    } else {
+        viewport.toScreen(from, position) to viewport.toScreen(to, position)
+    }
 
 /** The values a running layout gesture needs to keep reading as the comic changes. */
 private data class LayoutInputs(
@@ -162,25 +165,33 @@ private data class LayoutInputs(
     val content: PageRect,
 )
 
+/**
+ * The line nearest [position] within [radius], ignoring any that does not run past it: a column
+ * line belongs to one row, so touching another row must not grab it.
+ */
 internal fun List<GridBoundary>.nearestTo(
     position: Offset,
     viewport: PageViewport,
     radius: Float,
-): GridBoundary? = minByOrNull { boundary ->
-    val screen = if (boundary.axis == GridAxis.COLUMN) {
-        kotlin.math.abs(viewport.toScreen(boundary.position, 0f).x - position.x)
+): GridBoundary? = filter { it.runsPast(position, viewport) }
+    .minByOrNull { it.distanceTo(position, viewport) }
+    ?.takeIf { it.distanceTo(position, viewport) <= radius }
+
+private fun GridBoundary.runsPast(position: Offset, viewport: PageViewport): Boolean {
+    val (start, end) = endsOnScreen(viewport)
+    return if (axis == GridAxis.COLUMN) {
+        position.y in start.y..end.y
     } else {
-        kotlin.math.abs(viewport.toScreen(0f, boundary.position).y - position.y)
+        position.x in start.x..end.x
     }
-    screen
-}?.takeIf { boundary ->
-    val screen = if (boundary.axis == GridAxis.COLUMN) {
-        kotlin.math.abs(viewport.toScreen(boundary.position, 0f).x - position.x)
-    } else {
-        kotlin.math.abs(viewport.toScreen(0f, boundary.position).y - position.y)
-    }
-    screen <= radius
 }
+
+private fun GridBoundary.distanceTo(position: Offset, viewport: PageViewport): Float =
+    if (axis == GridAxis.COLUMN) {
+        kotlin.math.abs(viewport.toScreen(this.position, 0f).x - position.x)
+    } else {
+        kotlin.math.abs(viewport.toScreen(0f, this.position).y - position.y)
+    }
 
 /** Turns a traced drag into a cut, choosing its scope from the active tool. */
 private fun ComicEditorActions.traceCut(

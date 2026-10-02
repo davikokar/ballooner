@@ -14,6 +14,7 @@ import com.ballooner.domain.comic.Cut
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.GridAxis
+import com.ballooner.domain.comic.GridLine
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.LayoutChange
 import com.ballooner.domain.comic.MAX_BALLOON_BORDER
@@ -42,6 +43,8 @@ import com.ballooner.domain.comic.transformed
 import com.ballooner.domain.comic.unmergedAt
 import com.ballooner.domain.comic.withBoundaryMoved
 import com.ballooner.domain.comic.withEvenWeights
+import com.ballooner.domain.comic.withRowAligned
+import com.ballooner.domain.comic.withRowFreed
 import com.ballooner.domain.comic.withCentreOnPage
 import com.ballooner.domain.comic.withCut
 import com.ballooner.domain.comic.withCutEndMoved
@@ -482,9 +485,23 @@ class ComicEditorViewModel @Inject constructor(
     }
 
     /** [delta] is the distance dragged since the drag began, as a fraction of the content extent. */
-    fun moveBoundary(axis: GridAxis, index: Int, delta: Float) {
+    fun moveBoundary(line: GridLine, delta: Float) {
         val origin = beforeDrag ?: return
-        commit(origin.withBoundaryMoved(axis, index, delta), undoable = false)
+        commit(origin.withBoundaryMoved(line, delta), undoable = false)
+    }
+
+    /**
+     * Lets the row at [row] divide its own width, or puts it back on the grid's division.
+     *
+     * Freeing copies the division the row has now, so nothing on the page moves until a gutter
+     * in that row is dragged.
+     */
+    fun setRowFree(row: Int, free: Boolean) {
+        val content = contentOrNull() ?: return
+        val grid = content.comic.layout.grid
+        val changed = if (free) grid.withRowFreed(row) else grid.withRowAligned(row)
+        if (changed == grid) return
+        commit(content.comic.copy(layout = content.comic.layout.copy(grid = changed)))
     }
 
     fun endBoundaryDrag() = endDragAsOneUndoStep()

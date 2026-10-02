@@ -5,6 +5,7 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.GridAxis
+import com.ballooner.domain.comic.GridLine
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
@@ -101,7 +102,7 @@ class StripLayoutTest {
         advanceUntilIdle()
 
         viewModel.startBoundaryDrag()
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.2f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.2f)
         viewModel.endBoundaryDrag()
         advanceUntilIdle()
 
@@ -116,7 +117,7 @@ class StripLayoutTest {
         val viewModel = editorFor(comic(Grid(rows = 1, columns = 3)))
         advanceUntilIdle()
         viewModel.startBoundaryDrag()
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.2f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.2f)
         viewModel.endBoundaryDrag()
 
         viewModel.setSizing(PageSizing.Ratio(WIDE_RATIO))

@@ -65,8 +65,8 @@ fun pageHeightOf(
     // The reference is the top-left CELL, never whatever panel happens to be first. A merged
     // panel is made of cells, so holding a merge to the chosen shape would squash every cell it
     // did not cover; holding one cell to it keeps them all that shape and lets a merge be a
-    // multiple of it.
-    val columnFraction = grid.columnWeights.firstFraction()
+    // multiple of it. The top row may divide its own width, so the cell is read through it.
+    val columnFraction = grid.columnWeightsAt(0).firstFraction()
     val rowFraction = grid.rowWeights.firstFraction()
     if (rowFraction <= 0f) return SQUARE_RATIO
 
@@ -91,7 +91,7 @@ fun referenceRatioOf(layout: Layout, style: ComicStyle, pageHeight: Float): Floa
     val grid = layout.grid
     val gutter = style.gutter
     val available = ((1f - 2f * style.pageMargin) - gutter * (grid.columns - 1)).coerceAtLeast(0f)
-    val width = available * grid.columnWeights.firstFraction()
+    val width = available * grid.columnWeightsAt(0).firstFraction()
     val contentHeight = pageHeight - 2f * style.pageMargin
     val height = (contentHeight - gutter * (grid.rows - 1)) * grid.rowWeights.firstFraction()
     if (width <= 0f || height <= 0f) return SQUARE_RATIO

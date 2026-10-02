@@ -6,7 +6,9 @@ import kotlin.math.abs
  * Combines [selection] into a single panel.
  *
  * Returns null when the selection is not a rectangle — an L-shaped merge, a selection with a
- * hole, or fewer than two panels — so the caller can refuse it rather than guess.
+ * hole, or fewer than two panels — so the caller can refuse it rather than guess. Also null when
+ * it covers a row that divides its own width, since the rows it spans no longer agree where the
+ * merged panel's sides would be.
  */
 fun Grid.mergedFrom(selection: List<Span>): Grid? {
     if (selection.size < 2) return null
@@ -15,6 +17,7 @@ fun Grid.mergedFrom(selection: List<Span>): Grid? {
     val lastRow = selection.maxOf { it.lastRow }
     val lastColumn = selection.maxOf { it.lastColumn }
     if (firstRow < 0 || firstColumn < 0 || lastRow >= rows || lastColumn >= columns) return null
+    if (!rowsAgree(firstRow, lastRow)) return null
 
     val covered = Array(rows) { BooleanArray(columns) }
     selection.forEach { span ->

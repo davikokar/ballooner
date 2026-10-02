@@ -5,11 +5,15 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +30,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -48,6 +53,7 @@ import com.ballooner.domain.comic.gridBoundaries
 import com.ballooner.domain.comic.gridPanels
 import com.ballooner.domain.comic.gridTracks
 import com.ballooner.domain.comic.hasEvenWeights
+import com.ballooner.domain.comic.isRowFree
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.ui.comic.PageViewport
@@ -86,6 +92,7 @@ fun GridLayoutScreen(
     onMerge: () -> Unit,
     onUnmerge: () -> Unit,
     resize: PanelResize,
+    onRowFree: (row: Int, free: Boolean) -> Unit,
     expanded: Boolean,
     onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
@@ -141,6 +148,7 @@ fun GridLayoutScreen(
                     selection = selection,
                     onToggle = onToggleSelection,
                     resize = resize,
+                    onRowFree = onRowFree,
                 )
             }
         }
@@ -151,9 +159,9 @@ fun GridLayoutScreen(
  * The page as it will really be drawn, and the surface cells are chosen on.
  *
  * Images are drawn against the panels in reading order and cells are selected against the grid's
- * own spans, which is what merging works on. Dragging a gutter resizes the two rows or the two
- * columns it separates; a grid line runs the whole way across, so a drag never leaves the cells
- * either side of it out of step with the rest of their row or column.
+ * own spans, which is what merging works on. Dragging a gutter resizes the two cells either side
+ * of it: a column line in a row that follows the grid moves in every such row, and one in a row
+ * that divides its own width moves there alone. Each row carries the lock that decides which.
  */
 @Composable
 private fun GridPage(
@@ -162,6 +170,7 @@ private fun GridPage(
     selection: List<Span>,
     onToggle: (Span) -> Unit,
     resize: PanelResize,
+    onRowFree: (row: Int, free: Boolean) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val cells = remember(comic) { gridPanels(comic.layout.grid, comic.pageHeight, comic.style) }
@@ -176,10 +185,13 @@ private fun GridPage(
     // torn down on its own first step. These are read as the drag runs instead.
     val latest = rememberUpdatedState(GridPageInputs(comic.pageHeight, cells, boundaries, content))
 
-    Canvas(
-        modifier = Modifier
-            .aspectRatio(1f / comic.pageHeight)
-            .pointerInput(Unit) {
+    BoxWithConstraints(modifier = Modifier.aspectRatio(1f / comic.pageHeight)) {
+        // The page fills this box exactly, so a page unit is its width.
+        val pageScale = with(LocalDensity.current) { maxWidth.toPx() }
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     // The page fills this canvas exactly, so a page unit is its width.
                     val viewport = PageViewport(0f, 0f, size.width.toFloat())
@@ -212,7 +224,7 @@ private fun GridPage(
                         }
                         val scale = viewport().scale
                         if (scale <= 0f || extent <= 0f) return@detectDragGestures
-                        resize.move(grabbed.axis, grabbed.index, moved / scale / extent)
+                        resize.move(grabbed.line, moved / scale / extent)
                     },
                     onDragEnd = {
                         if (line != null) resize.end()
@@ -268,19 +280,99 @@ private fun GridPage(
         boundaries.forEach { boundary ->
             drawGutterGrip(
                 boundary = boundary,
-                grid = comic.layout.grid,
-                content = content,
                 gutter = comic.style.gutter,
                 viewport = viewport,
-                colour = if (boundary.sameLineAs(held)) {
+                colour = if (boundary.line == held?.line) {
                     scheme.primary
                 } else {
                     scheme.primary.copy(alpha = 0.35f)
                 },
             )
         }
+        }
+        RowLocks(comic = comic, pageScale = pageScale, onRowFree = onRowFree)
     }
 }
+
+/**
+ * The lock each row wears, which is the whole of whether that row divides its own width.
+ *
+ * It rides on the page rather than beside it, so it stays with its row however the preview is
+ * sized or turned. A row too short to hold the handle goes without one rather than have it
+ * overlap its neighbours.
+ */
+@Composable
+private fun BoxScope.RowLocks(
+    comic: Comic,
+    pageScale: Float,
+    onRowFree: (row: Int, free: Boolean) -> Unit,
+) {
+    val grid = comic.layout.grid
+    val content = remember(comic) { contentRect(comic.pageHeight, comic.style) }
+    val tracks = remember(comic) {
+        gridTracks(grid.rowWeights, content.top, content.height, comic.style.gutter)
+    }
+    val handle = with(LocalDensity.current) { HANDLE_SIZE.toPx() }
+    val inset = with(LocalDensity.current) { ROW_LOCK_INSET.toPx() }
+    tracks.forEachIndexed { row, track ->
+        if ((track.end - track.start) * pageScale < handle + inset) return@forEachIndexed
+        val free = grid.isRowFree(row)
+        // A merged panel covering more than one row has no rectangle once those rows stop
+        // agreeing, so such a row cannot be freed until the merge is undone.
+        val locked = !free && grid.spans.any { it.rowCount > 1 && row in it.firstRow..it.lastRow }
+        val x = content.left * pageScale + inset
+        val y = (track.start + track.end) / 2f * pageScale - handle / 2f
+        RoundHandle(
+            description = when {
+                locked -> "This row is part of a merged panel"
+                free -> "Put this row back on the grid"
+                else -> "Let this row size its own panels"
+            },
+            onClick = { onRowFree(row, !free) }.takeUnless { locked },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset { IntOffset(x.roundToInt(), y.roundToInt()) },
+        ) { tint ->
+            LockGlyph(open = free, tint = if (locked) tint.copy(alpha = 0.38f) else tint)
+        }
+    }
+}
+
+/**
+ * A padlock, drawn rather than found: material-icons-core has a closed lock but no open one, and
+ * the pair is the whole point.
+ */
+@Composable
+private fun LockGlyph(open: Boolean, tint: Color) {
+    Canvas(modifier = Modifier.size(LOCK_GLYPH_SIZE)) {
+        val width = size.minDimension
+        val thickness = width * 0.12f
+        val body = Size(width * 0.66f, width * 0.46f)
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset((size.width - body.width) / 2f, size.height - body.height),
+            size = body,
+            cornerRadius = CornerRadius(thickness),
+        )
+        // The shackle lifts clear on one side when open, which is the only difference between them.
+        val radius = width * 0.22f
+        val shackleX = size.width / 2f + if (open) radius else 0f
+        val shackleY = size.height - body.height - if (open) width * 0.1f else 0f
+        drawArc(
+            color = tint,
+            startAngle = 180f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(shackleX - radius, shackleY - radius),
+            size = Size(radius * 2f, radius * 2f),
+            style = Stroke(width = thickness, cap = StrokeCap.Round),
+        )
+    }
+}
+
+/** How far a row lock sits inside the page's own edge. */
+private val ROW_LOCK_INSET = 6.dp
+private val LOCK_GLYPH_SIZE = 16.dp
 
 /** The values a running gutter drag keeps reading as the grid changes under it. */
 private data class GridPageInputs(
@@ -290,39 +382,24 @@ private data class GridPageInputs(
     val content: PageRect,
 )
 
-private fun GridBoundary.sameLineAs(other: GridBoundary?): Boolean =
-    other != null && axis == other.axis && index == other.index
-
 /**
- * The grip that says a gutter can be dragged.
+ * The grip that says a gutter can be dragged, drawn at the middle of the stretch its line runs.
  *
- * It sits in the FIRST track of the other axis rather than in the middle of its line, so the
- * grips of a row line and a column line can never land on the same spot.
+ * A column line runs only across its own row, so a freed row's grips sit beside the rest rather
+ * than on top of them, and a row line's grip never lands on a column line's.
  */
 private fun DrawScope.drawGutterGrip(
     boundary: GridBoundary,
-    grid: Grid,
-    content: PageRect,
     gutter: Float,
     viewport: PageViewport,
     colour: Color,
 ) {
+    val (start, end) = boundary.endsOnScreen(viewport)
+    val centre = (start + end) / 2f
+    val run = (end - start).getDistance()
     val across = boundary.axis == GridAxis.COLUMN
-    val tracks = if (across) {
-        gridTracks(grid.rowWeights, content.top, content.height, gutter)
-    } else {
-        gridTracks(grid.columnWeights, content.left, content.width, gutter)
-    }
-    val track = tracks.firstOrNull() ?: return
-    val along = (track.start + track.end) / 2f
-    val centre = if (across) {
-        viewport.toScreen(boundary.position, along)
-    } else {
-        viewport.toScreen(along, boundary.position)
-    }
     val thickness = (gutter * viewport.scale).coerceIn(GRIP_MIN_THICKNESS, GRIP_MAX_THICKNESS)
-    val length = ((track.end - track.start) * viewport.scale * GRIP_SHARE)
-        .coerceAtMost(GRIP_MAX_LENGTH)
+    val length = (run * GRIP_SHARE).coerceAtMost(GRIP_MAX_LENGTH)
     val size = if (across) Size(thickness, length) else Size(length, thickness)
     drawRoundRect(
         color = colour,

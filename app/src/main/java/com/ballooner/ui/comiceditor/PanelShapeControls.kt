@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.GridAxis
+import com.ballooner.domain.comic.GridLine
 import com.ballooner.domain.comic.PageRect
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
@@ -219,7 +220,7 @@ internal fun PanelShapeChooser(
  */
 class PanelResize(
     val start: () -> Unit,
-    val move: (axis: GridAxis, index: Int, delta: Float) -> Unit,
+    val move: (line: GridLine, delta: Float) -> Unit,
     val end: () -> Unit,
 )
 
@@ -599,7 +600,10 @@ private fun latticeAspect(
 }
 
 /** One draggable gutter, [at] being where it sits across the lattice in pixels. */
-private data class LatticeLine(val axis: GridAxis, val index: Int, val at: Float)
+private data class LatticeLine(val axis: GridAxis, val index: Int, val at: Float) {
+    // A strip is one row or one column, so its lines are always the grid's own.
+    val line: GridLine get() = GridLine(axis, index)
+}
 
 /** What the lattice divides its space by, which is all a gutter drag needs to know. */
 private data class LatticeTracks(
@@ -666,7 +670,7 @@ private fun Modifier.gutterDrag(
                 onHold(line)
                 resize.start()
             } else {
-                resize.move(line.axis, line.index, (along - held) / extent)
+                resize.move(line.line, (along - held) / extent)
             }
             change.consume()
         }

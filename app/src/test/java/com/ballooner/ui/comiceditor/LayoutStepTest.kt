@@ -6,6 +6,7 @@ import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.GridAxis
+import com.ballooner.domain.comic.GridLine
 import com.ballooner.domain.comic.Layout
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PageSizing
@@ -54,7 +55,7 @@ class LayoutStepTest {
         advanceUntilIdle()
 
         viewModel.startBoundaryDrag()
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.25f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.25f)
         viewModel.endBoundaryDrag()
         advanceUntilIdle()
 
@@ -68,9 +69,9 @@ class LayoutStepTest {
         advanceUntilIdle()
 
         viewModel.startBoundaryDrag()
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.1f)
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.2f)
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.3f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.1f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.2f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.3f)
         viewModel.endBoundaryDrag()
         advanceUntilIdle()
         assertTrue(content(viewModel).canUndo)
@@ -88,8 +89,8 @@ class LayoutStepTest {
         advanceUntilIdle()
 
         viewModel.startBoundaryDrag()
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.1f)
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.25f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.1f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.25f)
         viewModel.endBoundaryDrag()
         advanceUntilIdle()
 
@@ -114,7 +115,7 @@ class LayoutStepTest {
         val (viewModel, _) = editorFor(comic(1, 2))
         advanceUntilIdle()
 
-        viewModel.moveBoundary(GridAxis.COLUMN, index = 1, delta = 0.25f)
+        viewModel.moveBoundary(GridLine(GridAxis.COLUMN, 1), delta = 0.25f)
         advanceUntilIdle()
 
         assertEquals(listOf(1f, 1f), content(viewModel).comic.layout.grid.columnWeights)
