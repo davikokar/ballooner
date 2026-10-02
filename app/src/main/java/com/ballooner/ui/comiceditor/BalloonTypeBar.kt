@@ -1,14 +1,17 @@
 package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -47,8 +50,13 @@ internal fun BalloonTypeBar(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            // The heading is a fixed height and its text does not fill it, so the bar is lifted
+            // into the slack underneath rather than sitting below it twice over.
+            .offset(y = -HEADING_SLACK)
+            .padding(start = 12.dp, end = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BalloonType.entries.forEach { type ->
@@ -73,7 +81,7 @@ private fun ScopeToggle(inPanel: Boolean?, onClick: () -> Unit) {
     }
     Box(
         modifier = Modifier
-            .size(BUTTON_SIZE)
+            .size(SCOPE_BUTTON_SIZE)
             .clip(RoundedCornerShape(8.dp))
             .then(if (inPanel == null) Modifier else Modifier.clickable(onClick = onClick))
             .semantics {
@@ -92,7 +100,7 @@ private fun ScopeToggle(inPanel: Boolean?, onClick: () -> Unit) {
 /** A balloon held inside a panel's frame, or loose over its corner. */
 @Composable
 private fun ScopeGlyph(inPanel: Boolean, tint: Color) {
-    Canvas(modifier = Modifier.size(GLYPH_SIZE * 0.6f)) {
+    Canvas(modifier = Modifier.size(SCOPE_GLYPH_SIZE)) {
         val thickness = size.minDimension * 0.09f
         val frame = size.minDimension * 0.78f
         drawRect(
@@ -121,7 +129,8 @@ private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(BUTTON_SIZE)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary)
             .clickable(onClick = onClick)
             .semantics { contentDescription = "Add ${type.name.lowercase()} balloon" },
         contentAlignment = Alignment.Center,
@@ -148,5 +157,14 @@ private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
 /** Down and to the left, the way a balloon hangs over whoever is speaking. */
 private const val TAIL_ANGLE = 135f
 private const val TAIL_WIDTH = 0.45f
-private val BUTTON_SIZE = 40.dp
-private val GLYPH_SIZE = 30.dp
+
+/** The balloon sits on a disc, so the button's own bounds are what the user sees. */
+private val BUTTON_SIZE = 36.dp
+private val GLYPH_SIZE = 22.dp
+
+/** The scope toggle is a different kind of control and keeps its own plain square. */
+private val SCOPE_BUTTON_SIZE = 40.dp
+private val SCOPE_GLYPH_SIZE = 18.dp
+
+/** How much room the fixed-height heading leaves under its own text. */
+private val HEADING_SLACK = 8.dp
