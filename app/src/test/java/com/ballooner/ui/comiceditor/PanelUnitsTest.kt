@@ -38,6 +38,23 @@ class PanelUnitsTest {
     }
 
     @Test
+    fun `the custom sliders open on widescreen when the comic wears a preset shape`() {
+        assertEquals(16 to 9, customUnitsFor(SQUARE_RATIO))
+        assertEquals(16 to 9, customUnitsFor(TALL_RATIO))
+        assertEquals(16 to 9, customUnitsFor(WIDE_RATIO))
+    }
+
+    @Test
+    fun `the custom sliders open on widescreen when the comic takes its shape from an image`() {
+        assertEquals(16 to 9, customUnitsFor(null))
+    }
+
+    @Test
+    fun `the custom sliders open on the shape the comic already wears when it is its own`() {
+        assertEquals(5 to 3, customUnitsFor(5f / 3f))
+    }
+
+    @Test
     fun `a ratio no pair can reach lands on the closest one`() {
         val (width, height) = unitsFor(0.4321f)
 

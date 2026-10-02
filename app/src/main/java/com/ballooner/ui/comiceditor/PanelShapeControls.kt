@@ -108,8 +108,8 @@ internal fun PanelShapeChooser(
     // Custom cannot be read back off the ratio alone, because a custom ratio is free to land
     // exactly on a preset and must still keep its sliders open.
     var custom by rememberSaveable { mutableStateOf(false) }
-    var width by rememberSaveable { mutableIntStateOf(unitsFor(ratio ?: SQUARE_RATIO).first) }
-    var height by rememberSaveable { mutableIntStateOf(unitsFor(ratio ?: SQUARE_RATIO).second) }
+    var width by rememberSaveable { mutableIntStateOf(customUnitsFor(ratio).first) }
+    var height by rememberSaveable { mutableIntStateOf(customUnitsFor(ratio).second) }
 
     // Only consulted while some other tile is chosen; whenever the comic is one of the two, the
     // comic decides which way round the tile is showing.
@@ -1064,6 +1064,19 @@ internal fun FloatingAction(label: String, onClick: () -> Unit, modifier: Modifi
         Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
+
+/**
+ * The sides the Custom sliders open on: the shape the comic is already wearing when that shape is
+ * one of its own, and [DEFAULT_CUSTOM_UNITS] when it is a preset or an Auto shape, which say
+ * nothing about what a custom one should be.
+ */
+internal fun customUnitsFor(ratio: Float?): Pair<Int, Int> = when (ratio) {
+    null, SQUARE_RATIO, TALL_RATIO, WIDE_RATIO -> DEFAULT_CUSTOM_UNITS
+    else -> unitsFor(ratio)
+}
+
+/** Widescreen, the shape a custom panel starts from. */
+internal val DEFAULT_CUSTOM_UNITS = 16 to 9
 
 /**
  * The whole-unit pair closest to [ratio], so reopening the sliders shows the sides that made the
