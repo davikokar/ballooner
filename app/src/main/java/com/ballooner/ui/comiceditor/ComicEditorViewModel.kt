@@ -3,9 +3,11 @@ package com.ballooner.ui.comiceditor
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ballooner.data.comic.ComicNamer
 import com.ballooner.data.comic.ComicRepository
 import com.ballooner.data.comic.ImportedImage
 import com.ballooner.data.comic.PanelImageImporter
+import com.ballooner.data.comic.TestComicNamer
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.BalloonScope
 import com.ballooner.domain.comic.Comic
@@ -75,6 +77,7 @@ class ComicEditorViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: ComicRepository,
     private val imageImporter: PanelImageImporter,
+    private val namer: ComicNamer,
 ) : ViewModel() {
 
     /**
@@ -82,7 +85,12 @@ class ComicEditorViewModel @Inject constructor(
      * uris are already local, so importing them is a no-op.
      */
     constructor(comicId: Long, repository: ComicRepository) :
-        this(SavedStateHandle(mapOf(COMIC_ID_KEY to comicId)), repository, PanelImageImporter { ImportedImage(it, null) })
+        this(
+            SavedStateHandle(mapOf(COMIC_ID_KEY to comicId)),
+            repository,
+            PanelImageImporter { ImportedImage(it, null) },
+            TestComicNamer,
+        )
 
     // Not a val: a comic that has never been saved has no row yet, and takes its id from the
     // first save. See ADR-0011.
@@ -126,7 +134,7 @@ class ComicEditorViewModel @Inject constructor(
     }
 
     private suspend fun defaultName(): String =
-        "My Comic ${repository.observeComics().first().size + 1}"
+        namer.defaultName(repository.observeComics().first().size)
 
     /**
      * Writes the comic, creating its row if this is the first time it has been saved.

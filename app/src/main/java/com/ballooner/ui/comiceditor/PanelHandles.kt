@@ -1,5 +1,6 @@
 package com.ballooner.ui.comiceditor
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,10 +26,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.Polygon
 import com.ballooner.domain.comic.panelHandleAnchors
@@ -37,13 +40,13 @@ import com.ballooner.ui.theme.InkBlack
 import kotlin.math.roundToInt
 
 /** What a panel handle offers. Each kind carries its own glyph and its name. */
-internal enum class PanelHandleKind(val description: String) {
-    ADD_IMAGE("Add image"),
-    EXPAND("Expand panel"),
-    COLLAPSE("Show the whole page"),
-    REMOVE_IMAGE("Remove image"),
-    PREVIOUS_PANEL("Previous panel"),
-    NEXT_PANEL("Next panel"),
+internal enum class PanelHandleKind(@StringRes val description: Int) {
+    ADD_IMAGE(R.string.add_image),
+    EXPAND(R.string.expand_panel),
+    COLLAPSE(R.string.show_whole_page),
+    REMOVE_IMAGE(R.string.remove_image),
+    PREVIOUS_PANEL(R.string.previous_panel),
+    NEXT_PANEL(R.string.next_panel),
 }
 
 /** One handle to put on the selected panel. */
@@ -130,7 +133,7 @@ internal fun PanelHandles(
 @Composable
 private fun HandleButton(handle: PanelHandle, centre: Offset) {
     RoundHandle(
-        description = handle.kind.description,
+        description = stringResource(handle.kind.description),
         modifier = Modifier.offset {
             val half = HANDLE_SIZE.toPx() / 2f
             IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())

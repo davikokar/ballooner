@@ -30,12 +30,14 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import com.ballooner.R
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.Polygon
@@ -220,6 +222,7 @@ internal fun PlacementStepOverlay(
 /** Says that a panel's image is on its way, while it is copied in and decoded. */
 @Composable
 private fun PanelProgress(centre: Offset) {
+    val label = stringResource(R.string.loading_image)
     CircularProgressIndicator(
         modifier = Modifier
             .offset {
@@ -227,7 +230,7 @@ private fun PanelProgress(centre: Offset) {
                 IntOffset((centre.x - half).roundToInt(), (centre.y - half).roundToInt())
             }
             .size(PROGRESS_SIZE)
-            .semantics { contentDescription = "Loading image" },
+            .semantics { contentDescription = label },
         color = MaterialTheme.colorScheme.primary,
         trackColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         strokeWidth = 4.dp,

@@ -26,10 +26,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import com.ballooner.R
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.NormalizedPoint
@@ -76,14 +78,20 @@ fun CustomLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (!expanded) LayoutOptionBreadcrumb(current = "CUSTOM", onBack = onBack, onOptions = onOptions)
+        if (!expanded) {
+            LayoutOptionBreadcrumb(
+                current = stringResource(R.string.preset_custom).uppercase(),
+                onBack = onBack,
+                onOptions = onOptions,
+            )
+        }
         PreviewSurface(
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             hint = if (comic.layout.cuts.isEmpty()) {
-                "Drag across a panel to cut it"
+                stringResource(R.string.custom_cut_hint)
             } else {
                 // Any longer and it wraps under the Panel options button beside it.
-                "Drag both handles off to remove it"
+                stringResource(R.string.custom_handle_hint)
             },
             offersPanelOptions = true,
             onPanelOptions = onPanelOptions,
@@ -92,7 +100,7 @@ fun CustomLayoutScreen(
             floating = { _ ->
                 if (canUndo) {
                     FloatingAction(
-                        label = "Undo",
+                        label = stringResource(R.string.undo),
                         onClick = onUndo,
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
                     )

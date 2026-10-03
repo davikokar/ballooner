@@ -60,6 +60,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -69,6 +70,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.GridAxis
@@ -141,7 +143,7 @@ internal fun PanelShapeChooser(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             ShapeTileCard(
-                title = "Square",
+                title = stringResource(R.string.shape_square),
                 caption = "1:1",
                 active = tile == ShapeTile.SQUARE,
                 onClick = {
@@ -153,7 +155,7 @@ internal fun PanelShapeChooser(
 
             ShapeTileCard(
                 title = if (upright) "2:3" else "3:2",
-                caption = "Classic",
+                caption = stringResource(R.string.shape_classic),
                 active = tile == ShapeTile.RATIO,
                 onClick = {
                     custom = false
@@ -173,7 +175,7 @@ internal fun PanelShapeChooser(
             ) { active -> RatioSwatch(orientedRatio, active) }
 
             ShapeTileCard(
-                title = "Custom",
+                title = stringResource(R.string.shape_custom),
                 caption = "$width : $height",
                 active = tile == ShapeTile.CUSTOM,
                 onClick = {
@@ -184,7 +186,7 @@ internal fun PanelShapeChooser(
             ) { active -> RatioSwatch(width.toFloat() / height, active, filled = true) }
 
             ShapeTileCard(
-                title = "Auto",
+                title = stringResource(R.string.shape_auto),
                 caption = autoCaption,
                 active = tile == ShapeTile.AUTO,
                 onClick = {
@@ -251,7 +253,7 @@ internal fun PanelPreview(
     onPanelOptions: (() -> Unit)? = null,
     expanded: Boolean = false,
     onExpanded: ((Boolean) -> Unit)? = null,
-    emptyMessage: String = "The panel takes the shape of the image you choose next.",
+    emptyMessage: String = stringResource(R.string.shape_auto_single_hint),
 ) {
     PreviewSurface(
         modifier = modifier,
@@ -364,7 +366,7 @@ internal fun PreviewSurface(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Panels",
+                    text = stringResource(R.string.panels_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = scheme.onSurface,
                 )
@@ -407,7 +409,7 @@ internal fun PreviewSurface(
             floating(turned)
             if (expanded) {
                 RoundHandle(
-                    description = if (turned) "Lay the page flat" else "Turn the page on its side",
+                    description = stringResource(if (turned) R.string.page_lay_flat else R.string.page_turn),
                     onClick = { turned = !turned },
                     modifier = Modifier.align(Alignment.BottomEnd),
                 ) { tint -> HandleIcon(Icons.Default.Refresh, tint) }
@@ -453,10 +455,11 @@ internal val PREVIEW_GROUND_INSET = 8.dp
  */
 @Composable
 private fun ExpandPreviewButton(expanded: Boolean, onClick: () -> Unit) {
+    val label = stringResource(if (expanded) R.string.collapse_preview else R.string.expand_preview)
     Box(
         modifier = Modifier
             .size(24.dp)
-            .semantics { contentDescription = if (expanded) "Collapse panels" else "Expand panels" }
+            .semantics { contentDescription = label }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -473,13 +476,14 @@ private fun ExpandPreviewButton(expanded: Boolean, onClick: () -> Unit) {
 @Composable
 private fun PanelOptionsButton(onClick: (() -> Unit)?) {
     val scheme = MaterialTheme.colorScheme
+    val label = stringResource(R.string.panel_options)
     Box(
         modifier = Modifier
             .padding(start = 8.dp)
             .size(24.dp)
             // On the clickable chain, not on the icon: on the icon it becomes a node of its own
             // and the button itself is left with no label and no enabled state to read.
-            .semantics { contentDescription = "Panel options" }
+            .semantics { contentDescription = label }
             .clickable(enabled = onClick != null) { onClick?.invoke() },
         contentAlignment = Alignment.Center,
     ) {
@@ -897,7 +901,7 @@ private fun ShapeTileCard(
         }
         if (active) {
             Text(
-                text = "ACTIVE",
+                text = stringResource(R.string.active_badge),
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.onPrimary,
                 modifier = Modifier
@@ -927,7 +931,7 @@ private fun RotateButton(onClick: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.Default.Refresh,
-            contentDescription = "Turn the panel on its side",
+            contentDescription = stringResource(R.string.turn_panel),
             tint = scheme.onSurfaceVariant,
             modifier = Modifier.size(11.dp),
         )
@@ -973,7 +977,7 @@ private fun AutoSwatch() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "AUTO",
+            text = stringResource(R.string.shape_auto).uppercase(),
             style = MaterialTheme.typography.labelSmall,
             color = scheme.onSurfaceVariant,
             maxLines = 1,
@@ -1007,7 +1011,7 @@ private fun CustomDimensions(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Custom dimensions ratio",
+                text = stringResource(R.string.custom_ratio),
                 style = MaterialTheme.typography.labelMedium,
                 color = scheme.onSurface,
             )
@@ -1021,8 +1025,8 @@ private fun CustomDimensions(
                     .padding(horizontal = 8.dp, vertical = 3.dp),
             )
         }
-        UnitSlider("Width (W)", width, onWidth)
-        UnitSlider("Height (H)", height, onHeight)
+        UnitSlider(stringResource(R.string.width_label), width, onWidth)
+        UnitSlider(stringResource(R.string.height_label), height, onHeight)
     }
 }
 
@@ -1049,7 +1053,7 @@ private fun UnitSlider(label: String, value: Int, onChange: (Int) -> Unit) {
                 )
             }
             Text(
-                text = "$MIN_UNITS to $MAX_UNITS units",
+                text = stringResource(R.string.units_range, MIN_UNITS, MAX_UNITS),
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.outline,
             )

@@ -1,10 +1,11 @@
 package com.ballooner.ui.settings
 
 import android.content.ActivityNotFoundException
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
-import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -32,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,13 +50,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ballooner.R
+import com.ballooner.data.settings.LocaleHelper
 import com.ballooner.ui.theme.balloonerTopAppBarColors
+import java.util.Locale
 
-private enum class SettingsDialog { ABOUT, PRIVACY, TERMS }
+private enum class SettingsDialog { LANGUAGE, ABOUT, PRIVACY, TERMS }
 
 @Composable
 fun SettingsRoute(onNavigateBack: () -> Unit) {
@@ -63,6 +70,7 @@ fun SettingsRoute(onNavigateBack: () -> Unit) {
 @Composable
 fun SettingsScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     val versionName = remember(context) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
@@ -89,7 +97,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
         ) {
             SectionHeader(stringResource(R.string.settings_general))
             SettingsRow(Icons.Default.Settings, stringResource(R.string.settings_change_language)) {
-                launchIntent(context, Intent(Settings.ACTION_LOCALE_SETTINGS))
+                dialog = SettingsDialog.LANGUAGE
             }
             HorizontalDivider()
 
@@ -140,6 +148,18 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
     }
 
     when (dialog) {
+        SettingsDialog.LANGUAGE -> LanguageDialog(
+            current = LocaleHelper.languageTag(context),
+            onChoose = { tag ->
+                dialog = null
+                if (tag != LocaleHelper.languageTag(context)) {
+                    LocaleHelper.setLanguageTag(context, tag)
+                    // Everything already on screen was built in the old language.
+                    activity?.recreate()
+                }
+            },
+            onDismiss = { dialog = null },
+        )
         SettingsDialog.ABOUT -> InformationDialog(
             title = stringResource(R.string.settings_about),
             message = stringResource(R.string.about_message) + "\n\n" +
@@ -158,6 +178,64 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
         )
         null -> Unit
     }
+}
+
+/**
+ * The languages the app is translated into, each written in its own language, plus the device's
+ * own choice.
+ */
+@Composable
+private fun LanguageDialog(current: String, onChoose: (String) -> Unit, onDismiss: () -> Unit) {
+    var chosen by remember { mutableStateOf(current) }
+    val tags = listOf(LocaleHelper.SYSTEM_LANGUAGE) + LocaleHelper.supportedLanguageTags
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_change_language)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .selectableGroup(),
+            ) {
+                tags.forEach { tag ->
+                    LanguageRow(
+                        label = languageName(tag),
+                        selected = tag == chosen,
+                        onSelect = { chosen = tag },
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onChoose(chosen) }) { Text(stringResource(R.string.ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+@Composable
+private fun LanguageRow(label: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 16.dp),
+        )
+    }
+}
+
+/** A language names itself: "Deutsch", not "German", so it is readable whatever the app is set to. */
+@Composable
+private fun languageName(tag: String): String {
+    if (tag.isEmpty()) return stringResource(R.string.language_system_default)
+    val locale = Locale.forLanguageTag(tag)
+    return locale.getDisplayName(locale).replaceFirstChar { it.uppercase(locale) }
 }
 
 @Composable
@@ -207,6 +285,13 @@ private fun launchIntent(context: android.content.Context, intent: Intent): Bool
     true
 } catch (_: ActivityNotFoundException) {
     false
+}
+
+/** A composition's context is wrapped more than once, so the activity is found by unwrapping it. */
+private tailrec fun android.content.Context.findActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 private const val BUY_ME_A_COFFEE_URL = "https://www.buymeacoffee.com/"

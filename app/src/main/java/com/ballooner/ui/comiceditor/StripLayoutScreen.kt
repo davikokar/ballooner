@@ -22,7 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.PageSizing
@@ -70,7 +72,13 @@ fun StripLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (!expanded) LayoutOptionBreadcrumb(current = "STRIP", onBack = onBack, onOptions = onOptions)
+        if (!expanded) {
+            LayoutOptionBreadcrumb(
+                current = stringResource(R.string.preset_strip).uppercase(),
+                onBack = onBack,
+                onOptions = onOptions,
+            )
+        }
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -82,7 +90,7 @@ fun StripLayoutScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "Orientation",
+                            text = stringResource(R.string.orientation_label),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -91,14 +99,14 @@ fun StripLayoutScreen(
                             DirectionButton(across = false, active = !horizontal) { onStrip(false, count) }
                         }
                     }
-                    Stepper(label = "Panels", value = count, min = MIN_STRIP_PANELS) {
+                    Stepper(label = stringResource(R.string.panels_label), value = count, min = MIN_STRIP_PANELS) {
                         onStrip(horizontal, it)
                     }
                 }
                 PanelShapeChooser(
                     sizing = sizing,
                     // Every panel of a strip is the same shape, so the first image decides all of them.
-                    autoCaption = "First image",
+                    autoCaption = stringResource(R.string.first_image),
                     onChange = onChange,
                     uniform = grid.hasEvenWeights(),
                 )
@@ -118,7 +126,7 @@ fun StripLayoutScreen(
                 onPanelOptions = onPanelOptions,
                 expanded = expanded,
                 onExpanded = onExpanded,
-                emptyMessage = "Every panel takes the shape of the first image you choose next.",
+                emptyMessage = stringResource(R.string.shape_auto_strip_hint),
             )
         }
     }

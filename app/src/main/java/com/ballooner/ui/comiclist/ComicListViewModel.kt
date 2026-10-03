@@ -2,10 +2,12 @@ package com.ballooner.ui.comiclist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ballooner.data.comic.ComicNamer
 import com.ballooner.data.comic.ComicRepository
 import com.ballooner.data.comic.ImportedImage
 import com.ballooner.data.comic.PanelImageImporter
 import com.ballooner.data.comic.SavedComic
+import com.ballooner.data.comic.TestComicNamer
 import com.ballooner.domain.comic.Comic
 import com.ballooner.ui.comiceditor.NEW_COMIC_ID
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,13 +29,14 @@ sealed interface ComicListUiState {
 class ComicListViewModel @Inject constructor(
     private val repository: ComicRepository,
     private val imageImporter: PanelImageImporter,
+    private val namer: ComicNamer,
 ) : ViewModel() {
 
     /**
      * Used by tests, whose uris are already local, so importing them is a no-op.
      */
     constructor(repository: ComicRepository) :
-        this(repository, PanelImageImporter { ImportedImage(it, null) })
+        this(repository, PanelImageImporter { ImportedImage(it, null) }, TestComicNamer)
 
     val uiState: StateFlow<ComicListUiState> = repository.observeComics()
         .map { comics -> if (comics.isEmpty()) ComicListUiState.Empty else ComicListUiState.Content(comics) }
@@ -67,7 +70,7 @@ class ComicListViewModel @Inject constructor(
      */
     fun duplicateComic(saved: SavedComic) {
         viewModelScope.launch {
-            val copy = saved.comic.copy(name = "${saved.comic.name.ifBlank { "Untitled" }} copy")
+            val copy = saved.comic.copy(name = namer.copyName(saved.comic.name))
             val id = repository.createComic(copy)
             saved.coverUri?.let { repository.setCover(id, it) }
         }

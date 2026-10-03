@@ -1,9 +1,21 @@
 package com.ballooner.ui.theme
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.ballooner.R
 import com.ballooner.domain.model.BalloonFont
+import com.ballooner.domain.model.BalloonType
+
+/** Human-readable name for each balloon type, shared by every control that offers one. */
+internal val BalloonType.label: Int
+    @StringRes get() = when (this) {
+        BalloonType.SPEAK -> R.string.balloon_type_speak
+        BalloonType.THINK -> R.string.balloon_type_think
+        BalloonType.WHISPER -> R.string.balloon_type_whisper
+        BalloonType.YELL -> R.string.balloon_type_yell
+        BalloonType.CAPTION -> R.string.balloon_type_caption
+    }
 
 /** Human-readable name for each font, shared by the editor and settings. */
 @Composable

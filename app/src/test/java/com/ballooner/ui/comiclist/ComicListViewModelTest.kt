@@ -3,6 +3,7 @@ package com.ballooner.ui.comiclist
 import com.ballooner.data.comic.FakeComicRepository
 import com.ballooner.data.comic.ImportedImage
 import com.ballooner.data.comic.SavedComic
+import com.ballooner.data.comic.TestComicNamer
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
@@ -74,6 +75,7 @@ class ComicListViewModelTest {
         val viewModel = ComicListViewModel(
             repository = repository,
             imageImporter = { ImportedImage("copy-of-$it", null) },
+            namer = TestComicNamer,
         )
 
         viewModel.setCover(1L, "borrowed")

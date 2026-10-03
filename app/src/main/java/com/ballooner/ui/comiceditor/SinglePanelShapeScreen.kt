@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
@@ -35,13 +37,23 @@ fun SinglePanelShapeScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (!expanded) LayoutOptionBreadcrumb(current = "SINGLE", onBack = onBack, onOptions = onOptions)
+        if (!expanded) {
+            LayoutOptionBreadcrumb(
+                current = stringResource(R.string.preset_single).uppercase(),
+                onBack = onBack,
+                onOptions = onOptions,
+            )
+        }
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (!expanded) {
-                PanelShapeChooser(sizing = sizing, autoCaption = "Fit image", onChange = onChange)
+                PanelShapeChooser(
+                    sizing = sizing,
+                    autoCaption = stringResource(R.string.fit_image),
+                    onChange = onChange,
+                )
             }
             PanelPreview(
                 // The panel as it will really be: a ratio the page cannot reach is held back, and

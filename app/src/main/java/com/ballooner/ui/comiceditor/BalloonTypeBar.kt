@@ -23,9 +23,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.BalloonScope
 import com.ballooner.domain.comic.newBalloon
 import com.ballooner.domain.model.BalloonType
@@ -34,6 +36,7 @@ import com.ballooner.ui.comic.balloonGeometry
 import com.ballooner.ui.comic.drawBalloon
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.PaperWhite
+import com.ballooner.ui.theme.label
 
 /**
  * The balloons that can be added, each drawn as the balloon it makes, and at the far end the
@@ -79,18 +82,19 @@ private fun ScopeToggle(inPanel: Boolean?, onClick: () -> Unit) {
     } else {
         scheme.onSurface
     }
+    val label = stringResource(
+        when (inPanel) {
+            true -> R.string.balloon_scope_free
+            false -> R.string.balloon_scope_panel
+            null -> R.string.balloon_scope
+        },
+    )
     Box(
         modifier = Modifier
             .size(SCOPE_BUTTON_SIZE)
             .clip(RoundedCornerShape(8.dp))
             .then(if (inPanel == null) Modifier else Modifier.clickable(onClick = onClick))
-            .semantics {
-                contentDescription = when (inPanel) {
-                    true -> "Free the balloon from its panel"
-                    false -> "Put the balloon in a panel"
-                    null -> "Balloon scope"
-                }
-            },
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         ScopeGlyph(inPanel = inPanel == true, tint = tint)
@@ -126,13 +130,14 @@ private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
         newBalloon(id = 0, type = type, scope = BalloonScope.Comic)
             .copy(tailAngleDegrees = TAIL_ANGLE, tailWidth = TAIL_WIDTH)
     }
+    val label = stringResource(R.string.add_balloon, stringResource(type.label))
     Box(
         modifier = Modifier
             .size(BUTTON_SIZE)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primary)
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "Add ${type.name.lowercase()} balloon" },
+            .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.size(GLYPH_SIZE)) {

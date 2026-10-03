@@ -33,9 +33,11 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ballooner.R
 import com.ballooner.ui.comic.comicPixelWidth
 import com.ballooner.ui.comic.loadImagesForExport
 import com.ballooner.ui.comic.rememberPanelImageSource
@@ -103,14 +105,14 @@ fun ComicEditorRoute(
             exporting = false
             Toast.makeText(
                 context,
-                if (written) "Comic saved" else "Could not save the comic",
+                if (written) R.string.comic_saved else R.string.comic_save_failed,
                 Toast.LENGTH_SHORT,
             ).show()
         }
     }
 
     val saveComic = {
-        viewModel.saveComic { Toast.makeText(context, "Comic saved", Toast.LENGTH_SHORT).show() }
+        viewModel.saveComic { Toast.makeText(context, R.string.comic_saved, Toast.LENGTH_SHORT).show() }
     }
 
     val exportComic = {
@@ -159,8 +161,8 @@ fun ComicEditorRoute(
     if (leaving) {
         AlertDialog(
             onDismissRequest = { leaving = false },
-            title = { Text("Keep your changes?") },
-            text = { Text("This comic has changes that have not been saved.") },
+            title = { Text(stringResource(R.string.keep_changes_title)) },
+            text = { Text(stringResource(R.string.keep_changes_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -168,7 +170,7 @@ fun ComicEditorRoute(
                         viewModel.saveComic { onNavigateBack() }
                     },
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             },
             dismissButton = {
@@ -178,7 +180,7 @@ fun ComicEditorRoute(
                         onNavigateBack()
                     },
                 ) {
-                    Text("Discard")
+                    Text(stringResource(R.string.discard))
                 }
             },
         )
@@ -209,12 +211,12 @@ private fun EditorTopBar(
         },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
             }
         },
         actions = {
             IconButton(onClick = onSave, enabled = canSave) {
-                Icon(Icons.Default.Share, contentDescription = "Save as PNG")
+                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.save_as_png))
             }
         },
     )

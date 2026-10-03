@@ -1,6 +1,8 @@
 package com.ballooner.di
 
+import com.ballooner.data.comic.AppComicNamer
 import com.ballooner.data.comic.AppPanelImageImporter
+import com.ballooner.data.comic.ComicNamer
 import com.ballooner.data.comic.ComicRepository
 import com.ballooner.data.comic.PanelImageImporter
 import com.ballooner.data.comic.RoomComicRepository
@@ -27,4 +29,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindImageStore(impl: AppImageStore): ImageStore
+
+    @Binds
+    @Singleton
+    abstract fun bindComicNamer(impl: AppComicNamer): ComicNamer
 }

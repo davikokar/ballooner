@@ -38,11 +38,13 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.GridAxis
@@ -111,27 +113,37 @@ fun GridLayoutScreen(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (!expanded) LayoutOptionBreadcrumb(current = "GRID", onBack = onBack, onOptions = onOptions)
+        if (!expanded) {
+            LayoutOptionBreadcrumb(
+                current = stringResource(R.string.preset_grid).uppercase(),
+                onBack = onBack,
+                onOptions = onOptions,
+            )
+        }
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (!expanded) {
                 LayoutControlBar {
-                    Stepper(label = "Rows", value = down, min = MIN_GRID_SIDE) { onGrid(it, across) }
-                    Stepper(label = "Columns", value = across, min = MIN_GRID_SIDE) { onGrid(down, it) }
+                    Stepper(label = stringResource(R.string.rows_label), value = down, min = MIN_GRID_SIDE) {
+                        onGrid(it, across)
+                    }
+                    Stepper(label = stringResource(R.string.columns_label), value = across, min = MIN_GRID_SIDE) {
+                        onGrid(down, it)
+                    }
                 }
                 PanelShapeChooser(
                     sizing = comic.sizing,
                     // Every cell of a grid is the same shape, so the first image decides all of them.
-                    autoCaption = "First image",
+                    autoCaption = stringResource(R.string.first_image),
                     onChange = onChange,
                     uniform = grid.hasEvenWeights(),
                 )
             }
             PreviewSurface(
                 modifier = Modifier.weight(1f),
-                hint = "Tap cells to join them".takeIf { selection.isEmpty() },
+                hint = stringResource(R.string.grid_merge_hint).takeIf { selection.isEmpty() },
                 offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
                 expanded = expanded,
@@ -352,16 +364,17 @@ private fun RowLock(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val label = stringResource(
+        when {
+            merged -> R.string.row_locked_merged
+            free -> R.string.row_align
+            else -> R.string.row_free
+        },
+    )
     Box(
         modifier = modifier
             .size(ROW_LOCK_SIZE)
-            .semantics {
-                contentDescription = when {
-                    merged -> "This row is part of a merged panel"
-                    free -> "Put this row back on the grid"
-                    else -> "Let this row size its own panels"
-                }
-            }
+            .semantics { contentDescription = label }
             .clickable(enabled = !merged, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -476,7 +489,7 @@ private fun MergeActions(
     modifier: Modifier = Modifier,
 ) {
     when {
-        canMerge -> FloatingAction("Merge", onMerge, modifier)
-        canUnmerge -> FloatingAction("Unmerge", onUnmerge, modifier)
+        canMerge -> FloatingAction(stringResource(R.string.merge), onMerge, modifier)
+        canUnmerge -> FloatingAction(stringResource(R.string.unmerge), onUnmerge, modifier)
     }
 }

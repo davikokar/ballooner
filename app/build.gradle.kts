@@ -29,6 +29,14 @@ android {
         }
     }
 
+    bundle {
+        // Settings offers languages the device may not be configured for, so Play must ship every
+        // translation rather than only the ones the device already asks for.
+        language {
+            enableSplit = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

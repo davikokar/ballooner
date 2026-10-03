@@ -1,5 +1,6 @@
 package com.ballooner.ui.comiceditor
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -43,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -57,11 +59,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
@@ -140,7 +145,9 @@ fun ComicEditorScreen(
                         state.step == EditorStep.BALLOONS -> ({ naming = state.comic.name })
                         else -> null
                     },
-                    nextLabel = if (state.step == EditorStep.BALLOONS) "Save" else "Next",
+                    nextLabel = stringResource(
+                        if (state.step == EditorStep.BALLOONS) R.string.save else R.string.next,
+                    ),
                 )
             }
             // The workspace sits on its own ground so the chrome above it reads as a separate
@@ -264,7 +271,9 @@ fun ComicEditorScreen(
                 // falls below them rather than between them.
                 Column {
                     StepTitle(
-                        text = if (state.step == EditorStep.BALLOONS) BALLOON_STEP_TITLE else PLACEMENT_STEP_TITLE,
+                        text = stringResource(
+                            if (state.step == EditorStep.BALLOONS) BALLOON_STEP_TITLE else PLACEMENT_STEP_TITLE,
+                        ),
                         handlesHidden = handlesHidden,
                         onToggleHandles = if (state.focusedPanel != null) {
                             ({ handlesHidden = !handlesHidden })
@@ -365,20 +374,20 @@ private fun ComicTitleDialog(
 ) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Title your comic") },
+        title = { Text(stringResource(R.string.title_your_comic)) },
         text = {
             OutlinedTextField(
                 value = title,
                 onValueChange = onTitle,
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.title_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
         },
         confirmButton = {
-            TextButton(onClick = onSave, enabled = title.isNotBlank()) { Text("Save") }
+            TextButton(onClick = onSave, enabled = title.isNotBlank()) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -417,7 +426,7 @@ private fun EditorHeader(
                     modifier = Modifier.height(32.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp),
                 ) {
-                    Text("Back", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.back), style = MaterialTheme.typography.labelLarge)
                 }
             }
             if (onNext != null) {
@@ -432,11 +441,12 @@ private fun EditorHeader(
             // Keeps Undo at the far end whether or not the preset buttons are there.
             Spacer(modifier = Modifier.weight(1f))
             if (onUndo != null) {
+                val undoLabel = stringResource(R.string.undo)
                 IconButton(
                     onClick = onUndo,
                     enabled = canUndo,
                     // The glyph is drawn, not written, so the button itself has to say what it is.
-                    modifier = Modifier.size(36.dp).semantics { contentDescription = "Undo" },
+                    modifier = Modifier.size(36.dp).semantics { contentDescription = undoLabel },
                 ) {
                     UndoGlyph(
                         tint = if (canUndo) scheme.onSurface else scheme.onSurface.copy(alpha = DISABLED),
@@ -501,7 +511,7 @@ private fun ComicOptionsSheet(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Comic style", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.comic_style), style = MaterialTheme.typography.headlineSmall)
             StyleControls(style, onChange)
         }
     }
@@ -526,16 +536,16 @@ private fun PanelOptionsSheet(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Panel style", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.panel_style), style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "This panel only. Changing the comic style puts it back.",
+                text = stringResource(R.string.panel_style_note),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            StyleSlider("Border", style.borderThickness, 0f, MAX_PANEL_BORDER) {
+            StyleSlider(stringResource(R.string.style_border), style.borderThickness, 0f, MAX_PANEL_BORDER) {
                 onChange(style.copy(borderThickness = it))
             }
-            StyleSlider("Corners", style.cornerRadius, 0f, MAX_CORNER_RADIUS) {
+            StyleSlider(stringResource(R.string.style_corners), style.cornerRadius, 0f, MAX_CORNER_RADIUS) {
                 onChange(style.copy(cornerRadius = it))
             }
         }
@@ -620,6 +630,9 @@ private fun Page(
 /** A step's own heading, carrying the toggle that takes the handles off a focused panel. */
 @Composable
 private fun StepTitle(text: String, handlesHidden: Boolean, onToggleHandles: (() -> Unit)?) {
+    val handlesLabel = stringResource(
+        if (handlesHidden) R.string.show_panel_handles else R.string.hide_panel_handles,
+    )
     StepHeading(text) {
         // Only worth offering over a focused panel, where the handles sit on the work itself.
         if (onToggleHandles != null) {
@@ -629,10 +642,7 @@ private fun StepTitle(text: String, handlesHidden: Boolean, onToggleHandles: (()
                     .align(Alignment.CenterEnd)
                     .padding(end = 4.dp)
                     .size(32.dp)
-                    .semantics {
-                        contentDescription =
-                            if (handlesHidden) "Show panel handles" else "Hide panel handles"
-                    },
+                    .semantics { contentDescription = handlesLabel },
             ) {
                 EyeGlyph(hidden = handlesHidden, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -671,7 +681,7 @@ private fun StepSwitch(step: EditorStep, onSelect: (EditorStep) -> Unit, modifie
     PillSwitch(
         options = EditorStep.entries,
         selected = step,
-        label = { index, entry -> "${index + 1}. ${entry.label}" },
+        label = { index, entry -> stringResource(R.string.step_label, index + 1, stringResource(entry.label)) },
         onSelect = onSelect,
         modifier = modifier,
     )
@@ -682,7 +692,7 @@ private fun StepSwitch(step: EditorStep, onSelect: (EditorStep) -> Unit, modifie
 private fun <T> PillSwitch(
     options: List<T>,
     selected: T,
-    label: (Int, T) -> String,
+    label: @Composable (Int, T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -725,17 +735,19 @@ private fun BalloonStyleSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        var tab by rememberSaveable { mutableStateOf(BALLOON_STYLE_TABS.first()) }
+        // The index, not the title: the title is translated, and a saved title would not survive
+        // a language change.
+        var tab by rememberSaveable { mutableIntStateOf(TEXT_TAB) }
         Column(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Balloon style", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.balloon_style), style = MaterialTheme.typography.headlineSmall)
             // The same pill the Step switch is, so a tab reads the same wherever it is.
             PillSwitch(
                 options = BALLOON_STYLE_TABS,
                 selected = tab,
-                label = { _, title -> title },
+                label = { _, title -> stringResource(title) },
                 onSelect = { tab = it },
             )
             when (tab) {
@@ -756,7 +768,11 @@ private fun BalloonTextStyle(balloon: Balloon, actions: ComicEditorActions) {
         ) {
             // Named in the same column the sliders below put their labels in, so the whole tab
             // reads down one edge.
-            Text("Font", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(STYLE_LABEL_WIDTH))
+            Text(
+                text = stringResource(R.string.balloon_font),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.width(STYLE_LABEL_WIDTH),
+            )
             FontDropdown(
                 font = balloon.font,
                 onChange = { actions.setBalloonFont(balloon.id, it) },
@@ -767,10 +783,10 @@ private fun BalloonTextStyle(balloon: Balloon, actions: ComicEditorActions) {
                 onCheckedChange = { actions.setBalloonAutoSize(balloon.id, it) },
                 modifier = Modifier.size(32.dp),
             )
-            Text("autosize", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.balloon_autosize), style = MaterialTheme.typography.labelSmall)
         }
         StyleSlider(
-            label = "Size",
+            label = stringResource(R.string.balloon_size),
             value = balloon.fontSize,
             from = MIN_BALLOON_TEXT_SIZE,
             to = MAX_BALLOON_TEXT_SIZE,
@@ -788,12 +804,12 @@ private fun BalloonShapeStyle(balloon: Balloon, actions: ComicEditorActions) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Only the rounded shapes have a roundness worth changing.
         if (balloon.type == BalloonType.SPEAK || balloon.type == BalloonType.WHISPER) {
-            StyleSlider("Shape", balloon.cornerRoundness, 0f, 1f) {
+            StyleSlider(stringResource(R.string.balloon_shape), balloon.cornerRoundness, 0f, 1f) {
                 actions.setBalloonRoundness(balloon.id, it)
             }
         }
         StyleSlider(
-            label = "Border size",
+            label = stringResource(R.string.balloon_border_size),
             value = balloon.borderThickness,
             from = MIN_BALLOON_BORDER,
             to = MAX_BALLOON_BORDER,
@@ -808,12 +824,12 @@ private fun BalloonShapeStyle(balloon: Balloon, actions: ComicEditorActions) {
                 onCheckedChange = { actions.setBalloonMatchPanelBorder(balloon.id, it) },
                 modifier = Modifier.size(32.dp),
             )
-            Text("match panel border", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.balloon_match_panel_border), style = MaterialTheme.typography.labelSmall)
         }
     }
 }
 
-private val BALLOON_STYLE_TABS = listOf(TEXT_TAB, "Balloon")
+private val BALLOON_STYLE_TABS = listOf(R.string.balloon_tab_text, R.string.balloon_tab_balloon)
 
 /** The balloon's typeface, each choice shown in the letters it would set the words in. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -871,9 +887,15 @@ private fun StyleControls(style: ComicStyle, onChange: (ComicStyle) -> Unit) {
     Column {
         // There is no margin control: the page margin is the gutter, so every gap in the comic is
         // the same width whichever side of a panel it is on.
-        StyleSlider("Gutter", style.gutter, 0f, 0.1f) { onChange(style.copy(gutter = it)) }
-        StyleSlider("Border", style.borderThickness, 0f, MAX_PANEL_BORDER) { onChange(style.copy(borderThickness = it)) }
-        StyleSlider("Corners", style.cornerRadius, 0f, MAX_CORNER_RADIUS) { onChange(style.copy(cornerRadius = it)) }
+        StyleSlider(stringResource(R.string.style_gutter), style.gutter, 0f, 0.1f) {
+            onChange(style.copy(gutter = it))
+        }
+        StyleSlider(stringResource(R.string.style_border), style.borderThickness, 0f, MAX_PANEL_BORDER) {
+            onChange(style.copy(borderThickness = it))
+        }
+        StyleSlider(stringResource(R.string.style_corners), style.cornerRadius, 0f, MAX_CORNER_RADIUS) {
+            onChange(style.copy(cornerRadius = it))
+        }
     }
 }
 
@@ -924,43 +946,45 @@ internal fun percentOfPage(value: Float): String =
 private val STYLE_LABEL_WIDTH = 76.dp
 
 /** The Balloon style sheet's first tab, named once so the sheet can switch on it. */
-private const val TEXT_TAB = "Text"
+private val TEXT_TAB = R.string.balloon_tab_text
 
 @Composable
 private fun LayoutChangeDialog(warning: LayoutChangeWarning, onConfirm: () -> Unit, onCancel: () -> Unit) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Change the layout?") },
+        title = { Text(stringResource(R.string.change_layout_title)) },
         text = { Text(warning.describe()) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Change") } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Keep") } },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.change)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.keep)) } },
     )
 }
 
+@Composable
 internal fun LayoutChangeWarning.describe(): String {
-    val parts = buildList {
-        if (removedImages > 0) add("$removedImages image${plural(removedImages)}")
-        if (removedBalloons > 0) add("$removedBalloons balloon${plural(removedBalloons)}")
+    val images = pluralStringResource(R.plurals.removed_images, removedImages, removedImages)
+    val balloons = pluralStringResource(R.plurals.removed_balloons, removedBalloons, removedBalloons)
+    val lost = when {
+        removedImages > 0 && removedBalloons > 0 -> stringResource(R.string.joined_pair, images, balloons)
+        removedImages > 0 -> images
+        else -> balloons
     }
-    return "This removes ${parts.joinToString(" and ")}."
+    return stringResource(R.string.change_layout_message, lost)
 }
 
-private fun plural(count: Int) = if (count == 1) "" else "s"
-
-private val EditorStep.label: String
-    get() = when (this) {
-        EditorStep.LAYOUT -> "Layout"
-        EditorStep.PLACEMENT -> "Images"
-        EditorStep.BALLOONS -> "Balloons"
+private val EditorStep.label: Int
+    @StringRes get() = when (this) {
+        EditorStep.LAYOUT -> R.string.step_layout
+        EditorStep.PLACEMENT -> R.string.step_images
+        EditorStep.BALLOONS -> R.string.step_balloons
     }
 
 private const val DIMMED = 0.35f
 
 /** The Placement step's heading, which names the step the way the Layout step's breadcrumb does. */
-private const val PLACEMENT_STEP_TITLE = "SELECT AND PLACE IMAGES"
+private val PLACEMENT_STEP_TITLE = R.string.placement_step_title
 
 /** The Balloon step's heading. */
-private const val BALLOON_STEP_TITLE = "ADD BALLOONS"
+private val BALLOON_STEP_TITLE = R.string.balloon_step_title
 
 /** How far a control fades when there is nothing for it to do. */
 private const val DISABLED = 0.38f

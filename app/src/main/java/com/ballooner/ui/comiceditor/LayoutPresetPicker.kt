@@ -1,5 +1,6 @@
 package com.ballooner.ui.comiceditor
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,11 +27,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 
 /** The Layout step's heading. The preset options continue it as a breadcrumb. */
-internal const val PRESET_PICKER_TITLE = "SELECT PANEL PRESET"
+internal val PRESET_PICKER_TITLE = R.string.preset_picker_title
 
 /**
  * The Layout step's landing view: the four kinds of layout, each shown as the arrangement it
@@ -46,7 +49,7 @@ fun LayoutPresetPicker(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        StepHeading(PRESET_PICKER_TITLE)
+        StepHeading(stringResource(PRESET_PICKER_TITLE))
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp, vertical = 0.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -111,7 +114,7 @@ private fun PresetCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = preset.title,
+                        text = stringResource(preset.title),
                         style = MaterialTheme.typography.headlineSmall,
                         color = if (active) scheme.primary else scheme.onSurface,
                     )
@@ -125,7 +128,7 @@ private fun PresetCard(
                     }
                 }
                 Text(
-                    text = preset.description,
+                    text = preset.description(),
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
                 )
@@ -133,7 +136,7 @@ private fun PresetCard(
         }
         if (active) {
             Text(
-                text = "ACTIVE",
+                text = stringResource(R.string.active_badge),
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.onPrimary,
                 modifier = Modifier
@@ -191,7 +194,7 @@ private fun PresetPreview(kind: LayoutKind, active: Boolean) {
                 modifier = Modifier.size(20.dp),
             )
             Text(
-                text = "SLICE & CUT",
+                text = stringResource(R.string.preset_custom_badge),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -226,18 +229,26 @@ private fun PreviewCell(label: String, active: Boolean, modifier: Modifier = Mod
 
 private data class LayoutPresetCard(
     val kind: LayoutKind,
-    val title: String,
-    val description: String,
+    @StringRes val title: Int,
+    val description: @Composable () -> String,
 )
 
 private val LayoutKinds = listOf(
-    LayoutPresetCard(LayoutKind.SINGLE, "Single", "Full splash (1 panel)"),
-    LayoutPresetCard(LayoutKind.STRIP, "Strip", "Horizontal strip ($DEFAULT_STRIP_PANELS)"),
-    LayoutPresetCard(
-        kind = LayoutKind.GRID,
-        title = "Grid",
-        description = "Classic ${DEFAULT_GRID_SIDE}x$DEFAULT_GRID_SIDE " +
-            "(${DEFAULT_GRID_SIDE * DEFAULT_GRID_SIDE} panels)",
-    ),
-    LayoutPresetCard(LayoutKind.CUSTOM, "Custom", "Asymmetric slice"),
+    LayoutPresetCard(LayoutKind.SINGLE, R.string.preset_single) {
+        stringResource(R.string.preset_single_caption)
+    },
+    LayoutPresetCard(LayoutKind.STRIP, R.string.preset_strip) {
+        stringResource(R.string.preset_strip_caption, DEFAULT_STRIP_PANELS)
+    },
+    LayoutPresetCard(LayoutKind.GRID, R.string.preset_grid) {
+        stringResource(
+            R.string.preset_grid_caption,
+            DEFAULT_GRID_SIDE,
+            DEFAULT_GRID_SIDE,
+            DEFAULT_GRID_SIDE * DEFAULT_GRID_SIDE,
+        )
+    },
+    LayoutPresetCard(LayoutKind.CUSTOM, R.string.preset_custom) {
+        stringResource(R.string.preset_custom_caption)
+    },
 )

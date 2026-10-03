@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,8 +21,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -45,14 +49,22 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ballooner.R
 import com.ballooner.data.comic.SavedComic
 import com.ballooner.ui.comic.ComicThumbnail
 import com.ballooner.ui.comic.PanelImageSource
@@ -119,21 +131,22 @@ fun ComicListScreen(
     val density = LocalDensity.current
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val scope = rememberCoroutineScope()
+    val untitled = stringResource(R.string.untitled)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ballooner") },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateComic) {
-                Icon(Icons.Default.Add, contentDescription = "Create comic")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_comic))
             }
         },
     ) { padding ->
@@ -141,7 +154,7 @@ fun ComicListScreen(
             when (state) {
                 ComicListUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 ComicListUiState.Empty -> Text(
-                    text = "No comics yet. Tap + to start one.",
+                    text = stringResource(R.string.comics_empty),
                     modifier = Modifier.align(Alignment.Center),
                 )
                 is ComicListUiState.Content -> LazyVerticalGrid(
@@ -170,7 +183,7 @@ fun ComicListScreen(
                                     val shared = shareComicPng(
                                         context = context,
                                         comic = saved.comic,
-                                        name = saved.comic.name.ifBlank { "Comic" },
+                                        name = saved.comic.name.ifBlank { untitled },
                                         density = density,
                                         fontFamilyResolver = fontFamilyResolver,
                                     )
@@ -178,7 +191,7 @@ fun ComicListScreen(
                                     if (!shared) {
                                         Toast.makeText(
                                             context,
-                                            "Could not share the comic",
+                                            R.string.share_comic_failed,
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                     }
@@ -195,8 +208,8 @@ fun ComicListScreen(
     pendingDelete?.let { saved ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete this comic?") },
-            text = { Text("\"${saved.comic.name}\" will be removed for good.") },
+            title = { Text(stringResource(R.string.delete_comic_title)) },
+            text = { Text(stringResource(R.string.delete_comic_message, saved.comic.name.ifBlank { untitled })) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -204,22 +217,22 @@ fun ComicListScreen(
                         pendingDelete = null
                     },
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Keep") } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.keep)) } },
         )
     }
 
     renaming?.let { (id, title) ->
         AlertDialog(
             onDismissRequest = { renaming = null },
-            title = { Text("Edit title") },
+            title = { Text(stringResource(R.string.edit_title)) },
             text = {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { renaming = id to it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.title_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -232,10 +245,10 @@ fun ComicListScreen(
                     },
                     enabled = title.isNotBlank(),
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             },
-            dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { renaming = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -291,7 +304,7 @@ private fun ComicTile(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = saved.comic.name.ifBlank { "Untitled" },
+                text = saved.comic.name.ifBlank { stringResource(R.string.untitled) },
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -328,40 +341,45 @@ private fun ComicMenu(
             }
         } else {
             IconButton(onClick = { open = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Comic options")
+                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.comic_options))
             }
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text("Edit title") },
+                text = { Text(stringResource(R.string.edit_title)) },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                 onClick = {
                     open = false
                     onRename()
                 },
             )
             DropdownMenuItem(
-                text = { Text("Edit cover") },
+                text = { Text(stringResource(R.string.edit_cover)) },
+                leadingIcon = { PictureGlyph(MaterialTheme.colorScheme.onSurfaceVariant) },
                 onClick = {
                     open = false
                     onCover()
                 },
             )
             DropdownMenuItem(
-                text = { Text("Duplicate") },
+                text = { Text(stringResource(R.string.duplicate)) },
+                leadingIcon = { CopyGlyph(MaterialTheme.colorScheme.onSurfaceVariant) },
                 onClick = {
                     open = false
                     onDuplicate()
                 },
             )
             DropdownMenuItem(
-                text = { Text("Share as PNG") },
+                text = { Text(stringResource(R.string.share_as_png)) },
+                leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
                 onClick = {
                     open = false
                     onShare()
                 },
             )
             DropdownMenuItem(
-                text = { Text("Delete") },
+                text = { Text(stringResource(R.string.delete)) },
+                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                 onClick = {
                     open = false
                     onDelete()
@@ -370,6 +388,67 @@ private fun ComicMenu(
         }
     }
 }
+
+/** A framed picture, drawn because material-icons-core has no image icon. */
+@Composable
+private fun PictureGlyph(tint: Color) {
+    Canvas(modifier = Modifier.size(MENU_GLYPH_SIZE)) {
+        val stroke = size.minDimension * 0.08f
+        val frame = size.minDimension - stroke
+        val left = (size.width - frame) / 2f
+        val top = (size.height - frame) / 2f
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(left, top),
+            size = Size(frame, frame),
+            cornerRadius = CornerRadius(frame * 0.16f),
+            style = Stroke(width = stroke),
+        )
+        drawCircle(
+            color = tint,
+            radius = frame * 0.1f,
+            center = Offset(left + frame * 0.32f, top + frame * 0.32f),
+        )
+        // A hill rising to the frame's edge, so the picture reads as a picture at 24dp.
+        val base = top + frame * 0.78f
+        drawPath(
+            path = Path().apply {
+                moveTo(left + frame * 0.12f, base)
+                lineTo(left + frame * 0.46f, top + frame * 0.38f)
+                lineTo(left + frame * 0.88f, base)
+                close()
+            },
+            color = tint,
+        )
+    }
+}
+
+/** Two pages, one behind the other: the shape every platform uses for "duplicate". */
+@Composable
+private fun CopyGlyph(tint: Color) {
+    Canvas(modifier = Modifier.size(MENU_GLYPH_SIZE)) {
+        val stroke = size.minDimension * 0.08f
+        val page = Size(size.minDimension * 0.62f, size.minDimension * 0.74f)
+        val corner = CornerRadius(page.width * 0.16f)
+        val shift = size.minDimension * 0.18f
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(stroke / 2f, stroke / 2f),
+            size = page,
+            cornerRadius = corner,
+            style = Stroke(width = stroke),
+        )
+        // The front page is filled, so the two never read as one dense grid of lines.
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(shift + stroke / 2f, shift + stroke / 2f),
+            size = page,
+            cornerRadius = corner,
+        )
+    }
+}
+
+private val MENU_GLYPH_SIZE = 24.dp
 
 /** Two tiles to a row, each standing taller than it is wide, as a comic page does. */
 private const val TILES_ACROSS = 2

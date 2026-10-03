@@ -18,7 +18,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 
 /**
  * The heading a step of the editor wears.
@@ -57,7 +59,7 @@ internal fun LayoutOptionBreadcrumb(current: String, onBack: () -> Unit, onOptio
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = "Options",
+                    contentDescription = stringResource(R.string.options),
                     tint = scheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )
@@ -69,7 +71,7 @@ internal fun LayoutOptionBreadcrumb(current: String, onBack: () -> Unit, onOptio
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                text = PRESET_PICKER_TITLE,
+                text = stringResource(PRESET_PICKER_TITLE),
                 style = MaterialTheme.typography.labelLarge,
                 color = scheme.primary,
                 modifier = Modifier.clickable(onClick = onBack),

@@ -20,9 +20,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.ballooner.R
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.PageRect
@@ -59,10 +61,10 @@ internal fun BalloonEditingLayer(
 ) {
     if (viewport.scale <= 0f) return
     BalloonWords(balloon, panel, pageHeight, viewport, onText)
-    BalloonHandle("Move balloon", balloon.moveHandle(panel, pageHeight), viewport) { MoveGlyph(it) }
-    BalloonHandle("Resize balloon", balloon.resizeHandle(panel, pageHeight), viewport) { ResizeGlyph(it) }
+    BalloonHandle(stringResource(R.string.move_balloon), balloon.moveHandle(panel, pageHeight), viewport) { MoveGlyph(it) }
+    BalloonHandle(stringResource(R.string.resize_balloon), balloon.resizeHandle(panel, pageHeight), viewport) { ResizeGlyph(it) }
     BalloonHandle(
-        description = "Balloon style",
+        description = stringResource(R.string.balloon_style),
         at = balloon.editHandle(panel, pageHeight),
         viewport = viewport,
         onClick = onEdit,
@@ -70,7 +72,7 @@ internal fun BalloonEditingLayer(
         HandleIcon(Icons.Default.Edit, tint)
     }
     BalloonHandle(
-        description = "Delete balloon",
+        description = stringResource(R.string.delete_balloon),
         at = balloon.deleteHandle(panel, pageHeight),
         viewport = viewport,
         onClick = onDelete,
@@ -115,7 +117,7 @@ private fun BalloonWords(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (balloon.text.isEmpty()) {
                     Text(
-                        text = "Say something",
+                        text = stringResource(R.string.balloon_placeholder),
                         style = MaterialTheme.typography.labelSmall,
                         color = InkBlack.copy(alpha = 0.35f),
                     )

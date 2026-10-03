@@ -3,6 +3,7 @@ package com.ballooner.ui.comiceditor
 import androidx.lifecycle.SavedStateHandle
 import com.ballooner.data.comic.FakeComicRepository
 import com.ballooner.data.comic.ImportedImage
+import com.ballooner.data.comic.TestComicNamer
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
@@ -64,6 +65,7 @@ class PlacementStepTest {
                 gate.await()
                 ImportedImage(it, null)
             },
+            namer = TestComicNamer,
         )
 
     private fun content(viewModel: ComicEditorViewModel) =
