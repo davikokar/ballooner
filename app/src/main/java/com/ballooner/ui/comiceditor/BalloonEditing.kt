@@ -24,7 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.PagePoint
 import com.ballooner.domain.comic.PageRect

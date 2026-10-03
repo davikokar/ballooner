@@ -24,7 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.domain.comic.ComicStyle
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.PageSizing

@@ -44,7 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.Grid
 import com.ballooner.domain.comic.GridAxis

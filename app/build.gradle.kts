@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.ballooner"
+    namespace = "com.davide.seddio.ballooner"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.ballooner"
+        applicationId = "com.davide.seddio.ballooner"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

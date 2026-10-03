@@ -27,7 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.domain.comic.BalloonScope
 import com.ballooner.domain.comic.newBalloon
 import com.ballooner.domain.model.BalloonType

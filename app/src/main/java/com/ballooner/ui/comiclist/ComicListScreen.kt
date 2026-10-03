@@ -73,7 +73,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.data.comic.SavedComic
 import com.ballooner.ui.comic.ComicThumbnail
 import com.ballooner.ui.comic.PNG_TYPE

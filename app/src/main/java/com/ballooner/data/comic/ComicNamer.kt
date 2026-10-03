@@ -1,7 +1,7 @@
 package com.ballooner.data.comic
 
 import android.content.Context
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.data.settings.LocaleHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject

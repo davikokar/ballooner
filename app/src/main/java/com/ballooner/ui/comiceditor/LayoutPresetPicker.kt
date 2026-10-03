@@ -30,7 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 
 /** The Layout step's heading. The preset options continue it as a breadcrumb. */
 internal val PRESET_PICKER_TITLE = R.string.preset_picker_title

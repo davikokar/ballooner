@@ -3,7 +3,7 @@ package com.ballooner.ui.theme
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.domain.model.BalloonFont
 import com.ballooner.domain.model.BalloonType
 

@@ -69,7 +69,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.ComicStyle

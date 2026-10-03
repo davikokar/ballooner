@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:name=".BalloonerApplication"
+        android:name="com.ballooner.BalloonerApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -10,7 +10,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Ballooner">
         <activity
-            android:name=".MainActivity"
+            android:name="com.ballooner.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Ballooner">
             <intent-filter>

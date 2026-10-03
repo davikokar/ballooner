@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.ballooner.R
+import com.davide.seddio.ballooner.R
 import com.ballooner.ui.comic.rememberPanelImageSource
 import com.ballooner.ui.comic.shareComicPng
 import kotlinx.coroutines.launch
