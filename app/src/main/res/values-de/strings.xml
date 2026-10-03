@@ -51,11 +51,9 @@
     <string name="edit_cover">Cover bearbeiten</string>
     <string name="duplicate">Duplizieren</string>
     <string name="share_as_png">Als PNG teilen</string>
-    <string name="save_as_png">Als PNG speichern</string>
     <string name="share_comic_failed">Comic konnte nicht geteilt werden</string>
     <string name="keep">Behalten</string>
     <string name="comic_saved">Comic gespeichert</string>
-    <string name="comic_save_failed">Comic konnte nicht gespeichert werden</string>
     <string name="keep_changes_title">Änderungen behalten?</string>
     <string name="keep_changes_message">Dieser Comic hat ungespeicherte Änderungen.</string>
     <string name="discard">Verwerfen</string>

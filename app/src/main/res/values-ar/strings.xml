@@ -51,11 +51,9 @@
     <string name="edit_cover">تعديل الغلاف</string>
     <string name="duplicate">تكرار</string>
     <string name="share_as_png">مشاركة كملف PNG</string>
-    <string name="save_as_png">حفظ كملف PNG</string>
     <string name="share_comic_failed">تعذرت مشاركة القصة</string>
     <string name="keep">إبقاء</string>
     <string name="comic_saved">تم حفظ القصة</string>
-    <string name="comic_save_failed">تعذر حفظ القصة</string>
     <string name="keep_changes_title">هل تريد حفظ تغييراتك؟</string>
     <string name="keep_changes_message">تحتوي هذه القصة على تغييرات لم يتم حفظها.</string>
     <string name="discard">تجاهل</string>

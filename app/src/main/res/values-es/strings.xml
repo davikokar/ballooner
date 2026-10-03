@@ -51,11 +51,9 @@
     <string name="edit_cover">Editar portada</string>
     <string name="duplicate">Duplicar</string>
     <string name="share_as_png">Compartir como PNG</string>
-    <string name="save_as_png">Guardar como PNG</string>
     <string name="share_comic_failed">No se pudo compartir el cómic</string>
     <string name="keep">Conservar</string>
     <string name="comic_saved">Cómic guardado</string>
-    <string name="comic_save_failed">No se pudo guardar el cómic</string>
     <string name="keep_changes_title">¿Conservar los cambios?</string>
     <string name="keep_changes_message">Este cómic tiene cambios sin guardar.</string>
     <string name="discard">Descartar</string>

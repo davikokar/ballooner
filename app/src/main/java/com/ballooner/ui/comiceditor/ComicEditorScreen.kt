@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -32,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
@@ -99,6 +102,8 @@ fun ComicEditorScreen(
     modifier: Modifier = Modifier,
     onPickImage: (Int) -> Unit = {},
     onSave: () -> Unit = {},
+    onShare: () -> Unit = {},
+    sharing: Boolean = false,
 ) {
     var showOptions by rememberSaveable { mutableStateOf(false) }
     var showPanelOptions by rememberSaveable { mutableStateOf(false) }
@@ -148,6 +153,9 @@ fun ComicEditorScreen(
                     nextLabel = stringResource(
                         if (state.step == EditorStep.BALLOONS) R.string.save else R.string.next,
                     ),
+                    // A comic is only worth sending once it has its balloons on.
+                    onShare = if (state.step == EditorStep.BALLOONS) onShare else null,
+                    sharing = sharing,
                 )
             }
             // The workspace sits on its own ground so the chrome above it reads as a separate
@@ -405,6 +413,8 @@ private fun EditorHeader(
     onBack: (() -> Unit)?,
     onNext: (() -> Unit)?,
     nextLabel: String,
+    onShare: (() -> Unit)?,
+    sharing: Boolean,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -436,6 +446,22 @@ private fun EditorHeader(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                 ) {
                     Text(nextLabel, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            if (onShare != null) {
+                // The spinner stands exactly where the button was, so nothing moves.
+                if (sharing) {
+                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
+                } else {
+                    IconButton(onClick = onShare, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(R.string.share_as_png),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
             // Keeps Undo at the far end whether or not the preset buttons are there.

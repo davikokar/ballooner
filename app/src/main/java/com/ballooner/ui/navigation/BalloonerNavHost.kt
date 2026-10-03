@@ -36,7 +36,10 @@ fun BalloonerNavHost(navController: NavHostController = rememberNavController())
             route = Routes.COMIC,
             arguments = listOf(navArgument(COMIC_ID_KEY) { type = NavType.LongType }),
         ) {
-            ComicEditorRoute(onNavigateBack = { navController.popBackStack() })
+            ComicEditorRoute(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+            )
         }
     }
 }

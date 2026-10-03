@@ -51,11 +51,9 @@
     <string name="edit_cover">Modifica copertina</string>
     <string name="duplicate">Duplica</string>
     <string name="share_as_png">Condividi come PNG</string>
-    <string name="save_as_png">Salva come PNG</string>
     <string name="share_comic_failed">Impossibile condividere il fumetto</string>
     <string name="keep">Mantieni</string>
     <string name="comic_saved">Fumetto salvato</string>
-    <string name="comic_save_failed">Impossibile salvare il fumetto</string>
     <string name="keep_changes_title">Vuoi mantenere le modifiche?</string>
     <string name="keep_changes_message">Questo fumetto ha modifiche non salvate.</string>
     <string name="discard">Scarta</string>

@@ -51,11 +51,9 @@
     <string name="edit_cover">编辑封面</string>
     <string name="duplicate">复制</string>
     <string name="share_as_png">分享为 PNG</string>
-    <string name="save_as_png">保存为 PNG</string>
     <string name="share_comic_failed">无法分享漫画</string>
     <string name="keep">保留</string>
     <string name="comic_saved">漫画已保存</string>
-    <string name="comic_save_failed">无法保存漫画</string>
     <string name="keep_changes_title">要保留更改吗？</string>
     <string name="keep_changes_message">此漫画有尚未保存的更改。</string>
     <string name="discard">放弃</string>

@@ -59,11 +59,9 @@
     <string name="edit_cover">Edit cover</string>
     <string name="duplicate">Duplicate</string>
     <string name="share_as_png">Share as PNG</string>
-    <string name="save_as_png">Save as PNG</string>
     <string name="share_comic_failed">Could not share the comic</string>
     <string name="keep">Keep</string>
     <string name="comic_saved">Comic saved</string>
-    <string name="comic_save_failed">Could not save the comic</string>
     <string name="keep_changes_title">Keep your changes?</string>
     <string name="keep_changes_message">This comic has changes that have not been saved.</string>
     <string name="discard">Discard</string>

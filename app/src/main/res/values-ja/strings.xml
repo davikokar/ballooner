@@ -51,11 +51,9 @@
     <string name="edit_cover">表紙を編集</string>
     <string name="duplicate">複製</string>
     <string name="share_as_png">PNG として共有</string>
-    <string name="save_as_png">PNG として保存</string>
     <string name="share_comic_failed">コミックを共有できませんでした</string>
     <string name="keep">そのまま</string>
     <string name="comic_saved">コミックを保存しました</string>
-    <string name="comic_save_failed">コミックを保存できませんでした</string>
     <string name="keep_changes_title">変更を保存しますか？</string>
     <string name="keep_changes_message">このコミックには保存されていない変更があります。</string>
     <string name="discard">破棄</string>

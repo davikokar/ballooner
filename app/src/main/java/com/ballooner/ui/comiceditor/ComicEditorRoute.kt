@@ -1,6 +1,5 @@
 package com.ballooner.ui.comiceditor
 
-import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,30 +28,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntSize
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.R
-import com.ballooner.ui.comic.comicPixelWidth
-import com.ballooner.ui.comic.loadImagesForExport
 import com.ballooner.ui.comic.rememberPanelImageSource
-import com.ballooner.ui.comic.renderComic
-import kotlinx.coroutines.Dispatchers
+import com.ballooner.ui.comic.shareComicPng
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
-private const val PNG_TYPE = "image/png"
 
 /** Connects the comic editor to navigation, image picking, and the rest of the app. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComicEditorRoute(
     onNavigateBack: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: ComicEditorViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -78,48 +70,34 @@ fun ComicEditorRoute(
     val density = LocalDensity.current
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val scope = rememberCoroutineScope()
-    var exporting by remember { mutableStateOf(false) }
-    val exporter = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(PNG_TYPE)) { target ->
-        val comic = content?.comic
-        if (target == null || comic == null) return@rememberLauncherForActivityResult
-        exporting = true
-        scope.launch {
-            // Export decodes its own, larger copies: the editing ones are deliberately small.
-            val full = loadImagesForExport(context, sourceUris)
-            val written = withContext(Dispatchers.Default) {
-                runCatching {
-                    val bitmap = renderComic(
-                        comic = comic,
-                        images = full,
-                        pixelWidth = comicPixelWidth(comic) { uri ->
-                            full.bitmapFor(uri)?.let { IntSize(it.width, it.height) }
-                        },
-                        density = density,
-                        fontFamilyResolver = fontFamilyResolver,
-                    ).asAndroidBitmap()
-                    context.contentResolver.openOutputStream(target)?.use { out ->
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                    } ?: false
-                }.getOrDefault(false)
-            }
-            exporting = false
-            Toast.makeText(
-                context,
-                if (written) R.string.comic_saved else R.string.comic_save_failed,
-                Toast.LENGTH_SHORT,
-            ).show()
-        }
-    }
+    val untitled = stringResource(R.string.untitled)
+    // Rendering a comic at full size takes a noticeable moment, so the button says it is working.
+    var sharing by remember { mutableStateOf(false) }
 
     val saveComic = {
         viewModel.saveComic { Toast.makeText(context, R.string.comic_saved, Toast.LENGTH_SHORT).show() }
     }
 
-    val exportComic = {
-        // Read at the moment of exporting rather than from this composition: the title dialog
-        // sets the name and saves in one go, before any recomposition could refresh a captured one.
-        val named = (viewModel.uiState.value as? ComicEditorUiState.Content)?.comic?.name
-        exporter.launch("${named.orEmpty().ifBlank { "comic" }}.png")
+    val shareComic = {
+        // Read at the moment of sharing rather than from this composition: the title dialog sets
+        // the name and saves in one go, before any recomposition could refresh a captured one.
+        val comic = (viewModel.uiState.value as? ComicEditorUiState.Content)?.comic
+        if (comic != null) {
+            sharing = true
+            scope.launch {
+                val shared = shareComicPng(
+                    context = context,
+                    comic = comic,
+                    name = comic.name.ifBlank { untitled },
+                    density = density,
+                    fontFamilyResolver = fontFamilyResolver,
+                )
+                sharing = false
+                if (!shared) {
+                    Toast.makeText(context, R.string.share_comic_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     // Leaving with work the database has not seen is the one moment it can be lost, so it asks.
@@ -137,8 +115,7 @@ fun ComicEditorRoute(
                     name = content?.comic?.name.orEmpty(),
                     onName = viewModel::setName,
                     onNavigateBack = leave,
-                    onSave = exportComic,
-                    canSave = content != null && !exporting,
+                    onOpenSettings = onOpenSettings,
                 )
             }
         },
@@ -155,6 +132,8 @@ fun ComicEditorRoute(
                 )
             },
             onSave = saveComic,
+            onShare = shareComic,
+            sharing = sharing,
         )
     }
 
@@ -187,15 +166,14 @@ fun ComicEditorRoute(
     }
 }
 
-/** The comic's own bar: its name, the way out, and the way to a PNG. */
+/** The comic's own bar: its name, the way out, and the way to the app's settings. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorTopBar(
     name: String,
     onName: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    onSave: () -> Unit,
-    canSave: Boolean,
+    onOpenSettings: () -> Unit,
 ) {
     TopAppBar(
         title = {
@@ -215,8 +193,8 @@ private fun EditorTopBar(
             }
         },
         actions = {
-            IconButton(onClick = onSave, enabled = canSave) {
-                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.save_as_png))
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
             }
         },
     )
