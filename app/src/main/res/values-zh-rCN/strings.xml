@@ -17,6 +17,7 @@
     <string name="about_version">版本 %1$s</string>
     <string name="settings_community_support">社区与支持</string>
     <string name="settings_buy_coffee">请我喝杯咖啡</string>
+    <string name="billing_thanks">非常感谢您的支持！☕</string>
     <string name="settings_legal">法律信息</string>
     <string name="settings_privacy">隐私政策</string>
     <string name="settings_terms">条款</string>

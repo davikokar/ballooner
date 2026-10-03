@@ -17,6 +17,7 @@
     <string name="about_version">Version %1$s</string>
     <string name="settings_community_support">Communauté et assistance</string>
     <string name="settings_buy_coffee">Offrez-moi un café</string>
+    <string name="billing_thanks">Merci beaucoup pour votre soutien ! ☕</string>
     <string name="settings_legal">Mentions légales</string>
     <string name="settings_privacy">Politique de confidentialité</string>
     <string name="settings_terms">Conditions d’utilisation</string>

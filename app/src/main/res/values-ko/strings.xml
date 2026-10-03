@@ -17,6 +17,7 @@
     <string name="about_version">버전 %1$s</string>
     <string name="settings_community_support">커뮤니티 및 지원</string>
     <string name="settings_buy_coffee">커피 한 잔 후원하기</string>
+    <string name="billing_thanks">지원해 주셔서 정말 감사합니다! ☕</string>
     <string name="settings_legal">법적 고지</string>
     <string name="settings_privacy">개인정보 처리방침</string>
     <string name="settings_terms">이용약관</string>
