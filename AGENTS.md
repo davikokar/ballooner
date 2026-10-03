@@ -39,6 +39,9 @@ app/
 - Before introducing a significant architectural choice, read the
   [ADR instructions](.github/instructions/architecture-decisions.instructions.md)
   and existing [architecture decisions](docs/architecture/README.md).
+- The comic editor follows the design in
+  [the comic creation workflow](docs/design/comic-creation-workflow.md). Read it before changing
+  the editor, the comic data model, or anything about layout, image placement, or balloons.
 - For UI work or references to named screens, areas, and controls, read
   [the UI vocabulary](.github/instructions/ui-vocabulary.instructions.md).
 - Each screen has its own package under `ui/<feature>/` containing:

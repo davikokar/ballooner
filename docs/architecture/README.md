@@ -19,5 +19,13 @@ for the required format and status rules.
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
 | [ADR-0001](decisions/0001-view-rotation-is-a-display-only-layer-transform.md) | View rotation is a display-only layer transform | Disabled | 2026-09-25 |
-| [ADR-0002](decisions/0002-panel-rotation-is-a-destructive-undoable-image-edit.md) | Panel rotation is a destructive, undoable edit to the merged comic image | Active | 2026-09-25 |
-| [ADR-0003](decisions/0003-a-panel-quarter-turn-is-anchored-at-the-panel-top-left-corner.md) | A panel quarter turn is anchored at the panel's top-left corner | Active | 2026-09-26 |
+| [ADR-0002](decisions/0002-panel-rotation-is-a-destructive-undoable-image-edit.md) | Panel rotation is a destructive, undoable edit to the merged comic image | Disabled | 2026-09-25 |
+| [ADR-0003](decisions/0003-a-panel-quarter-turn-is-anchored-at-the-panel-top-left-corner.md) | A panel quarter turn is anchored at the panel's top-left corner | Disabled | 2026-09-26 |
+| [ADR-0004](decisions/0004-a-comic-is-a-declarative-document-rendered-on-demand.md) | A comic is a declarative document rendered on demand | Active | 2026-09-26 |
+| [ADR-0005](decisions/0005-panel-shapes-are-derived-from-the-layout.md) | Panel shapes are derived from the layout, never stored | Active | 2026-09-26 |
+| [ADR-0006](decisions/0006-balloon-scope-and-coordinate-spaces.md) | Balloon scope and the coordinate spaces for balloons and panel images | Active | 2026-09-26 |
+| [ADR-0007](decisions/0007-the-comic-editor-is-a-three-step-workflow.md) | The comic editor is a three-step workflow over one document | Active | 2026-09-26 |
+| [ADR-0008](decisions/0008-a-layout-is-a-grid-plus-ordered-cuts.md) | A layout is a grid with merged spans plus an ordered list of cuts | Active | 2026-09-26 |
+| [ADR-0009](decisions/0009-the-page-takes-its-height-from-a-reference-panel.md) | The page takes its height from a reference panel | Active | 2026-09-28 |
+| [ADR-0010](decisions/0010-a-page-is-a-stack-of-tiers.md) | A page is a stack of tiers, and a row may divide its own width | Active | 2026-10-02 |
+| [ADR-0011](decisions/0011-the-editor-works-on-a-copy.md) | The editor works on a copy, and the comic is written only when it is saved | Active | 2026-10-02 |

@@ -72,3 +72,213 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         )
     }
 }
+
+/**
+ * Adds the comic document tables. These describe a comic rather than storing it as pixels, and
+ * they are additive: the old `project` tables are untouched until the old editor is removed.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "`updatedAt` INTEGER NOT NULL, " +
+                "`pageShape` TEXT NOT NULL, " +
+                "`pageMargin` REAL NOT NULL, " +
+                "`gutter` REAL NOT NULL, " +
+                "`borderThickness` REAL NOT NULL, " +
+                "`cornerRadius` REAL NOT NULL, " +
+                "`rows` INTEGER NOT NULL, " +
+                "`columns` INTEGER NOT NULL, " +
+                "`rowWeights` TEXT NOT NULL, " +
+                "`columnWeights` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_span` (" +
+                "`comicId` INTEGER NOT NULL, " +
+                "`position` INTEGER NOT NULL, " +
+                "`firstRow` INTEGER NOT NULL, " +
+                "`firstColumn` INTEGER NOT NULL, " +
+                "`rowCount` INTEGER NOT NULL, " +
+                "`columnCount` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`comicId`, `position`), " +
+                "FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_comic_span_comicId` ON `comic_span` (`comicId`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_cut` (" +
+                "`comicId` INTEGER NOT NULL, " +
+                "`position` INTEGER NOT NULL, " +
+                "`aU` REAL NOT NULL, " +
+                "`aV` REAL NOT NULL, " +
+                "`bU` REAL NOT NULL, " +
+                "`bV` REAL NOT NULL, " +
+                "`anchorU` REAL, " +
+                "`anchorV` REAL, " +
+                "PRIMARY KEY(`comicId`, `position`), " +
+                "FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_comic_cut_comicId` ON `comic_cut` (`comicId`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_panel` (" +
+                "`comicId` INTEGER NOT NULL, " +
+                "`position` INTEGER NOT NULL, " +
+                "`sourceUri` TEXT, " +
+                "`centreU` REAL NOT NULL, " +
+                "`centreV` REAL NOT NULL, " +
+                "`zoom` REAL NOT NULL, " +
+                "`angleDegrees` REAL NOT NULL, " +
+                "PRIMARY KEY(`comicId`, `position`), " +
+                "FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_comic_panel_comicId` ON `comic_panel` (`comicId`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_balloon` (" +
+                "`comicId` INTEGER NOT NULL, " +
+                "`balloonId` INTEGER NOT NULL, " +
+                "`panelIndex` INTEGER, " +
+                "`type` TEXT NOT NULL, " +
+                "`text` TEXT NOT NULL, " +
+                "`centreU` REAL NOT NULL, " +
+                "`centreV` REAL NOT NULL, " +
+                "`width` REAL NOT NULL, " +
+                "`height` REAL NOT NULL, " +
+                "`tailAngleDegrees` REAL NOT NULL, " +
+                "`tailLength` REAL NOT NULL, " +
+                "`tailWidth` REAL NOT NULL, " +
+                "`cornerRoundness` REAL NOT NULL, " +
+                "`fontSize` REAL NOT NULL, " +
+                "`font` TEXT NOT NULL, " +
+                "PRIMARY KEY(`comicId`, `balloonId`), " +
+                "FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_comic_balloon_comicId` ON `comic_balloon` (`comicId`)")
+    }
+}
+
+/**
+ * Drops the tables of the flattened-image editor, which no longer has any code behind it.
+ *
+ * Anything those tables held is unreachable: a comic built from a merged bitmap cannot be
+ * expressed in the document model that replaced it.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS `balloon`")
+        db.execSQL("DROP TABLE IF EXISTS `panel`")
+        db.execSQL("DROP TABLE IF EXISTS `project`")
+    }
+}
+
+/**
+ * Makes the page's height derived rather than chosen.
+ *
+ * The page shape is replaced by the ratio its reference panel is held at, and every panel image
+ * gains room for the proportions of its own file. An existing comic's page shape is carried over
+ * as that ratio, which is exact for a single-panel comic and reshapes a multi-panel one, because
+ * the old column reads as a page measurement and the new one as a panel measurement.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "`updatedAt` INTEGER NOT NULL, " +
+                "`pageRatio` REAL, " +
+                "`pageMargin` REAL NOT NULL, " +
+                "`gutter` REAL NOT NULL, " +
+                "`borderThickness` REAL NOT NULL, " +
+                "`cornerRadius` REAL NOT NULL, " +
+                "`rows` INTEGER NOT NULL, " +
+                "`columns` INTEGER NOT NULL, " +
+                "`rowWeights` TEXT NOT NULL, " +
+                "`columnWeights` TEXT NOT NULL)",
+        )
+        db.execSQL(
+            "INSERT INTO `comic_new` (`id`, `name`, `createdAt`, `updatedAt`, `pageRatio`, " +
+                "`pageMargin`, `gutter`, `borderThickness`, `cornerRadius`, `rows`, `columns`, " +
+                "`rowWeights`, `columnWeights`) " +
+                "SELECT `id`, `name`, `createdAt`, `updatedAt`, " +
+                "CASE `pageShape` " +
+                "WHEN 'SQUARE' THEN 1.0 " +
+                "WHEN 'PORTRAIT' THEN 0.75 " +
+                "WHEN 'LANDSCAPE' THEN 1.3333334 " +
+                "WHEN 'STRIP' THEN 3.0 " +
+                "ELSE 0.75 END, " +
+                "`pageMargin`, `gutter`, `borderThickness`, `cornerRadius`, `rows`, `columns`, " +
+                "`rowWeights`, `columnWeights` FROM `comic`",
+        )
+        db.execSQL("DROP TABLE `comic`")
+        db.execSQL("ALTER TABLE `comic_new` RENAME TO `comic`")
+        db.execSQL("ALTER TABLE `comic_panel` ADD COLUMN `sourceAspect` REAL")
+    }
+}
+
+/** Balloons can now size their own text, which is remembered per balloon. */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `comic_balloon` ADD COLUMN `autoSize` INTEGER NOT NULL DEFAULT 0",
+        )
+    }
+}
+
+/** A balloon now carries its own outline weight, matching the panel borders unless told not to. */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `comic_balloon` ADD COLUMN `borderThickness` REAL NOT NULL DEFAULT 0.006",
+        )
+        db.execSQL(
+            "ALTER TABLE `comic_balloon` ADD COLUMN `matchPanelBorder` INTEGER NOT NULL DEFAULT 1",
+        )
+    }
+}
+
+/** A panel can now be framed on its own, overriding the comic style. Null means it is not. */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `comic_panel` ADD COLUMN `borderThickness` REAL")
+        db.execSQL("ALTER TABLE `comic_panel` ADD COLUMN `cornerRadius` REAL")
+    }
+}
+
+/**
+ * A row can now divide its own width (ADR-0010). A row that follows the grid is not stored, so
+ * every existing comic migrates with no rows of its own and is unchanged.
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `comic_row_split` (" +
+                "`comicId` INTEGER NOT NULL, " +
+                "`row` INTEGER NOT NULL, " +
+                "`columnWeights` TEXT NOT NULL, " +
+                "PRIMARY KEY(`comicId`, `row`), " +
+                "FOREIGN KEY(`comicId`) REFERENCES `comic`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_comic_row_split_comicId` " +
+                "ON `comic_row_split` (`comicId`)",
+        )
+    }
+}
+
+/**
+ * A comic can now be listed under a picture of its own rather than under a drawing of itself.
+ * Null, which every existing comic migrates with, means show the comic.
+ */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `comic` ADD COLUMN `coverUri` TEXT")
+    }
+}

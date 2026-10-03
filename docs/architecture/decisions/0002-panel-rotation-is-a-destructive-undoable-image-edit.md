@@ -1,6 +1,8 @@
 # ADR-0002: Panel rotation is a destructive, undoable edit to the merged comic image
 
-- Status: Active
+- Status: Disabled
+- Disabled date: 2026-09-26
+- Superseded by: [ADR-0004](0004-a-comic-is-a-declarative-document-rendered-on-demand.md)
 - Date: 2026-09-25
 - Decision makers: Ballooner maintainers
 - Corrected by: [ADR-0003](0003-a-panel-quarter-turn-is-anchored-at-the-panel-top-left-corner.md) — a quarter

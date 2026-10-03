@@ -1,15 +1,13 @@
 package com.ballooner.di
 
-import com.ballooner.data.balloon.BalloonRepository
-import com.ballooner.data.balloon.RoomBalloonRepository
+import com.ballooner.data.comic.AppComicNamer
+import com.ballooner.data.comic.AppPanelImageImporter
+import com.ballooner.data.comic.ComicNamer
+import com.ballooner.data.comic.ComicRepository
+import com.ballooner.data.comic.PanelImageImporter
+import com.ballooner.data.comic.RoomComicRepository
 import com.ballooner.data.image.AppImageStore
 import com.ballooner.data.image.ImageStore
-import com.ballooner.data.panel.PanelRepository
-import com.ballooner.data.panel.RoomPanelRepository
-import com.ballooner.data.project.ProjectRepository
-import com.ballooner.data.project.RoomProjectRepository
-import com.ballooner.data.settings.AppSettingsRepository
-import com.ballooner.data.settings.SettingsRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -22,15 +20,11 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindProjectRepository(impl: RoomProjectRepository): ProjectRepository
+    abstract fun bindComicRepository(impl: RoomComicRepository): ComicRepository
 
     @Binds
     @Singleton
-    abstract fun bindBalloonRepository(impl: RoomBalloonRepository): BalloonRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindPanelRepository(impl: RoomPanelRepository): PanelRepository
+    abstract fun bindPanelImageImporter(impl: AppPanelImageImporter): PanelImageImporter
 
     @Binds
     @Singleton
@@ -38,5 +32,5 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindSettingsRepository(impl: AppSettingsRepository): SettingsRepository
+    abstract fun bindComicNamer(impl: AppComicNamer): ComicNamer
 }

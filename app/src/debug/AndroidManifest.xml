@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Debug-only: galleries for checking comic rendering and editing. Never merged into release. -->
+    <application>
+        <activity
+            android:name="com.ballooner.debug.ComicRenderPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Ballooner" />
+        <activity
+            android:name="com.ballooner.debug.ComicEditorPreviewActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Ballooner" />
+    </application>
+
+</manifest>
