@@ -51,9 +51,12 @@
     <string name="edit_cover">Editar capa</string>
     <string name="duplicate">Duplicar</string>
     <string name="share_as_png">Compartilhar como PNG</string>
+    <string name="export_as_png">Exportar como PNG</string>
     <string name="share_comic_failed">Não foi possível compartilhar a história</string>
     <string name="keep">Manter</string>
     <string name="comic_saved">História salva</string>
+    <string name="comic_exported">História exportada</string>
+    <string name="comic_export_failed">Não foi possível exportar a história</string>
     <string name="keep_changes_title">Manter suas alterações?</string>
     <string name="keep_changes_message">Esta história tem alterações não salvas.</string>
     <string name="discard">Descartar</string>

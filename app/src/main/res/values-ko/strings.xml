@@ -51,9 +51,12 @@
     <string name="edit_cover">표지 편집</string>
     <string name="duplicate">복제</string>
     <string name="share_as_png">PNG로 공유</string>
+    <string name="export_as_png">PNG로 내보내기</string>
     <string name="share_comic_failed">만화를 공유하지 못했습니다</string>
     <string name="keep">유지</string>
     <string name="comic_saved">만화를 저장했습니다</string>
+    <string name="comic_exported">만화를 내보냈습니다</string>
+    <string name="comic_export_failed">만화를 내보내지 못했습니다</string>
     <string name="keep_changes_title">변경 사항을 저장할까요?</string>
     <string name="keep_changes_message">이 만화에는 저장되지 않은 변경 사항이 있습니다.</string>
     <string name="discard">삭제</string>

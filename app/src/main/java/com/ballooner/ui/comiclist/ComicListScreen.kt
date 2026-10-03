@@ -58,6 +58,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -74,8 +76,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ballooner.R
 import com.ballooner.data.comic.SavedComic
 import com.ballooner.ui.comic.ComicThumbnail
+import com.ballooner.ui.comic.PNG_TYPE
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.comic.THUMBNAIL_EDGE_PIXELS
+import com.ballooner.ui.comic.exportComicPng
 import com.ballooner.ui.comic.rememberPanelImageSource
 import com.ballooner.ui.comic.shareComicPng
 import kotlinx.coroutines.launch
@@ -114,9 +118,11 @@ fun ComicListScreen(
     var pendingDelete by remember { mutableStateOf<SavedComic?>(null) }
     var renaming by remember { mutableStateOf<Pair<Long, String>?>(null) }
     // Rendering a comic at full size takes a noticeable moment, so the comic says it is working.
-    var sharing by remember { mutableStateOf<Long?>(null) }
+    var busy by remember { mutableStateOf<Long?>(null) }
     // Which comic the picker was opened for, so its result knows where to land.
     var coveringFor by remember { mutableStateOf<Long?>(null) }
+    // Which comic the export was started for, so the chosen document knows what to hold.
+    var exportingFor by remember { mutableStateOf<SavedComic?>(null) }
 
     val comics = (state as? ComicListUiState.Content)?.comics.orEmpty()
     // One source for the whole list, so two comics sharing an image decode it once between them.
@@ -139,6 +145,31 @@ fun ComicListScreen(
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val scope = rememberCoroutineScope()
     val untitled = stringResource(R.string.untitled)
+
+    // Built once: a contract made per composition re-registers the launcher behind it.
+    val exportContract = remember { ActivityResultContracts.CreateDocument(PNG_TYPE) }
+    val exporter = rememberLauncherForActivityResult(exportContract) { target ->
+        val saved = exportingFor
+        exportingFor = null
+        if (target != null && saved != null) {
+            busy = saved.id
+            scope.launch {
+                val written = exportComicPng(
+                    context = context,
+                    comic = saved.comic,
+                    target = target,
+                    density = density,
+                    fontFamilyResolver = fontFamilyResolver,
+                )
+                busy = null
+                Toast.makeText(
+                    context,
+                    if (written) R.string.comic_exported else R.string.comic_export_failed,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -189,7 +220,7 @@ fun ComicListScreen(
                         ComicTile(
                             saved = saved,
                             images = images,
-                            sharing = sharing == saved.id,
+                            busy = busy == saved.id,
                             onOpen = { onOpenComic(saved.id) },
                             onRename = { renaming = saved.id to saved.comic.name },
                             onDuplicate = { onDuplicateComic(saved) },
@@ -200,7 +231,7 @@ fun ComicListScreen(
                                 )
                             },
                             onShare = {
-                                sharing = saved.id
+                                busy = saved.id
                                 scope.launch {
                                     val shared = shareComicPng(
                                         context = context,
@@ -209,7 +240,7 @@ fun ComicListScreen(
                                         density = density,
                                         fontFamilyResolver = fontFamilyResolver,
                                     )
-                                    sharing = null
+                                    busy = null
                                     if (!shared) {
                                         Toast.makeText(
                                             context,
@@ -218,6 +249,10 @@ fun ComicListScreen(
                                         ).show()
                                     }
                                 }
+                            },
+                            onExport = {
+                                exportingFor = saved
+                                exporter.launch("${saved.comic.name.ifBlank { untitled }}.png")
                             },
                             onDelete = { pendingDelete = saved },
                         )
@@ -285,12 +320,13 @@ fun ComicListScreen(
 private fun ComicTile(
     saved: SavedComic,
     images: PanelImageSource,
-    sharing: Boolean,
+    busy: Boolean,
     onOpen: () -> Unit,
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
     onCover: () -> Unit,
     onShare: () -> Unit,
+    onExport: () -> Unit,
     onDelete: () -> Unit,
 ) {
     OutlinedCard(
@@ -333,11 +369,12 @@ private fun ComicTile(
                 modifier = Modifier.weight(1f),
             )
             ComicMenu(
-                sharing = sharing,
+                busy = busy,
                 onRename = onRename,
                 onDuplicate = onDuplicate,
                 onCover = onCover,
                 onShare = onShare,
+                onExport = onExport,
                 onDelete = onDelete,
             )
         }
@@ -347,19 +384,20 @@ private fun ComicTile(
 /** What can be done to a comic without opening it. */
 @Composable
 private fun ComicMenu(
-    sharing: Boolean,
+    busy: Boolean,
     onRename: () -> Unit,
     onDuplicate: () -> Unit,
     onCover: () -> Unit,
     onShare: () -> Unit,
+    onExport: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
-        if (sharing) {
+        if (busy) {
             // In the button's place, so the tile neither jumps nor offers a second go at it.
-            Box(modifier = Modifier.size(SHARING_SPINNER_BOX), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(modifier = Modifier.size(SHARING_SPINNER), strokeWidth = 2.dp)
+            Box(modifier = Modifier.size(BUSY_SPINNER_BOX), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(modifier = Modifier.size(BUSY_SPINNER), strokeWidth = 2.dp)
             }
         } else {
             IconButton(onClick = { open = true }) {
@@ -397,6 +435,14 @@ private fun ComicMenu(
                 onClick = {
                     open = false
                     onShare()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.export_as_png)) },
+                leadingIcon = { DownloadGlyph(MaterialTheme.colorScheme.onSurfaceVariant) },
+                onClick = {
+                    open = false
+                    onExport()
                 },
             )
             DropdownMenuItem(
@@ -441,6 +487,40 @@ private fun PictureGlyph(tint: Color) {
                 close()
             },
             color = tint,
+        )
+    }
+}
+
+/** An arrow coming down onto a shelf: material-icons-core has no download icon. */
+@Composable
+private fun DownloadGlyph(tint: Color) {
+    Canvas(modifier = Modifier.size(MENU_GLYPH_SIZE)) {
+        val stroke = size.minDimension * 0.08f
+        val centre = size.width / 2f
+        val head = size.height * 0.56f
+        val wing = size.minDimension * 0.18f
+        drawLine(
+            color = tint,
+            start = Offset(centre, size.height * 0.16f),
+            end = Offset(centre, head),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+        drawPath(
+            path = Path().apply {
+                moveTo(centre - wing, head - wing)
+                lineTo(centre, head)
+                lineTo(centre + wing, head - wing)
+            },
+            color = tint,
+            style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+        drawLine(
+            color = tint,
+            start = Offset(size.width * 0.2f, size.height * 0.82f),
+            end = Offset(size.width * 0.8f, size.height * 0.82f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
         )
     }
 }
@@ -493,5 +573,5 @@ private const val TILES_ACROSS = 2
 private const val TILE_ASPECT = 2f / 3f
 
 /** The spinner stands exactly where the options button was, so nothing moves. */
-private val SHARING_SPINNER_BOX = 48.dp
-private val SHARING_SPINNER = 20.dp
+private val BUSY_SPINNER_BOX = 48.dp
+private val BUSY_SPINNER = 20.dp

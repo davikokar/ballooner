@@ -51,9 +51,12 @@
     <string name="edit_cover">Modifier la couverture</string>
     <string name="duplicate">Dupliquer</string>
     <string name="share_as_png">Partager en PNG</string>
+    <string name="export_as_png">Exporter en PNG</string>
     <string name="share_comic_failed">Impossible de partager la BD</string>
     <string name="keep">Conserver</string>
     <string name="comic_saved">BD enregistrée</string>
+    <string name="comic_exported">BD exportée</string>
+    <string name="comic_export_failed">Impossible d’exporter la BD</string>
     <string name="keep_changes_title">Conserver vos modifications ?</string>
     <string name="keep_changes_message">Cette BD comporte des modifications non enregistrées.</string>
     <string name="discard">Abandonner</string>
