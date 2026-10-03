@@ -1,5 +1,6 @@
 package com.ballooner.ui.settings
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ContextWrapper
 import android.content.Intent
@@ -41,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +56,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.ballooner.R
 import com.ballooner.data.settings.LocaleHelper
 import com.ballooner.ui.theme.balloonerTopAppBarColors
@@ -63,12 +66,19 @@ private enum class SettingsDialog { LANGUAGE, ABOUT, PRIVACY, TERMS }
 
 @Composable
 fun SettingsRoute(onNavigateBack: () -> Unit) {
-    SettingsScreen(onNavigateBack = onNavigateBack)
+    val viewModel: SettingsViewModel = hiltViewModel()
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.thanks.collect {
+            Toast.makeText(context, R.string.billing_thanks, Toast.LENGTH_LONG).show()
+        }
+    }
+    SettingsScreen(onNavigateBack = onNavigateBack, onBuyCoffee = viewModel::buyCoffee)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onNavigateBack: () -> Unit) {
+fun SettingsScreen(onNavigateBack: () -> Unit, onBuyCoffee: (Activity) -> Unit = {}) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
@@ -133,16 +143,21 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
 
             SectionHeader(stringResource(R.string.settings_community_support))
             SettingsRow(Icons.Default.Favorite, stringResource(R.string.settings_buy_coffee)) {
-                launchIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse(BUY_ME_A_COFFEE_URL)))
+                activity?.let(onBuyCoffee)
             }
             HorizontalDivider()
 
             SectionHeader(stringResource(R.string.settings_legal))
             SettingsRow(Icons.Default.Lock, stringResource(R.string.settings_privacy)) {
-                dialog = SettingsDialog.PRIVACY
+                // The summary dialog stands in when the device has no browser to read the full text in.
+                if (!launchIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)))) {
+                    dialog = SettingsDialog.PRIVACY
+                }
             }
             SettingsRow(Icons.Default.Info, stringResource(R.string.settings_terms)) {
-                dialog = SettingsDialog.TERMS
+                if (!launchIntent(context, Intent(Intent.ACTION_VIEW, Uri.parse(TERMS_URL)))) {
+                    dialog = SettingsDialog.TERMS
+                }
             }
         }
     }
@@ -294,7 +309,8 @@ private tailrec fun android.content.Context.findActivity(): ComponentActivity? =
     else -> null
 }
 
-private const val BUY_ME_A_COFFEE_URL = "https://www.buymeacoffee.com/"
+private const val PRIVACY_POLICY_URL = "https://davikokar.github.io/android-docs/ballooner/privacy.html"
+private const val TERMS_URL = "https://davikokar.github.io/android-docs/ballooner/terms.html"
 
 @Preview
 @Composable

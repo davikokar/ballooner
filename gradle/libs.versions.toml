@@ -10,6 +10,8 @@ navigationCompose = "2.8.1"
 hilt = "2.52"
 hiltNavigationCompose = "1.2.0"
 room = "2.6.1"
+# 8.x and later require compileSdk 35; this project is on 34.
+billing = "7.1.1"
 coroutines = "1.8.1"
 junit = "4.13.2"
 turbine = "1.1.0"
@@ -36,6 +38,7 @@ androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navig
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
