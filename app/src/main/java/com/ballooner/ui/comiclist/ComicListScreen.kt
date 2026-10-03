@@ -10,12 +10,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -59,8 +63,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -136,7 +143,13 @@ fun ComicListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BalloonerLogo(size = TITLE_LOGO_SIZE)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.app_name))
+                    }
+                },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
@@ -153,10 +166,19 @@ fun ComicListScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (state) {
                 ComicListUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                ComicListUiState.Empty -> Text(
-                    text = stringResource(R.string.comics_empty),
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                ComicListUiState.Empty -> Column(
+                    modifier = Modifier.align(Alignment.Center).padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    BalloonerLogo(size = EMPTY_LOGO_SIZE, alpha = EMPTY_LOGO_ALPHA)
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        text = stringResource(R.string.comics_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
                 is ComicListUiState.Content -> LazyVerticalGrid(
                     columns = GridCells.Fixed(TILES_ACROSS),
                     modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -448,7 +470,23 @@ private fun CopyGlyph(tint: Color) {
     }
 }
 
+/** The app's own mark. Decorative wherever it is used, so it is never announced. */
+@Composable
+private fun BalloonerLogo(size: Dp, alpha: Float = 1f) {
+    Image(
+        painter = painterResource(R.drawable.ic_ballooner_logo),
+        contentDescription = null,
+        modifier = Modifier.size(size),
+        alpha = alpha,
+    )
+}
+
 private val MENU_GLYPH_SIZE = 24.dp
+
+/** Beside the title, and faint behind the invitation to start a comic. */
+private val TITLE_LOGO_SIZE = 28.dp
+private val EMPTY_LOGO_SIZE = 150.dp
+private const val EMPTY_LOGO_ALPHA = 0.25f
 
 /** Two tiles to a row, each standing taller than it is wide, as a comic page does. */
 private const val TILES_ACROSS = 2
