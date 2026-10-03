@@ -2,6 +2,7 @@ package com.ballooner.ui.comiceditor
 
 import android.graphics.Bitmap
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,10 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -106,11 +110,22 @@ fun ComicEditorRoute(
     }
 
     val saveComic = {
-        // Read at the moment of saving rather than from this composition: the title dialog sets
-        // the name and exports in one go, before any recomposition could refresh a captured one.
+        viewModel.saveComic { Toast.makeText(context, "Comic saved", Toast.LENGTH_SHORT).show() }
+    }
+
+    val exportComic = {
+        // Read at the moment of exporting rather than from this composition: the title dialog
+        // sets the name and saves in one go, before any recomposition could refresh a captured one.
         val named = (viewModel.uiState.value as? ComicEditorUiState.Content)?.comic?.name
         exporter.launch("${named.orEmpty().ifBlank { "comic" }}.png")
     }
+
+    // Leaving with work the database has not seen is the one moment it can be lost, so it asks.
+    var leaving by remember { mutableStateOf(false) }
+    val leave = {
+        if (content?.unsaved == true) leaving = true else onNavigateBack()
+    }
+    BackHandler(enabled = content?.unsaved == true) { leaving = true }
 
     Scaffold(
         topBar = {
@@ -119,8 +134,8 @@ fun ComicEditorRoute(
                 EditorTopBar(
                     name = content?.comic?.name.orEmpty(),
                     onName = viewModel::setName,
-                    onNavigateBack = onNavigateBack,
-                    onSave = saveComic,
+                    onNavigateBack = leave,
+                    onSave = exportComic,
                     canSave = content != null && !exporting,
                 )
             }
@@ -138,6 +153,34 @@ fun ComicEditorRoute(
                 )
             },
             onSave = saveComic,
+        )
+    }
+
+    if (leaving) {
+        AlertDialog(
+            onDismissRequest = { leaving = false },
+            title = { Text("Keep your changes?") },
+            text = { Text("This comic has changes that have not been saved.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        leaving = false
+                        viewModel.saveComic { onNavigateBack() }
+                    },
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        leaving = false
+                        onNavigateBack()
+                    },
+                ) {
+                    Text("Discard")
+                }
+            },
         )
     }
 }

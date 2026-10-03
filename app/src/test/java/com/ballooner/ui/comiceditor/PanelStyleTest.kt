@@ -55,6 +55,9 @@ class PanelStyleTest {
         viewModel.setPanelStyle(1, PanelStyle(borderThickness = 0.02f, cornerRadius = 0.3f))
         advanceUntilIdle()
 
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         val saved = repository.saved.value.getValue(1L)
         assertEquals(PanelStyle(0.02f, 0.3f), saved.panelStyleAt(1))
         // Its neighbour is untouched: the frame belongs to one panel, not to the pair.

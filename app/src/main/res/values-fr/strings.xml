@@ -5,10 +5,6 @@
     <string name="close">Fermer</string>
     <string name="settings_general">Général</string>
     <string name="settings_change_language">Changer de langue</string>
-    <string name="settings_text">Paramètres du texte</string>
-    <string name="settings_layout">Paramètres de mise en page</string>
-    <string name="layout_columns">Colonnes</string>
-    <string name="layout_columns_description">Nombre de colonnes utilisées lors de la première sélection d’images d’une nouvelle bande dessinée.</string>
     <string name="settings_app">Application</string>
     <string name="settings_share_app">Partager l’application</string>
     <string name="share_app_text">Créez des bandes dessinées avec Ballooner : https://play.google.com/store/apps/details?id=%1$s</string>
@@ -26,14 +22,6 @@
     <string name="settings_terms">Conditions d’utilisation</string>
     <string name="privacy_policy_text">Ballooner traite les images sélectionnées et le texte de vos bandes dessinées sur votre appareil. Les images sont copiées dans le stockage privé de l’application pour être modifiées. L’application ne collecte pas, ne stocke pas à distance et ne partage pas de données personnelles.</string>
     <string name="terms_text">Ballooner est fourni en l’état pour un usage créatif personnel. Vous êtes responsable des images et du texte ajoutés et devez vous assurer que vos bandes dessinées respectent les lois applicables et les droits des tiers.</string>
-    <string name="default_text_font">Police de texte par défaut</string>
-    <string name="default_text_font_description">Utilisée comme police initiale pour les nouvelles bulles.</string>
-    <string name="hide_font_selector">Masquer le sélecteur de police</string>
-    <string name="hide_font_selector_description">Masque le sélecteur de police dans l’éditeur de bulles.</string>
-    <string name="text_size">Taille du texte</string>
-    <string name="text_size_description">Ajuste automatiquement le texte à chaque bulle et masque le curseur de taille.</string>
-    <string name="manual">Manuel</string>
-    <string name="auto">Automatique</string>
     <string name="untitled">Sans titre</string>
     <string name="open_images">Ouvrir des images</string>
     <string name="saved_image">Image enregistrée</string>

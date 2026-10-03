@@ -74,6 +74,9 @@ class FocusAndSwapTest {
         advanceUntilIdle()
 
         assertEquals(before, content(viewModel).comic)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(before, repository.saved.value.getValue(1L))
         assertFalse(content(viewModel).canUndo)
     }
@@ -156,6 +159,9 @@ class FocusAndSwapTest {
         advanceUntilIdle()
 
         assertEquals(listOf("image3", "image1", "image2", "image0"), uris(viewModel))
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals("image3", repository.saved.value.getValue(1L).panels[0].image?.sourceUri)
     }
 

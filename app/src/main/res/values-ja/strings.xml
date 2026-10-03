@@ -5,10 +5,6 @@
     <string name="close">閉じる</string>
     <string name="settings_general">一般</string>
     <string name="settings_change_language">言語を変更</string>
-    <string name="settings_text">テキスト設定</string>
-    <string name="settings_layout">レイアウト設定</string>
-    <string name="layout_columns">列数</string>
-    <string name="layout_columns_description">新しいコミックで最初に画像を選択するときに使用する列数です。</string>
     <string name="settings_app">アプリ</string>
     <string name="settings_share_app">アプリを共有</string>
     <string name="share_app_text">Balloonerでコミックを作成: https://play.google.com/store/apps/details?id=%1$s</string>
@@ -26,14 +22,6 @@
     <string name="settings_terms">利用規約</string>
     <string name="privacy_policy_text">Balloonerは、選択した画像とコミックのテキストを端末上で処理します。編集のため、画像はアプリ専用ストレージにコピーされます。このアプリが個人データを収集したり、リモートで保存したり、共有したりすることはありません。</string>
     <string name="terms_text">Balloonerは、個人の創作目的のために現状のまま提供されます。追加する画像とテキスト、および作成したコミックが適用法令や第三者の権利に準拠していることについては、利用者が責任を負います。</string>
-    <string name="default_text_font">デフォルトのテキストフォント</string>
-    <string name="default_text_font_description">新しい吹き出しの初期フォントとして使用します。</string>
-    <string name="hide_font_selector">フォント選択を非表示</string>
-    <string name="hide_font_selector_description">吹き出しエディターでフォント選択を非表示にします。</string>
-    <string name="text_size">テキストサイズ</string>
-    <string name="text_size_description">各吹き出しに収まるようテキストを自動調整し、サイズスライダーを非表示にします。</string>
-    <string name="manual">手動</string>
-    <string name="auto">自動</string>
     <string name="untitled">無題</string>
     <string name="open_images">画像を開く</string>
     <string name="saved_image">画像を保存しました</string>

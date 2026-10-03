@@ -8,6 +8,7 @@ import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.ui.comiceditor.LayoutKind
+import com.ballooner.ui.comiceditor.NEW_COMIC_ID
 import com.ballooner.ui.comiceditor.layoutKindOf
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,30 +26,18 @@ class ComicListViewModelTest {
     val dispatcherRule = MainDispatcherRule()
 
     @Test
-    fun `a new comic is one panel shaped by the image that will fill it`() = runTest {
+    fun `creating a comic writes nothing until the editor saves it`() = runTest {
         val repository = FakeComicRepository()
         val viewModel = ComicListViewModel(repository)
-        var created: Long? = null
+        val before = repository.saved.value
+        var opened: Long? = null
 
-        viewModel.createComic { created = it }
+        viewModel.createComic { opened = it }
         advanceUntilIdle()
 
-        val comic = repository.saved.value.getValue(created!!)
-        assertEquals(LayoutKind.SINGLE, layoutKindOf(comic))
-        assertEquals(PageSizing.FromImage, comic.sizing)
-        assertEquals(1, comic.panels.size)
-    }
-
-    @Test
-    fun `a new comic is named after how many there already are`() = runTest {
-        val repository = FakeComicRepository()
-        val viewModel = ComicListViewModel(repository)
-        var created: Long? = null
-
-        viewModel.createComic { created = it }
-        advanceUntilIdle()
-
-        assertEquals("My Comic 2", repository.saved.value.getValue(created!!).name)
+        // Abandoning a comic that was never saved must leave nothing behind, so nothing is made.
+        assertEquals(NEW_COMIC_ID, opened)
+        assertEquals(before, repository.saved.value)
     }
 
     @Test

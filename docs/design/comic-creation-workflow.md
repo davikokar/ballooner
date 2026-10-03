@@ -47,9 +47,10 @@ a persistent three-way step switch, and the user moves between steps freely. The
 replaces today's Edit / View toggle; a preview (no editing affordances) is available from any
 step.
 
-Each step writes a different part of the comic, so moving between steps never loses work and
-never prompts to save or discard. The only exception is a layout change that deletes panels,
-described under [Changing the layout later](#changing-the-layout-later).
+Each step writes a different part of the comic, so moving between steps never loses work. Moving
+between steps never prompts either; the only prompts are a layout change that deletes panels,
+described under [Changing the layout later](#changing-the-layout-later), and leaving the editor
+with unsaved work, described under [Saving](#saving).
 
 While a step is active, the parts of the comic owned by *later* steps are shown dimmed and are
 not interactive:
@@ -289,10 +290,24 @@ While a panel is focused:
   it is edited in the unfocused view, where its whole shape is visible.
 - A panel with angled sides is focused by its bounding box.
 
+## Saving
+
+The editor works on a copy of the comic. Edits change only that copy; the library is rewritten
+when the user asks for it (see [ADR-0011](../architecture/decisions/0011-the-editor-works-on-a-copy.md)).
+
+- **Save** sits in the balloons step, at the end of the guided flow. It asks for a title, writes
+  the comic to the library, and confirms. It does not produce a PNG.
+- A comic started from the library's **+** button exists only in the editor until it is first
+  saved. Abandoning it leaves the library exactly as it was.
+- Leaving the editor with unsaved work — by the back arrow or the system back gesture — asks
+  **Keep your changes?** and offers *Save* or *Discard*. With nothing unsaved, leaving is silent.
+
 ## Export
 
-Exporting renders the comic at the source images' native resolution and writes a PNG. Because
-editing never touches pixels, export quality is independent of how much editing was done.
+Exporting is a separate action, offered as **Save as PNG** in the editor's top bar and as
+**Share as PNG** in the library. It renders the comic at the source images' native resolution and
+writes a PNG. Because editing never touches pixels, export quality is independent of how much
+editing was done.
 
 ---
 

@@ -84,10 +84,16 @@ class ComicEditorViewModel @Inject constructor(
     constructor(comicId: Long, repository: ComicRepository) :
         this(SavedStateHandle(mapOf(COMIC_ID_KEY to comicId)), repository, PanelImageImporter { ImportedImage(it, null) })
 
-    private val comicId: Long = savedStateHandle.get<Long>(COMIC_ID_KEY) ?: 0L
+    // Not a val: a comic that has never been saved has no row yet, and takes its id from the
+    // first save. See ADR-0011.
+    private var comicId: Long = savedStateHandle.get<Long>(COMIC_ID_KEY) ?: NEW_COMIC_ID
 
     private val state = MutableStateFlow<ComicEditorUiState>(ComicEditorUiState.Loading)
     val uiState: StateFlow<ComicEditorUiState> = state.asStateFlow()
+
+    // What the database holds, so the editor can tell whether it is carrying anything that would
+    // be lost. Null until a new comic has been saved for the first time.
+    private var savedComic: Comic? = null
 
     private val undoStack = ArrayDeque<Comic>()
     private var pending: Comic? = null
@@ -104,9 +110,44 @@ class ComicEditorViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val comic = repository.observeComic(comicId).first() ?: Comic()
+            val comic = if (comicId == NEW_COMIC_ID) {
+                // One panel, shaped by whatever image goes in it: the fewest decisions to start.
+                Comic(name = defaultName(), sizing = PageSizing.FromImage)
+            } else {
+                repository.observeComic(comicId).first()?.also { savedComic = it } ?: Comic()
+            }
             nextBalloonId = (comic.balloons.maxOfOrNull { it.id } ?: 0L) + 1L
-            state.value = ComicEditorUiState.Content(comic = comic, step = EditorStep.LAYOUT)
+            state.value = ComicEditorUiState.Content(
+                comic = comic,
+                step = EditorStep.LAYOUT,
+                unsaved = comicId == NEW_COMIC_ID,
+            )
+        }
+    }
+
+    private suspend fun defaultName(): String =
+        "My Comic ${repository.observeComics().first().size + 1}"
+
+    /**
+     * Writes the comic, creating its row if this is the first time it has been saved.
+     *
+     * [onSaved] reports the id it was written under, which for a new comic is the id it has only
+     * just been given.
+     */
+    fun saveComic(onSaved: (Long) -> Unit = {}) {
+        val content = contentOrNull() ?: return
+        viewModelScope.launch {
+            val comic = content.comic
+            if (comicId == NEW_COMIC_ID) {
+                comicId = repository.createComic(comic)
+            } else {
+                repository.saveComic(comicId, comic)
+            }
+            savedComic = comic
+            // The comic may have moved on while the write was in flight; it is only clean if
+            // what was written is still what is being edited.
+            updateContent { it.copy(unsaved = it.comic != comic) }
+            onSaved(comicId)
         }
     }
 
@@ -453,9 +494,14 @@ class ComicEditorViewModel @Inject constructor(
         // Set rather than committed: undoing back into options the user has left would be a step
         // into a place they cannot see.
         state.value = content
-            .copy(comic = comic, layoutKind = null, warning = null, canUndo = undoStack.isNotEmpty())
+            .copy(
+                comic = comic,
+                layoutKind = null,
+                warning = null,
+                canUndo = undoStack.isNotEmpty(),
+                unsaved = comic != savedComic,
+            )
             .withSelection(emptyList())
-        if (comic != content.comic) save(comic)
     }
 
     fun setRowWeights(weights: List<Float>) = withGrid { it.copy(rowWeights = weights) }
@@ -603,8 +649,13 @@ class ComicEditorViewModel @Inject constructor(
 
     fun undo() {
         val previous = undoStack.removeLastOrNull() ?: return
-        save(previous)
-        updateContent { it.copy(comic = previous, canUndo = undoStack.isNotEmpty()).withSelection(emptyList()) }
+        updateContent {
+            it.copy(
+                comic = previous,
+                canUndo = undoStack.isNotEmpty(),
+                unsaved = previous != savedComic,
+            ).withSelection(emptyList())
+        }
     }
 
     private fun withGrid(transform: (Grid) -> Grid) {
@@ -641,12 +692,12 @@ class ComicEditorViewModel @Inject constructor(
             undoStack.addLast(content.comic)
             if (undoStack.size > UNDO_LIMIT) undoStack.removeFirst()
         }
-        state.value = content.copy(comic = comic, canUndo = undoStack.isNotEmpty())
-        save(comic)
-    }
-
-    private fun save(comic: Comic) {
-        viewModelScope.launch { repository.saveComic(comicId, comic) }
+        // Nothing is written here: the editor works on a copy until it is saved (ADR-0011).
+        state.value = content.copy(
+            comic = comic,
+            canUndo = undoStack.isNotEmpty(),
+            unsaved = comic != savedComic,
+        )
     }
 
     private fun contentOrNull() = state.value as? ComicEditorUiState.Content
@@ -691,3 +742,6 @@ internal const val DEFAULT_GRID_SIDE = 2
 
 /** The navigation argument naming which comic the editor opens. */
 const val COMIC_ID_KEY = "comicId"
+
+/** The id a comic that has never been saved is opened under; it gets a real one on first save. */
+const val NEW_COMIC_ID = 0L

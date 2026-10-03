@@ -5,10 +5,6 @@
     <string name="close">Close</string>
     <string name="settings_general">General</string>
     <string name="settings_change_language">Change language</string>
-    <string name="settings_text">Text settings</string>
-    <string name="settings_layout">Layout settings</string>
-    <string name="layout_columns">Columns</string>
-    <string name="layout_columns_description">Number of columns used when selecting the first images for a new comic.</string>
     <string name="settings_app">App</string>
     <string name="settings_share_app">Share app</string>
     <string name="share_app_text">Create comics with Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
@@ -27,14 +23,6 @@
     <string name="settings_terms">Terms</string>
     <string name="privacy_policy_text">Ballooner processes your selected images and comic text on your device. Images are copied to app-private storage for editing. The app does not collect, store remotely, or share personal data.</string>
     <string name="terms_text">Ballooner is provided as-is for personal creative use. You are responsible for the images and text you add and for ensuring that your comics comply with applicable laws and third-party rights.</string>
-    <string name="default_text_font">Default text font</string>
-    <string name="default_text_font_description">Used as the starting font for new balloons.</string>
-    <string name="hide_font_selector">Hide font selector</string>
-    <string name="hide_font_selector_description">Hides the font picker in the balloon editor.</string>
-    <string name="text_size">Text size</string>
-    <string name="text_size_description">Auto adjusts text to fill each balloon and hides the size slider.</string>
-    <string name="manual">Manual</string>
-    <string name="auto">Auto</string>
     <string name="untitled">Untitled</string>
     <string name="open_images">Open images</string>
     <string name="saved_image">Saved image</string>

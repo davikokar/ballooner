@@ -6,8 +6,6 @@ import com.ballooner.data.comic.PanelImageImporter
 import com.ballooner.data.comic.RoomComicRepository
 import com.ballooner.data.image.AppImageStore
 import com.ballooner.data.image.ImageStore
-import com.ballooner.data.settings.AppSettingsRepository
-import com.ballooner.data.settings.SettingsRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -29,8 +27,4 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindImageStore(impl: AppImageStore): ImageStore
-
-    @Binds
-    @Singleton
-    abstract fun bindSettingsRepository(impl: AppSettingsRepository): SettingsRepository
 }

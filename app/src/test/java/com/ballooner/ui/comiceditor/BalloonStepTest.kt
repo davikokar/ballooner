@@ -105,6 +105,9 @@ class BalloonStepTest {
         val added = balloons(viewModel).single()
         assertEquals(BalloonScope.Panel(1), added.scope)
         assertEquals(added.id, content(viewModel).selectedBalloon)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(1, repository.saved.value.getValue(1L).balloons.size)
     }
 
@@ -182,6 +185,9 @@ class BalloonStepTest {
         advanceUntilIdle()
 
         assertEquals("Pow!", balloons(viewModel).single().text)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals("Pow!", repository.saved.value.getValue(1L).balloons.single().text)
     }
 
@@ -360,6 +366,9 @@ class BalloonStepTest {
 
         assertEquals(BalloonFont.MONOSPACE, balloons(viewModel).first { it.id == 1L }.font)
         assertEquals(balloons[1].font, balloons(viewModel).first { it.id == 2L }.font)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(BalloonFont.MONOSPACE, repository.saved.value.getValue(1L).balloons.first().font)
     }
 

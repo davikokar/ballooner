@@ -77,6 +77,11 @@ sealed interface ComicEditorUiState {
         val canMerge: Boolean = false,
         val canUnmerge: Boolean = false,
         val canUndo: Boolean = false,
+        /**
+         * Whether the comic being edited differs from the one in the database. The editor works
+         * on a copy and writes only when saved, so this is what is at stake on the way out.
+         */
+        val unsaved: Boolean = false,
         val warning: LayoutChangeWarning? = null,
     ) : ComicEditorUiState
 }

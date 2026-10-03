@@ -124,6 +124,9 @@ class ComicEditorViewModelTest {
         assertEquals(3, content(viewModel).comic.panels.size)
         assertEquals(emptyList<Span>(), content(viewModel).selection)
         assertNull(content(viewModel).warning)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(3, repository.saved.value.getValue(1L).panels.size)
     }
 
@@ -142,6 +145,9 @@ class ComicEditorViewModelTest {
         assertEquals(1, warning!!.removedImages)
         assertEquals(0, warning.removedBalloons)
         assertEquals(4, content(viewModel).comic.panels.size)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(4, repository.saved.value.getValue(1L).panels.size)
     }
 
@@ -159,6 +165,9 @@ class ComicEditorViewModelTest {
         assertNull(content(viewModel).warning)
         assertEquals(3, content(viewModel).comic.panels.size)
         assertEquals("image0", content(viewModel).comic.panels[0].image?.sourceUri)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(3, repository.saved.value.getValue(1L).panels.size)
     }
 
@@ -241,6 +250,9 @@ class ComicEditorViewModelTest {
         advanceUntilIdle()
 
         assertEquals(4, content(viewModel).comic.panels.size)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(4, repository.saved.value.getValue(1L).panels.size)
         assertFalse(content(viewModel).canUndo)
     }

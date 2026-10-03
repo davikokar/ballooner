@@ -60,6 +60,9 @@ class LayoutStepTest {
         advanceUntilIdle()
 
         assertEquals(listOf(1.5f, 0.5f), content(viewModel).comic.layout.grid.columnWeights)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(listOf(1.5f, 0.5f), repository.saved.value.getValue(1L).layout.grid.columnWeights)
     }
 
@@ -130,6 +133,9 @@ class LayoutStepTest {
         advanceUntilIdle()
 
         assertEquals(4, content(viewModel).comic.panels.size)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(4, repository.saved.value.getValue(1L).panels.size)
     }
 

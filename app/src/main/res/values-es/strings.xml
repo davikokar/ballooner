@@ -5,10 +5,6 @@
     <string name="close">Cerrar</string>
     <string name="settings_general">General</string>
     <string name="settings_change_language">Cambiar idioma</string>
-    <string name="settings_text">Ajustes de texto</string>
-    <string name="settings_layout">Ajustes de diseño</string>
-    <string name="layout_columns">Columnas</string>
-    <string name="layout_columns_description">Número de columnas usadas al seleccionar las primeras imágenes de un cómic nuevo.</string>
     <string name="settings_app">Aplicación</string>
     <string name="settings_share_app">Compartir aplicación</string>
     <string name="share_app_text">Crea cómics con Ballooner: https://play.google.com/store/apps/details?id=%1$s</string>
@@ -26,14 +22,6 @@
     <string name="settings_terms">Términos</string>
     <string name="privacy_policy_text">Ballooner procesa las imágenes que seleccionas y el texto del cómic en tu dispositivo. Las imágenes se copian al almacenamiento privado de la aplicación para editarlas. La aplicación no recopila, almacena de forma remota ni comparte datos personales.</string>
     <string name="terms_text">Ballooner se proporciona tal cual para uso creativo personal. Eres responsable de las imágenes y el texto que añades, así como de garantizar que tus cómics cumplan las leyes aplicables y los derechos de terceros.</string>
-    <string name="default_text_font">Fuente de texto predeterminada</string>
-    <string name="default_text_font_description">Se usa como fuente inicial para los bocadillos nuevos.</string>
-    <string name="hide_font_selector">Ocultar selector de fuente</string>
-    <string name="hide_font_selector_description">Oculta el selector de fuente en el editor de bocadillos.</string>
-    <string name="text_size">Tamaño del texto</string>
-    <string name="text_size_description">Ajusta automáticamente el texto para llenar cada bocadillo y oculta el control de tamaño.</string>
-    <string name="manual">Manual</string>
-    <string name="auto">Automático</string>
     <string name="untitled">Sin título</string>
     <string name="open_images">Abrir imágenes</string>
     <string name="saved_image">Imagen guardada</string>

@@ -162,6 +162,9 @@ class PlacementStepTest {
         assertEquals("file://picked", placed!!.sourceUri)
         assertEquals(MIN_PANEL_ZOOM, placed.zoom, TOLERANCE)
         assertEquals(0f, placed.angleDegrees, TOLERANCE)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals("file://picked", repository.saved.value.getValue(1L).panels[0].image?.sourceUri)
     }
 
@@ -303,6 +306,9 @@ class PlacementStepTest {
         advanceUntilIdle()
 
         assertEquals(2f, imageOf(viewModel, 0)!!.zoom, TOLERANCE)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(2f, repository.saved.value.getValue(1L).panels[0].image!!.zoom, TOLERANCE)
     }
 
@@ -430,6 +436,9 @@ class PlacementStepTest {
         advanceUntilIdle()
 
         assertEquals(2, content(viewModel).comic.panels.size)
+        viewModel.saveComic()
+        advanceUntilIdle()
+
         assertEquals(0.05f, repository.saved.value.getValue(1L).style.gutter, TOLERANCE)
         assertEquals("image0", imageOf(viewModel, 0)?.sourceUri)
     }

@@ -7,7 +7,7 @@ import com.ballooner.data.comic.ImportedImage
 import com.ballooner.data.comic.PanelImageImporter
 import com.ballooner.data.comic.SavedComic
 import com.ballooner.domain.comic.Comic
-import com.ballooner.domain.comic.PageSizing
+import com.ballooner.ui.comiceditor.NEW_COMIC_ID
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -43,18 +43,13 @@ class ComicListViewModel @Inject constructor(
             initialValue = ComicListUiState.Loading,
         )
 
-    /** Creates a comic with a default title and reports its id for navigation. */
-    fun createComic(onCreated: (Long) -> Unit) {
-        viewModelScope.launch {
-            val existing = repository.observeComics().first()
-            // One panel, shaped by whatever image goes in it: the fewest decisions to start.
-            val comic = Comic(
-                name = "My Comic ${existing.size + 1}",
-                sizing = PageSizing.FromImage,
-            )
-            onCreated(repository.createComic(comic))
-        }
-    }
+    /**
+     * Opens a comic that does not exist yet.
+     *
+     * Nothing is written: a new comic has no row until the editor saves it, so one that is
+     * abandoned leaves nothing behind (ADR-0011).
+     */
+    fun createComic(onCreated: (Long) -> Unit) = onCreated(NEW_COMIC_ID)
 
     fun deleteComic(id: Long) {
         viewModelScope.launch { repository.deleteComic(id) }
