@@ -73,9 +73,13 @@ Before claiming a task is complete:
 
 ## Skills
 
-Local skills live in `.agents/skills/mine/`. Relevant ones for this project:
+All skills live in `.agents/skills/<name>/`. Skills are discovered exactly one folder deep, so
+a skill must sit directly in that directory — nesting it in a subfolder makes it invisible.
+
+Project-specific skills:
 
 - **add-compose-screen** — scaffold a new MVVM screen (Screen + ViewModel + UiState).
 - **add-room-entity** — add a Room entity, DAO, repository, and migration.
 
-Other general engineering skills live in `.agents/skills/`
+The rest are general engineering skills vendored from `mattpocock/skills`; `skills-lock.json`
+records where each came from.
