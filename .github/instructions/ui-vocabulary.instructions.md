@@ -39,7 +39,11 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
   edited time. Do not call this a panel; **panel** has a separate editor meaning.
 - **Comic thumbnail** (`ProjectThumbnail`): The image preview at the top of a Comic card.
 - **Create comic button** (`ComicFab`): The floating plus button that creates a comic.
-- **Empty state** (`EmptyState`): The message and create action shown when no comics exist.
+- **Library watermark**: The app's mark, drawn large and faint at the centre of the screen behind
+  the Comic list. It is there whether or not there are comics, so a full library is only the
+  tiles over it and an empty one is not a blank screen.
+- **Empty state**: The message shown under the Library watermark when no comics exist, and
+  nothing else: the watermark itself belongs to the screen rather than to this state.
 - **Comic delete button**: The close badge revealed by long-pressing a Comic card.
 - **Delete comic dialog**: The confirmation dialog shown before a comic is deleted.
 - **Edit comic menu item**: The Comic card's overflow-menu item that opens the Comic editor screen,

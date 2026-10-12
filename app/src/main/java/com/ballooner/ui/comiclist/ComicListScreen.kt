@@ -10,13 +10,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -195,21 +194,25 @@ fun ComicListScreen(
         },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // The mark stands behind the library whether or not there is anything in it.
+            BalloonerLogo(
+                size = WATERMARK_SIZE,
+                alpha = WATERMARK_ALPHA,
+                modifier = Modifier.align(Alignment.Center),
+            )
             when (state) {
                 ComicListUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                ComicListUiState.Empty -> Column(
-                    modifier = Modifier.align(Alignment.Center).padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    BalloonerLogo(size = EMPTY_LOGO_SIZE, alpha = EMPTY_LOGO_ALPHA)
-                    Spacer(Modifier.height(24.dp))
-                    Text(
-                        text = stringResource(R.string.comics_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+                ComicListUiState.Empty -> Text(
+                    text = stringResource(R.string.comics_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    // Below the mark rather than over it, since the mark is centred on the screen.
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset(y = WATERMARK_SIZE / 2 + EMPTY_MESSAGE_GAP)
+                        .padding(horizontal = 32.dp),
+                )
                 is ComicListUiState.Content -> LazyVerticalGrid(
                     columns = GridCells.Fixed(TILES_ACROSS),
                     modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -524,11 +527,11 @@ private fun CopyGlyph(tint: Color) {
 
 /** The app's own mark. Decorative wherever it is used, so it is never announced. */
 @Composable
-private fun BalloonerLogo(size: Dp, alpha: Float = 1f) {
+private fun BalloonerLogo(size: Dp, alpha: Float = 1f, modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(R.drawable.ic_ballooner_logo),
         contentDescription = null,
-        modifier = Modifier.size(size),
+        modifier = modifier.size(size),
         alpha = alpha,
     )
 }
@@ -537,8 +540,9 @@ private val MENU_GLYPH_SIZE = 24.dp
 
 /** Beside the title, and faint behind the invitation to start a comic. */
 private val TITLE_LOGO_SIZE = 28.dp
-private val EMPTY_LOGO_SIZE = 150.dp
-private const val EMPTY_LOGO_ALPHA = 0.25f
+private val WATERMARK_SIZE = 150.dp
+private const val WATERMARK_ALPHA = 0.25f
+private val EMPTY_MESSAGE_GAP = 24.dp
 
 /** Two tiles to a row, each standing taller than it is wide, as a comic page does. */
 private const val TILES_ACROSS = 2
