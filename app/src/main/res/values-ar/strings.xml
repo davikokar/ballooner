@@ -25,7 +25,6 @@
     <string name="terms_text">يُقدَّم Ballooner كما هو للاستخدام الإبداعي الشخصي. أنت مسؤول عن الصور والنصوص التي تضيفها وعن ضمان امتثال قصصك المصورة للقوانين المعمول بها وحقوق الأطراف الأخرى.</string>
     <string name="untitled">بلا عنوان</string>
     <string name="cancel">إلغاء</string>
-    <string name="title_hint">العنوان</string>
     <string name="delete_comic_title">هل تريد حذف هذه القصة؟</string>
     <string name="delete_comic_message">سيتم حذف %1$s نهائيًا.</string>
     <string name="delete">حذف</string>
@@ -48,7 +47,7 @@
     <string name="font_narrow">ضيق</string>
     <string name="comics_empty">لا توجد قصص بعد. اضغط + لبدء واحدة.</string>
     <string name="comic_options">خيارات القصة</string>
-    <string name="edit_title">تعديل العنوان</string>
+    <string name="edit_comic">تعديل القصة</string>
     <string name="edit_cover">تعديل الغلاف</string>
     <string name="duplicate">تكرار</string>
     <string name="share_as_png">مشاركة كملف PNG</string>
@@ -61,7 +60,6 @@
     <string name="keep_changes_title">هل تريد حفظ تغييراتك؟</string>
     <string name="keep_changes_message">تحتوي هذه القصة على تغييرات لم يتم حفظها.</string>
     <string name="discard">تجاهل</string>
-    <string name="title_your_comic">سمِّ قصتك</string>
     <string name="next">التالي</string>
     <string name="options">خيارات</string>
     <string name="step_layout">التخطيط</string>

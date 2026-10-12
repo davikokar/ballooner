@@ -25,8 +25,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
@@ -40,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -86,17 +85,19 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ComicListRoute(
-    onOpenComic: (Long) -> Unit,
+    onViewComic: (Long) -> Unit,
+    onEditComic: (Long) -> Unit,
+    onNewComic: (Long) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: ComicListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ComicListScreen(
         state = state,
-        onOpenComic = onOpenComic,
-        onCreateComic = { viewModel.createComic(onOpenComic) },
+        onViewComic = onViewComic,
+        onEditComic = onEditComic,
+        onCreateComic = { viewModel.createComic(onNewComic) },
         onDeleteComic = viewModel::deleteComic,
-        onRenameComic = viewModel::renameComic,
         onDuplicateComic = viewModel::duplicateComic,
         onCover = viewModel::setCover,
         onOpenSettings = onOpenSettings,
@@ -107,16 +108,15 @@ fun ComicListRoute(
 @Composable
 fun ComicListScreen(
     state: ComicListUiState,
-    onOpenComic: (Long) -> Unit,
+    onViewComic: (Long) -> Unit,
+    onEditComic: (Long) -> Unit,
     onCreateComic: () -> Unit,
     onDeleteComic: (Long) -> Unit,
-    onRenameComic: (Long, String) -> Unit,
     onDuplicateComic: (SavedComic) -> Unit,
     onCover: (Long, String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<SavedComic?>(null) }
-    var renaming by remember { mutableStateOf<Pair<Long, String>?>(null) }
     // Rendering a comic at full size takes a noticeable moment, so the comic says it is working.
     var busy by remember { mutableStateOf<Long?>(null) }
     // Which comic the picker was opened for, so its result knows where to land.
@@ -221,8 +221,8 @@ fun ComicListScreen(
                             saved = saved,
                             images = images,
                             busy = busy == saved.id,
-                            onOpen = { onOpenComic(saved.id) },
-                            onRename = { renaming = saved.id to saved.comic.name },
+                            onOpen = { onViewComic(saved.id) },
+                            onEdit = { onEditComic(saved.id) },
                             onDuplicate = { onDuplicateComic(saved) },
                             onCover = {
                                 coveringFor = saved.id
@@ -280,34 +280,6 @@ fun ComicListScreen(
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.keep)) } },
         )
     }
-
-    renaming?.let { (id, title) ->
-        AlertDialog(
-            onDismissRequest = { renaming = null },
-            title = { Text(stringResource(R.string.edit_title)) },
-            text = {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { renaming = id to it },
-                    label = { Text(stringResource(R.string.title_hint)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onRenameComic(id, title.trim())
-                        renaming = null
-                    },
-                    enabled = title.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.save))
-                }
-            },
-            dismissButton = { TextButton(onClick = { renaming = null }) { Text(stringResource(R.string.cancel)) } },
-        )
-    }
 }
 
 /**
@@ -322,7 +294,7 @@ private fun ComicTile(
     images: PanelImageSource,
     busy: Boolean,
     onOpen: () -> Unit,
-    onRename: () -> Unit,
+    onEdit: () -> Unit,
     onDuplicate: () -> Unit,
     onCover: () -> Unit,
     onShare: () -> Unit,
@@ -370,7 +342,7 @@ private fun ComicTile(
             )
             ComicMenu(
                 busy = busy,
-                onRename = onRename,
+                onEdit = onEdit,
                 onDuplicate = onDuplicate,
                 onCover = onCover,
                 onShare = onShare,
@@ -385,7 +357,7 @@ private fun ComicTile(
 @Composable
 private fun ComicMenu(
     busy: Boolean,
-    onRename: () -> Unit,
+    onEdit: () -> Unit,
     onDuplicate: () -> Unit,
     onCover: () -> Unit,
     onShare: () -> Unit,
@@ -406,11 +378,11 @@ private fun ComicMenu(
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.edit_title)) },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                text = { Text(stringResource(R.string.edit_comic)) },
+                leadingIcon = { Icon(Icons.Default.Create, contentDescription = null) },
                 onClick = {
                     open = false
-                    onRename()
+                    onEdit()
                 },
             )
             DropdownMenuItem(

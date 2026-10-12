@@ -25,7 +25,6 @@
     <string name="terms_text">Ballooner는 개인적인 창작 용도로 현재 상태 그대로 제공됩니다. 추가하는 이미지와 텍스트 및 만화가 관련 법률과 제3자의 권리를 준수하는지에 대한 책임은 사용자에게 있습니다.</string>
     <string name="untitled">제목 없음</string>
     <string name="cancel">취소</string>
-    <string name="title_hint">제목</string>
     <string name="delete_comic_title">이 만화를 삭제할까요?</string>
     <string name="delete_comic_message">%1$s이(가) 영구적으로 삭제됩니다.</string>
     <string name="delete">삭제</string>
@@ -48,7 +47,7 @@
     <string name="font_narrow">좁게</string>
     <string name="comics_empty">아직 만화가 없습니다. +를 눌러 시작하세요.</string>
     <string name="comic_options">만화 옵션</string>
-    <string name="edit_title">제목 편집</string>
+    <string name="edit_comic">만화 편집</string>
     <string name="edit_cover">표지 편집</string>
     <string name="duplicate">복제</string>
     <string name="share_as_png">PNG로 공유</string>
@@ -61,7 +60,6 @@
     <string name="keep_changes_title">변경 사항을 저장할까요?</string>
     <string name="keep_changes_message">이 만화에는 저장되지 않은 변경 사항이 있습니다.</string>
     <string name="discard">삭제</string>
-    <string name="title_your_comic">만화 제목 정하기</string>
     <string name="next">다음</string>
     <string name="options">옵션</string>
     <string name="step_layout">레이아웃</string>

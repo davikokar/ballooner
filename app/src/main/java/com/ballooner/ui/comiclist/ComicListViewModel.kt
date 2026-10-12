@@ -58,10 +58,6 @@ class ComicListViewModel @Inject constructor(
         viewModelScope.launch { repository.deleteComic(id) }
     }
 
-    fun renameComic(id: Long, name: String) {
-        viewModelScope.launch { repository.renameComic(id, name) }
-    }
-
     /**
      * Copies a comic, cover and all.
      *

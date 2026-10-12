@@ -96,6 +96,10 @@ class ComicEditorViewModel @Inject constructor(
     // first save. See ADR-0011.
     private var comicId: Long = savedStateHandle.get<Long>(COMIC_ID_KEY) ?: NEW_COMIC_ID
 
+    private val openingStep: EditorStep = savedStateHandle.get<String>(EDITOR_STEP_KEY)
+        ?.let { name -> EditorStep.entries.firstOrNull { it.name == name } }
+        ?: EditorStep.LAYOUT
+
     private val state = MutableStateFlow<ComicEditorUiState>(ComicEditorUiState.Loading)
     val uiState: StateFlow<ComicEditorUiState> = state.asStateFlow()
 
@@ -127,7 +131,10 @@ class ComicEditorViewModel @Inject constructor(
             nextBalloonId = (comic.balloons.maxOfOrNull { it.id } ?: 0L) + 1L
             state.value = ComicEditorUiState.Content(
                 comic = comic,
-                step = EditorStep.LAYOUT,
+                step = openingStep,
+                // A step that works on a panel starts on the first one, exactly as it does when
+                // it is stepped into.
+                activePanel = 0.takeIf { openingStep != EditorStep.LAYOUT && comic.panels.isNotEmpty() },
                 unsaved = comicId == NEW_COMIC_ID,
             )
         }
@@ -750,6 +757,9 @@ internal const val DEFAULT_GRID_SIDE = 2
 
 /** The navigation argument naming which comic the editor opens. */
 const val COMIC_ID_KEY = "comicId"
+
+/** The navigation argument naming the step the editor opens on. */
+const val EDITOR_STEP_KEY = "step"
 
 /** The id a comic that has never been saved is opened under; it gets a real one on first save. */
 const val NEW_COMIC_ID = 0L

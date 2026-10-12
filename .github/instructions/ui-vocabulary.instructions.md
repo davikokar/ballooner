@@ -14,6 +14,9 @@ implementation notes, and tests.
 ## Screens
 
 - **Comic list screen** (`ProjectListScreen`): The start screen that lists saved comics. Aliases: **project list screen**, **projects screen**, **comic library**
+- **Comic viewer screen** (`ComicViewerScreen`): The screen that shows one finished comic and nothing
+  else, opened by tapping a Comic card. It cannot change the comic; the Comic editor screen is
+  reached from the Edit comic menu item instead. Aliases: **comic reader**, **full screen comic**
 - **Comic editor screen** (`ProjectScreen`): The screen for assembling and editing one comic. Aliases: **project editor screen**, **editor screen**
 - **Settings screen** (`SettingsScreen`): The screen containing app preferences, support,
   and legal information. Aliases: **preferences screen**, **app settings screen**
@@ -39,6 +42,17 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
 - **Empty state** (`EmptyState`): The message and create action shown when no comics exist.
 - **Comic delete button**: The close badge revealed by long-pressing a Comic card.
 - **Delete comic dialog**: The confirmation dialog shown before a comic is deleted.
+- **Edit comic menu item**: The Comic card's overflow-menu item that opens the Comic editor screen,
+  and the only way into it. It opens on the Balloon step, since a comic in the list is one already
+  laid out and filled. Tapping the card itself opens the Comic viewer screen instead. A comic's
+  title is edited in the Comic title field, so the menu does not offer it.
+
+## Comic viewer screen
+
+- **Viewer top bar**: The top bar carrying the comic's title and the Back button.
+- **Page zoom**: How closely the page is being looked at. The whole page is shown to begin with;
+  pinching takes the reader closer to any part of it and dragging carries the page, which is never
+  carried past the edges of the view. Nothing here changes the comic.
 
 ## Comic editor screen
 
@@ -55,7 +69,7 @@ Use **screen** only for a full navigation destination. Use **dialog** for modal 
   after this one, exactly as tapping that step does. Shown on the Preset picker, where it instead
   opens the active preset's options; while Preset options are open, where it also takes the
   preset; and in the Placement step. In the Balloon step, which has no step after it, it is
-  labelled **Save** and exports the comic exactly as the Save button does.
+  labelled **Save** and saves the comic exactly as the Save button does.
 - **Step back button**: The "Back" button beside it. Shown in the same places as the Step next
   button, and in the Balloon step, where it returns to the Placement step. In the Placement step
   it returns to the Preset options of the comic's current Layout kind, which is where the preset
@@ -99,7 +113,9 @@ the parts owned by later steps are shown dimmed and are not interactive.
   Preset options are open — Single, Strip, Grid, or Custom — since that is the only place the
   comic is being styled as a whole. It is not on the Preset picker or in any other step.
 - **Comic style button**: Opens the Comic style controls.
-- **Save button**: Exports the comic as a PNG selected by the user.
+- **Save button**: Writes the comic to the library, confirming it with a brief "Comic saved"
+  message. It asks nothing: the comic is already named in the Comic title field. Exporting is a
+  separate action, offered by the share control and by the Comic card's menu.
 - **Undo button**: Reverses the most recent edit, in any step. An icon at the right end of the
   Editor action row, faded out when there is nothing to undo. It is not shown on the Preset
   picker, which changes nothing until a preset is opened.

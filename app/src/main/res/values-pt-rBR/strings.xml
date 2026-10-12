@@ -25,7 +25,6 @@
     <string name="terms_text">O Ballooner é fornecido no estado em que se encontra para uso criativo pessoal. Você é responsável pelas imagens e pelo texto adicionados e por garantir que seus quadrinhos estejam em conformidade com as leis aplicáveis e os direitos de terceiros.</string>
     <string name="untitled">Sem título</string>
     <string name="cancel">Cancelar</string>
-    <string name="title_hint">Título</string>
     <string name="delete_comic_title">Excluir esta história?</string>
     <string name="delete_comic_message">%1$s será removida para sempre.</string>
     <string name="delete">Excluir</string>
@@ -48,7 +47,7 @@
     <string name="font_narrow">Estreita</string>
     <string name="comics_empty">Nenhuma história ainda. Toque em + para começar.</string>
     <string name="comic_options">Opções da história</string>
-    <string name="edit_title">Editar título</string>
+    <string name="edit_comic">Editar história</string>
     <string name="edit_cover">Editar capa</string>
     <string name="duplicate">Duplicar</string>
     <string name="share_as_png">Compartilhar como PNG</string>
@@ -61,7 +60,6 @@
     <string name="keep_changes_title">Manter suas alterações?</string>
     <string name="keep_changes_message">Esta história tem alterações não salvas.</string>
     <string name="discard">Descartar</string>
-    <string name="title_your_comic">Dê um título à sua história</string>
     <string name="next">Avançar</string>
     <string name="options">Opções</string>
     <string name="step_layout">Layout</string>

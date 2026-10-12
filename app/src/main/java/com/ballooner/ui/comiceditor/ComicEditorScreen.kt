@@ -40,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -108,8 +107,6 @@ fun ComicEditorScreen(
     var showOptions by rememberSaveable { mutableStateOf(false) }
     var showPanelOptions by rememberSaveable { mutableStateOf(false) }
     var showBalloonStyle by rememberSaveable { mutableStateOf(false) }
-    // Saving is the end of the comic, which is the moment it is worth asking what it is called.
-    var naming by rememberSaveable { mutableStateOf<String?>(null) }
     when (state) {
         ComicEditorUiState.Loading -> Box(modifier.fillMaxSize(), Alignment.Center) {
             CircularProgressIndicator()
@@ -145,9 +142,8 @@ fun ComicEditorScreen(
                         state.step == EditorStep.LAYOUT ->
                             ({ actions.selectLayoutKind(layoutKindOf(state.comic)) })
                         state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
-                        // The last step has nowhere to go but out, with the comic in hand — and
-                        // a comic about to leave is one worth giving a title.
-                        state.step == EditorStep.BALLOONS -> ({ naming = state.comic.name })
+                        // The last step has nowhere to go but out, with the comic in hand.
+                        state.step == EditorStep.BALLOONS -> onSave
                         else -> null
                     },
                     nextLabel = stringResource(
@@ -353,50 +349,6 @@ fun ComicEditorScreen(
     if (showBalloonStyle && styled != null) {
         BalloonStyleSheet(balloon = styled, actions = actions, onDismiss = { showBalloonStyle = false })
     }
-    naming?.let { title ->
-        ComicTitleDialog(
-            title = title,
-            onTitle = { naming = it },
-            onSave = {
-                actions.setName(title.trim())
-                naming = null
-                onSave()
-            },
-            onCancel = { naming = null },
-        )
-    }
-}
-
-/**
- * Asks what the comic is called, on its way out.
- *
- * The title is the name the comic is listed under and the name the exported file takes, so this
- * is the last chance to give it one before both are decided.
- */
-@Composable
-private fun ComicTitleDialog(
-    title: String,
-    onTitle: (String) -> Unit,
-    onSave: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.title_your_comic)) },
-        text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = onTitle,
-                label = { Text(stringResource(R.string.title_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onSave, enabled = title.isNotBlank()) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) } },
-    )
 }
 
 /**

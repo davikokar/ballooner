@@ -25,7 +25,6 @@
     <string name="terms_text">Ballooner wird im gegenwärtigen Zustand zur persönlichen kreativen Nutzung bereitgestellt. Du bist für die hinzugefügten Bilder und Texte verantwortlich und musst sicherstellen, dass deine Comics geltendem Recht und den Rechten Dritter entsprechen.</string>
     <string name="untitled">Ohne Titel</string>
     <string name="cancel">Abbrechen</string>
-    <string name="title_hint">Titel</string>
     <string name="delete_comic_title">Diesen Comic löschen?</string>
     <string name="delete_comic_message">%1$s wird endgültig entfernt.</string>
     <string name="delete">Löschen</string>
@@ -48,7 +47,7 @@
     <string name="font_narrow">Schmal</string>
     <string name="comics_empty">Noch keine Comics. Tippe auf +, um einen zu beginnen.</string>
     <string name="comic_options">Comic-Optionen</string>
-    <string name="edit_title">Titel bearbeiten</string>
+    <string name="edit_comic">Comic bearbeiten</string>
     <string name="edit_cover">Cover bearbeiten</string>
     <string name="duplicate">Duplizieren</string>
     <string name="share_as_png">Als PNG teilen</string>
@@ -61,7 +60,6 @@
     <string name="keep_changes_title">Änderungen behalten?</string>
     <string name="keep_changes_message">Dieser Comic hat ungespeicherte Änderungen.</string>
     <string name="discard">Verwerfen</string>
-    <string name="title_your_comic">Benenne deinen Comic</string>
     <string name="next">Weiter</string>
     <string name="options">Optionen</string>
     <string name="step_layout">Layout</string>

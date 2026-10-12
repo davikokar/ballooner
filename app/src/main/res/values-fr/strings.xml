@@ -25,7 +25,6 @@
     <string name="terms_text">Ballooner est fourni en l’état pour un usage créatif personnel. Vous êtes responsable des images et du texte ajoutés et devez vous assurer que vos bandes dessinées respectent les lois applicables et les droits des tiers.</string>
     <string name="untitled">Sans titre</string>
     <string name="cancel">Annuler</string>
-    <string name="title_hint">Titre</string>
     <string name="delete_comic_title">Supprimer cette BD ?</string>
     <string name="delete_comic_message">%1$s sera supprimée définitivement.</string>
     <string name="delete">Supprimer</string>
@@ -48,7 +47,7 @@
     <string name="font_narrow">Étroite</string>
     <string name="comics_empty">Aucune BD pour l’instant. Appuyez sur + pour en créer une.</string>
     <string name="comic_options">Options de la BD</string>
-    <string name="edit_title">Modifier le titre</string>
+    <string name="edit_comic">Modifier la BD</string>
     <string name="edit_cover">Modifier la couverture</string>
     <string name="duplicate">Dupliquer</string>
     <string name="share_as_png">Partager en PNG</string>
@@ -61,7 +60,6 @@
     <string name="keep_changes_title">Conserver vos modifications ?</string>
     <string name="keep_changes_message">Cette BD comporte des modifications non enregistrées.</string>
     <string name="discard">Abandonner</string>
-    <string name="title_your_comic">Donnez un titre à votre BD</string>
     <string name="next">Suivant</string>
     <string name="options">Options</string>
     <string name="step_layout">Mise en page</string>
