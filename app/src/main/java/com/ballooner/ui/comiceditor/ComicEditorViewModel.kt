@@ -470,9 +470,11 @@ class ComicEditorViewModel @Inject constructor(
         val opened = contentOrNull()?.comic ?: return
         beforeLayoutKind = opened
         undoDepthBeforeLayoutKind = undoStack.size
-        updateContent { it.copy(layoutKind = kind, activePanel = null).withSelection(emptyList()) }
+        updateContent {
+            it.copy(layoutKind = kind, chosenKind = kind, activePanel = null).withSelection(emptyList())
+        }
         val comic = contentOrNull()?.comic ?: return
-        if (layoutKindOf(comic) == kind) return
+        if (layoutKindOf(comic, kind) == kind) return
         when (kind) {
             // One panel has no shape of its own to argue with, so it takes the image's.
             LayoutKind.SINGLE -> applyLayout(
@@ -512,6 +514,7 @@ class ComicEditorViewModel @Inject constructor(
             .copy(
                 comic = comic,
                 layoutKind = null,
+                chosenKind = null,
                 warning = null,
                 canUndo = undoStack.isNotEmpty(),
                 unsaved = comic != savedComic,

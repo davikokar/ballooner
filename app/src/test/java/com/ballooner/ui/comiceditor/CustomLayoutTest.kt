@@ -70,6 +70,20 @@ class CustomLayoutTest {
     }
 
     @Test
+    fun `an uncut custom layout is still custom when it is stepped back into`() = runTest {
+        val viewModel = editorFor(comic(Grid(1, 1)))
+        advanceUntilIdle()
+
+        viewModel.selectLayoutKind(LayoutKind.CUSTOM)
+        viewModel.selectStep(EditorStep.PLACEMENT)
+        advanceUntilIdle()
+
+        // What the editor's Back button does on the way out of the Images step.
+        val state = content(viewModel)
+        assertEquals(LayoutKind.CUSTOM, layoutKindOf(state.comic, state.chosenKind))
+    }
+
+    @Test
     fun `dragging one end of a cut swings it about the other`() = runTest {
         val cut = Cut(NormalizedPoint(0f, 0.5f), NormalizedPoint(1f, 0.5f), CutScope.WholePage)
         val viewModel = editorFor(comic(cuts = listOf(cut)))

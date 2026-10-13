@@ -131,7 +131,7 @@ fun ComicEditorScreen(
                         // the picker: the preset has already been chosen.
                         state.step == EditorStep.PLACEMENT -> ({
                             actions.selectStep(EditorStep.LAYOUT)
-                            actions.selectLayoutKind(layoutKindOf(state.comic))
+                            actions.selectLayoutKind(layoutKindOf(state.comic, state.chosenKind))
                         })
                         state.step == EditorStep.BALLOONS -> ({ actions.selectStep(EditorStep.PLACEMENT) })
                         else -> null
@@ -140,7 +140,7 @@ fun ComicEditorScreen(
                         inLayoutOptions -> ({ actions.selectStep(EditorStep.PLACEMENT) })
                         // On the picker, moving on means opening the preset the comic already is.
                         state.step == EditorStep.LAYOUT ->
-                            ({ actions.selectLayoutKind(layoutKindOf(state.comic)) })
+                            ({ actions.selectLayoutKind(layoutKindOf(state.comic, state.chosenKind)) })
                         state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
                         // The last step has nowhere to go but out, with the comic in hand.
                         state.step == EditorStep.BALLOONS -> onSave
@@ -166,7 +166,7 @@ fun ComicEditorScreen(
                 // look at on the canvas that the cards do not already say.
                 if (state.step == EditorStep.LAYOUT && state.layoutKind == null) {
                     LayoutPresetPicker(
-                        active = layoutKindOf(state.comic),
+                        active = layoutKindOf(state.comic, state.chosenKind),
                         onSelect = actions::selectLayoutKind,
                     )
                     return@Column

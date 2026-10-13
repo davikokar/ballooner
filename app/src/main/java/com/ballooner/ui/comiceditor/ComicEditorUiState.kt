@@ -14,14 +14,21 @@ enum class EditorStep { LAYOUT, PLACEMENT, BALLOONS }
  */
 enum class LayoutKind { SINGLE, STRIP, GRID, CUSTOM }
 
-/** The kind [comic] already is, which is the one the picker marks as active. */
-fun layoutKindOf(comic: Comic): LayoutKind {
+/**
+ * The kind [comic] already is, which is the one the picker marks as active.
+ *
+ * A comic that has not been cut yet reads as both Custom and Single, since a custom layout is cut
+ * from one whole panel. [chosen] is the kind the user last opened, and is kept whenever the comic
+ * can still be read that way.
+ */
+fun layoutKindOf(comic: Comic, chosen: LayoutKind? = null): LayoutKind {
     val grid = comic.layout.grid
     return when {
         // Merging is a grid operation, so a merged grid is still a grid. Only a cut, which no
         // grid can make, takes a comic out of the kind it was built as.
         comic.layout.cuts.isNotEmpty() -> LayoutKind.CUSTOM
-        grid.rows == 1 && grid.columns == 1 -> LayoutKind.SINGLE
+        grid.rows == 1 && grid.columns == 1 ->
+            if (chosen == LayoutKind.CUSTOM) LayoutKind.CUSTOM else LayoutKind.SINGLE
         grid.rows == 1 || grid.columns == 1 -> LayoutKind.STRIP
         else -> LayoutKind.GRID
     }
@@ -55,6 +62,12 @@ sealed interface ComicEditorUiState {
          * preset picker.
          */
         val layoutKind: LayoutKind? = null,
+        /**
+         * The layout kind last opened. Unlike [layoutKind] it outlives the Layout step, so
+         * stepping back into it returns to the kind that was chosen rather than to the one the
+         * document happens to read as.
+         */
+        val chosenKind: LayoutKind? = null,
         /** Grid panels picked out in the Layout step, as the cells they cover. */
         val selection: List<Span> = emptyList(),
         /** The panel being placed in the Placement step, by index in reading order. */
