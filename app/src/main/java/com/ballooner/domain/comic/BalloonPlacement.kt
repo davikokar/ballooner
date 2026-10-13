@@ -15,7 +15,7 @@ import kotlin.math.sqrt
  * every other kind comes with a tail and rounded corners.
  *
  * A balloon that belongs to a panel is shrunk to fit inside it, so it never arrives bigger than
- * the panel it is being added to.
+ * the panel it is being added to. Its text is sized to fill it until the user says otherwise.
  */
 fun newBalloon(id: Long, type: BalloonType, scope: BalloonScope, panel: PageRect? = null): Balloon {
     val balloon = Balloon(
@@ -24,6 +24,7 @@ fun newBalloon(id: Long, type: BalloonType, scope: BalloonScope, panel: PageRect
         scope = scope,
         tailLength = if (type == BalloonType.CAPTION) 0f else NEW_BALLOON_TAIL,
         cornerRoundness = if (type == BalloonType.CAPTION) 0f else 1f,
+        autoSize = true,
     )
     return if (panel == null) balloon else balloon.fittedIn(panel)
 }

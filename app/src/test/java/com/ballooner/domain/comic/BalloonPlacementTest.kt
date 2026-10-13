@@ -47,6 +47,12 @@ class BalloonPlacementTest {
     }
 
     @Test
+    fun `a balloon arrives sizing its own text`() {
+        assertTrue(newBalloon(1, BalloonType.SPEAK, BalloonScope.Comic).autoSize)
+        assertTrue(newBalloon(2, BalloonType.CAPTION, BalloonScope.Panel(0), panel).autoSize)
+    }
+
+    @Test
     fun `the tail width handle rides the tail clear of the body`() {
         // Its tail points straight down, so the handle is below the bottom of the body.
         val balloon = comicBalloon(0.5f, 0.5f)
