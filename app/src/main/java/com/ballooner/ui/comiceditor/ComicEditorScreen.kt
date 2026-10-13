@@ -259,6 +259,7 @@ fun ComicEditorScreen(
                         onEndCutDrag = actions::endCutDrag,
                         onSelectPanel = actions::selectPanel,
                         onUndo = actions::undo,
+                        onChange = actions::setSizing,
                         expanded = state.expandedPreview,
                         onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,

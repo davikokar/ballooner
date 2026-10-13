@@ -12,6 +12,7 @@ import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.Panel
 import com.ballooner.domain.comic.PanelImage
 import com.ballooner.domain.comic.SQUARE_RATIO
+import com.ballooner.domain.comic.WIDE_RATIO
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.util.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -81,6 +82,21 @@ class CustomLayoutTest {
         // What the editor's Back button does on the way out of the Images step.
         val state = content(viewModel)
         assertEquals(LayoutKind.CUSTOM, layoutKindOf(state.comic, state.chosenKind))
+    }
+
+    @Test
+    fun `a custom page holds the shape it is given however it is cut`() = runTest {
+        val cut = Cut(NormalizedPoint(0f, 0.5f), NormalizedPoint(1f, 0.5f), CutScope.WholePage)
+        val viewModel = editorFor(comic(cuts = listOf(cut)))
+        advanceUntilIdle()
+
+        viewModel.setSizing(PageSizing.Ratio(WIDE_RATIO))
+        advanceUntilIdle()
+
+        // This comic has no margin, so the page itself comes out at the chosen ratio.
+        val comic = content(viewModel).comic
+        assertEquals(WIDE_RATIO, 1f / comic.pageHeight, 0.001f)
+        assertEquals(2, comic.panels.size)
     }
 
     @Test

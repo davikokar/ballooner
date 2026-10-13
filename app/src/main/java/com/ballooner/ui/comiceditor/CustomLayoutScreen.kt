@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,6 +37,7 @@ import com.ballooner.domain.comic.Comic
 import com.ballooner.domain.comic.CutScope
 import com.ballooner.domain.comic.NormalizedPoint
 import com.ballooner.domain.comic.PagePoint
+import com.ballooner.domain.comic.PageSizing
 import com.ballooner.domain.comic.panelShapes
 import com.ballooner.domain.comic.panelStyleAt
 import com.ballooner.ui.comic.PageViewport
@@ -52,8 +54,9 @@ private const val MIN_TRACE_PIXELS = 24f
 /**
  * The Custom preset's own screen.
  *
- * There is nothing to choose here. The layout is made by drawing on it: a line drawn across a
- * panel splits that panel in two, and the panels that result can be cut again.
+ * The panels are made by drawing on the page: a line drawn across a panel splits that panel in
+ * two, and the panels that result can be cut again. The only choice here is the shape of the page
+ * they are cut out of, since the cuts themselves say nothing about how tall it is.
  */
 @Composable
 fun CustomLayoutScreen(
@@ -67,6 +70,7 @@ fun CustomLayoutScreen(
     onEndCutDrag: (index: Int) -> Unit,
     onSelectPanel: (Int?) -> Unit,
     onUndo: () -> Unit,
+    onChange: (PageSizing) -> Unit,
     expanded: Boolean,
     onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
@@ -85,38 +89,52 @@ fun CustomLayoutScreen(
                 onOptions = onOptions,
             )
         }
-        PreviewSurface(
-            modifier = Modifier.weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
-            hint = if (comic.layout.cuts.isEmpty()) {
-                stringResource(R.string.custom_cut_hint)
-            } else {
-                // Any longer and it wraps under the Panel options button beside it.
-                stringResource(R.string.custom_handle_hint)
-            },
-            offersPanelOptions = true,
-            onPanelOptions = onPanelOptions,
-            expanded = expanded,
-            onExpanded = onExpanded,
-            floating = { _ ->
-                if (canUndo) {
-                    FloatingAction(
-                        label = stringResource(R.string.undo),
-                        onClick = onUndo,
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
-                    )
-                }
-            },
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp).padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            CuttingPage(
-                comic = comic,
-                images = images,
-                selectedPanel = selectedPanel,
-                onCut = onCut,
-                onStartCutDrag = onStartCutDrag,
-                onMoveCutEnd = onMoveCutEnd,
-                onEndCutDrag = onEndCutDrag,
-                onSelectPanel = onSelectPanel,
-            )
+            if (!expanded) {
+                PanelShapeChooser(
+                    sizing = comic.sizing,
+                    // The cuts shape the panels, so here the choice shapes the page they are cut
+                    // from, and an auto page takes its shape from the first image on it.
+                    autoCaption = stringResource(R.string.first_image),
+                    onChange = onChange,
+                )
+            }
+            PreviewSurface(
+                modifier = Modifier.weight(1f),
+                hint = if (comic.layout.cuts.isEmpty()) {
+                    stringResource(R.string.custom_cut_hint)
+                } else {
+                    // Any longer and it wraps under the Panel options button beside it.
+                    stringResource(R.string.custom_handle_hint)
+                },
+                offersPanelOptions = true,
+                onPanelOptions = onPanelOptions,
+                expanded = expanded,
+                onExpanded = onExpanded,
+                floating = { _ ->
+                    if (canUndo) {
+                        FloatingAction(
+                            label = stringResource(R.string.undo),
+                            onClick = onUndo,
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+                        )
+                    }
+                },
+            ) {
+                CuttingPage(
+                    comic = comic,
+                    images = images,
+                    selectedPanel = selectedPanel,
+                    onCut = onCut,
+                    onStartCutDrag = onStartCutDrag,
+                    onMoveCutEnd = onMoveCutEnd,
+                    onEndCutDrag = onEndCutDrag,
+                    onSelectPanel = onSelectPanel,
+                )
+            }
         }
     }
 }
