@@ -8,13 +8,26 @@ import androidx.compose.ui.unit.Density
 import com.ballooner.domain.comic.Balloon
 import com.ballooner.domain.comic.MAX_BALLOON_TEXT_SIZE
 import com.ballooner.domain.comic.MIN_BALLOON_TEXT_SIZE
+import com.ballooner.domain.model.BalloonType
 import com.ballooner.ui.theme.InkBlack
 import com.ballooner.ui.theme.toFontFamily
 import kotlin.math.roundToInt
 
+/**
+ * How much of the balloon its text is allowed to take, across and down.
+ *
+ * A yell is drawn as a starburst and a thought as a cloud, so both outlines bite well inside the
+ * body every other balloon fills. Text left to size itself grows until it meets this bound, so
+ * for those two it is held further in; a balloon sized by hand keeps the room it always had.
+ */
+internal fun textInset(balloon: Balloon): Float =
+    if (balloon.autoSize && balloon.type.hasBrokenEdge()) BROKEN_EDGE_TEXT_INSET else TEXT_INSET
+
+private fun BalloonType.hasBrokenEdge() = this == BalloonType.YELL || this == BalloonType.THINK
+
 /** How wide the text is wrapped to inside [geometry], in pixels. */
-internal fun textWidth(geometry: BalloonGeometry): Int =
-    (geometry.radiusX * 2f * TEXT_INSET).roundToInt().coerceAtLeast(1)
+internal fun textWidth(balloon: Balloon, geometry: BalloonGeometry): Int =
+    (geometry.radiusX * 2f * textInset(balloon)).roundToInt().coerceAtLeast(1)
 
 /** How the balloon's words are set, at a size already worked out in pixels. */
 internal fun balloonTextStyle(balloon: Balloon, sizePx: Float, density: Density) = TextStyle(
@@ -40,8 +53,8 @@ internal fun balloonTextSize(
     density: Density,
 ): Float {
     if (!balloon.autoSize) return balloon.fontSize * pageScale
-    val width = textWidth(geometry)
-    val height = (geometry.radiusY * 2f * TEXT_INSET).coerceAtLeast(1f)
+    val width = textWidth(balloon, geometry)
+    val height = (geometry.radiusY * 2f * textInset(balloon)).coerceAtLeast(1f)
     if (balloon.text.isBlank()) return balloon.fontSize * pageScale
     var tooSmall = MIN_BALLOON_TEXT_SIZE * pageScale
     var tooBig = MAX_BALLOON_TEXT_SIZE * pageScale

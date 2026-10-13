@@ -178,7 +178,7 @@ private fun DrawScope.drawBalloonText(
             sizePx = balloonTextSize(balloon, geometry, textMeasurer, pageScale, this),
             density = this,
         ),
-        constraints = Constraints(maxWidth = textWidth(geometry)),
+        constraints = Constraints(maxWidth = textWidth(balloon, geometry)),
     )
     drawText(
         textLayoutResult = layout,
@@ -260,3 +260,6 @@ private val EmptyPanelFill = Color(0xFFE8E8E8)
 // Keeps text off the balloon outline.
 /** How much of the balloon's width its text is wrapped to. */
 internal const val TEXT_INSET = 0.82f
+
+/** The same, for a balloon whose outline bites into its body. */
+internal const val BROKEN_EDGE_TEXT_INSET = 0.62f

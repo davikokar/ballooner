@@ -34,10 +34,10 @@ import com.ballooner.domain.comic.editHandle
 import com.ballooner.domain.comic.moveHandle
 import com.ballooner.domain.comic.resizeHandle
 import com.ballooner.ui.comic.PageViewport
-import com.ballooner.ui.comic.TEXT_INSET
 import com.ballooner.ui.comic.balloonGeometry
 import com.ballooner.ui.comic.balloonTextSize
 import com.ballooner.ui.comic.balloonTextStyle
+import com.ballooner.ui.comic.textInset
 import com.ballooner.ui.theme.InkBlack
 import kotlin.math.roundToInt
 
@@ -94,8 +94,9 @@ private fun BalloonWords(
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
     val geometry = balloonGeometry(balloon, panel, pageHeight, viewport)
-    val width = balloon.width * viewport.scale * TEXT_INSET
-    val height = balloon.height * viewport.scale * TEXT_INSET
+    val inset = textInset(balloon)
+    val width = balloon.width * viewport.scale * inset
+    val height = balloon.height * viewport.scale * inset
     val onPage = balloon.centreOnPage(panel, pageHeight)
     val centre = viewport.toScreen(onPage.x, onPage.y)
     BasicTextField(
