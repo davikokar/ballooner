@@ -175,6 +175,7 @@ class ComicEditorViewModel @Inject constructor(
                 step = step,
                 layoutKind = null,
                 selection = emptyList(),
+                selectedPanels = emptySet(),
                 // The steps that work on a panel start on the first one, so what can be done to
                 // it is offered at once rather than waiting to be told where to begin.
                 activePanel = if (step != EditorStep.LAYOUT && content.comic.panels.isNotEmpty()) {
@@ -351,6 +352,13 @@ class ComicEditorViewModel @Inject constructor(
     /** Chooses the panel being worked on, which is the one a step's controls apply to. */
     fun selectPanel(index: Int?) = updateContent { content ->
         content.copy(activePanel = index?.takeIf { it in content.comic.panels.indices })
+    }
+
+    /** Picks a panel out in the Layout step, or lets it go if it was already picked. */
+    fun togglePanel(index: Int) = updateContent { content ->
+        if (index !in content.comic.panels.indices) return@updateContent content
+        val picked = content.selectedPanels
+        content.copy(selectedPanels = if (index in picked) picked - index else picked + index)
     }
 
     /** Gives the Panel preview the whole screen, or hands the screen back to the editor. */
@@ -626,11 +634,14 @@ class ComicEditorViewModel @Inject constructor(
      * It lasts only until the comic style is touched again, which restyles the whole page and so
      * has the last word.
      */
-    fun setPanelStyle(index: Int, style: PanelStyle) {
+    fun setPanelStyle(index: Int, style: PanelStyle) = setPanelsStyle(setOf(index), style)
+
+    /** Frames every panel in [indices] the same way, as one change. */
+    fun setPanelsStyle(indices: Set<Int>, style: PanelStyle) {
         val content = contentOrNull() ?: return
-        val panel = content.comic.panels.getOrNull(index) ?: return
-        if (panel.style == style) return
-        val panels = content.comic.panels.toMutableList().also { it[index] = panel.copy(style = style) }
+        val panels = content.comic.panels.mapIndexed { index, panel ->
+            if (index in indices) panel.copy(style = style) else panel
+        }
         commit(content.comic.copy(panels = panels), undoable = false)
     }
 
@@ -730,6 +741,7 @@ class ComicEditorViewModel @Inject constructor(
 private fun ComicEditorUiState.Content.withSelection(selection: List<Span>): ComicEditorUiState.Content =
     copy(
         selection = selection,
+        selectedPanels = emptySet(),
         canMerge = selection.size >= 2 && comic.layout.grid.mergedFrom(selection) != null,
         canUnmerge = selection.singleOrNull()?.let { it.rowCount > 1 || it.columnCount > 1 } ?: false,
     )

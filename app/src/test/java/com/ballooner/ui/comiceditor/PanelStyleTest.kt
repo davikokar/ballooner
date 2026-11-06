@@ -90,6 +90,59 @@ class PanelStyleTest {
     }
 
     @Test
+    fun `a style can be given to several panels at once`() = runTest {
+        val (viewModel, _) = editorFor(comic.copy(panels = List(3) { Panel() }, layout = Layout(Grid(rows = 1, columns = 3))))
+        advanceUntilIdle()
+
+        viewModel.setPanelsStyle(setOf(0, 2), PanelStyle(borderThickness = 0.02f, cornerRadius = 0.3f))
+        advanceUntilIdle()
+
+        val panels = content(viewModel).comic.panels
+        assertEquals(PanelStyle(0.02f, 0.3f), panels[0].style)
+        assertNull(panels[1].style)
+        assertEquals(PanelStyle(0.02f, 0.3f), panels[2].style)
+    }
+
+    @Test
+    fun `tapping a panel picks it out and tapping it again lets it go`() = runTest {
+        val (viewModel, _) = editorFor(comic)
+        advanceUntilIdle()
+
+        viewModel.togglePanel(0)
+        viewModel.togglePanel(1)
+        advanceUntilIdle()
+        assertEquals(setOf(0, 1), content(viewModel).selectedPanels)
+
+        viewModel.togglePanel(0)
+        advanceUntilIdle()
+
+        assertEquals(setOf(1), content(viewModel).selectedPanels)
+    }
+
+    @Test
+    fun `a panel that is not there cannot be picked out`() = runTest {
+        val (viewModel, _) = editorFor(comic)
+        advanceUntilIdle()
+
+        viewModel.togglePanel(7)
+        advanceUntilIdle()
+
+        assertEquals(emptySet<Int>(), content(viewModel).selectedPanels)
+    }
+
+    @Test
+    fun `changing the layout lets go of the picked panels`() = runTest {
+        val (viewModel, _) = editorFor(comic)
+        advanceUntilIdle()
+        viewModel.togglePanel(0)
+
+        viewModel.applyPreset(rows = 2, columns = 2)
+        advanceUntilIdle()
+
+        assertEquals(emptySet<Int>(), content(viewModel).selectedPanels)
+    }
+
+    @Test
     fun `an unknown panel is framed by the comic style`() = runTest {
         assertEquals(comicStyle.panelStyle, comic.panelStyleAt(7))
         assertEquals(comicStyle.panelStyle, comic.panelStyleAt(null))

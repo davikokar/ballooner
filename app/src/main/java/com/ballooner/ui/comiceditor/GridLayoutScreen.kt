@@ -102,8 +102,7 @@ fun GridLayoutScreen(
     expanded: Boolean,
     onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
-    onOptions: () -> Unit,
-    onPanelOptions: (() -> Unit)?,
+    onPanelOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val grid = comic.layout.grid
@@ -117,7 +116,6 @@ fun GridLayoutScreen(
             LayoutOptionBreadcrumb(
                 current = stringResource(R.string.preset_grid).uppercase(),
                 onBack = onBack,
-                onOptions = onOptions,
             )
         }
         Column(
@@ -144,7 +142,6 @@ fun GridLayoutScreen(
             PreviewSurface(
                 modifier = Modifier.weight(1f),
                 hint = stringResource(R.string.grid_merge_hint).takeIf { selection.isEmpty() },
-                offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
                 expanded = expanded,
                 onExpanded = onExpanded,

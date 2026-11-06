@@ -139,8 +139,11 @@ fun ComicEditorScreen(
                     )
                     return@Column
                 }
-                // The Panel flyout restyles one panel, so it waits until exactly one is chosen.
-                val onPanelOptions = state.styledPanel()?.let { { showPanelOptions = true } }
+                // One button styles whatever is selected, or the whole comic when none or all
+                // of the panels are.
+                val onPanelOptions = {
+                    if (state.styledPanels() == null) showOptions = true else showPanelOptions = true
+                }
                 // A single panel is the whole comic, so its own preview says everything the
                 // canvas would.
                 if (state.step == EditorStep.LAYOUT && state.layoutKind == LayoutKind.SINGLE) {
@@ -154,7 +157,7 @@ fun ComicEditorScreen(
                         onExpanded = actions::expandPreview,
                         onChange = actions::setSizing,
                         onBack = actions::discardLayoutKind,
-                        onOptions = { showOptions = true },
+                        onPanelOptions = onPanelOptions,
                     )
                     return@Column
                 }
@@ -166,12 +169,12 @@ fun ComicEditorScreen(
                         panels = state.comic.panels,
                         images = images,
                         style = state.comic.style,
-                        selectedPanel = state.activePanel,
+                        selectedPanels = state.selectedPanels,
                         onChange = actions::setSizing,
                         onStrip = { across, count ->
                             if (across) actions.applyPreset(1, count) else actions.applyPreset(count, 1)
                         },
-                        onSelectPanel = actions::selectPanel,
+                        onTogglePanel = actions::togglePanel,
                         resize = remember(actions) {
                             PanelResize(
                                 start = actions::startBoundaryDrag,
@@ -182,7 +185,6 @@ fun ComicEditorScreen(
                         expanded = state.expandedPreview,
                         onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,
-                        onOptions = { showOptions = true },
                         onPanelOptions = onPanelOptions,
                     )
                     return@Column
@@ -210,7 +212,6 @@ fun ComicEditorScreen(
                         expanded = state.expandedPreview,
                         onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,
-                        onOptions = { showOptions = true },
                         onPanelOptions = onPanelOptions,
                     )
                     return@Column
@@ -220,18 +221,17 @@ fun ComicEditorScreen(
                         comic = state.comic,
                         images = images,
                         canUndo = state.canUndo,
-                        selectedPanel = state.activePanel,
+                        selectedPanels = state.selectedPanels,
                         onCut = actions::addCut,
                         onStartCutDrag = actions::startBoundaryDrag,
                         onMoveCutEnd = actions::moveCutEnd,
                         onEndCutDrag = actions::endCutDrag,
-                        onSelectPanel = actions::selectPanel,
+                        onTogglePanel = actions::togglePanel,
                         onUndo = actions::undo,
                         onChange = actions::setSizing,
                         expanded = state.expandedPreview,
                         onExpanded = actions::expandPreview,
                         onBack = actions::discardLayoutKind,
-                        onOptions = { showOptions = true },
                         onPanelOptions = onPanelOptions,
                     )
                     return@Column
@@ -336,15 +336,18 @@ fun ComicEditorScreen(
     if (showOptions && content != null) {
         ComicOptionsSheet(
             style = content.comic.style,
+            // One panel has no gutter between panels to adjust.
+            showGutter = content.layoutKind != LayoutKind.SINGLE,
             onChange = actions::setStyle,
             onDismiss = { showOptions = false },
         )
     }
-    val styledPanel = content?.styledPanel()
-    if (showPanelOptions && content != null && styledPanel != null) {
+    val styledPanels = content?.styledPanels()
+    if (showPanelOptions && content != null && styledPanels != null) {
         PanelOptionsSheet(
-            style = content.comic.panelStyleAt(styledPanel),
-            onChange = { actions.setPanelStyle(styledPanel, it) },
+            // Panels picked together may differ; the sheet opens on the first and sets them all.
+            style = content.comic.panelStyleAt(styledPanels.min()),
+            onChange = { actions.setPanelsStyle(styledPanels, it) },
             onDismiss = { showPanelOptions = false },
         )
     }
@@ -496,6 +499,7 @@ private fun UndoGlyph(tint: Color, modifier: Modifier = Modifier) {
 @Composable
 private fun ComicOptionsSheet(
     style: ComicStyle,
+    showGutter: Boolean,
     onChange: (ComicStyle) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -505,7 +509,7 @@ private fun ComicOptionsSheet(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(stringResource(R.string.comic_style), style = MaterialTheme.typography.headlineSmall)
-            StyleControls(style, onChange)
+            StyleControls(style, showGutter, onChange)
         }
     }
 }
@@ -546,19 +550,20 @@ private fun PanelOptionsSheet(
 }
 
 /**
- * The one panel the Panel flyout styles, or null while that is not exactly one panel.
+ * The panels the style button restyles, or null when it restyles the whole comic.
  *
- * Each preset already has a way of picking a panel out, so this reads the choice the user has
- * already made there rather than asking them to make it twice.
+ * Each preset already has a way of picking panels out, so this reads the choice the user has
+ * already made there. Picking none or all of them leaves the comic as the thing being styled,
+ * which is also what carries the gutter between panels.
  */
-private fun ComicEditorUiState.Content.styledPanel(): Int? = when (layoutKind) {
-    // One panel is the whole comic, so styling it is styling the comic: the Options button
-    // already does that, and a Panel flyout beside it would only say the same thing twice.
-    LayoutKind.SINGLE -> null
-    // The grid picks panels out by their cells, which is what merging already works on.
-    LayoutKind.GRID -> selection.singleOrNull()?.let { panelIndexOfCell(comic, it) }
-    LayoutKind.STRIP, LayoutKind.CUSTOM -> activePanel?.takeIf { it in comic.panels.indices }
-    null -> null
+private fun ComicEditorUiState.Content.styledPanels(): Set<Int>? {
+    val picked = when (layoutKind) {
+        // The grid picks panels out by their cells, which is what merging already works on.
+        LayoutKind.GRID -> selection.mapNotNull { panelIndexOfCell(comic, it) }.toSet()
+        LayoutKind.STRIP, LayoutKind.CUSTOM -> selectedPanels.filter { it in comic.panels.indices }.toSet()
+        LayoutKind.SINGLE, null -> emptySet()
+    }
+    return picked.takeIf { it.isNotEmpty() && it.size < comic.panels.size }
 }
 
 @Composable
@@ -876,12 +881,14 @@ private fun FontDropdown(
 }
 
 @Composable
-private fun StyleControls(style: ComicStyle, onChange: (ComicStyle) -> Unit) {
+private fun StyleControls(style: ComicStyle, showGutter: Boolean, onChange: (ComicStyle) -> Unit) {
     Column {
         // There is no margin control: the page margin is the gutter, so every gap in the comic is
         // the same width whichever side of a panel it is on.
-        StyleSlider(stringResource(R.string.style_gutter), style.gutter, 0f, 0.1f) {
-            onChange(style.copy(gutter = it))
+        if (showGutter) {
+            StyleSlider(stringResource(R.string.style_gutter), style.gutter, 0f, 0.1f) {
+                onChange(style.copy(gutter = it))
+            }
         }
         StyleSlider(stringResource(R.string.style_border), style.borderThickness, 0f, MAX_PANEL_BORDER) {
             onChange(style.copy(borderThickness = it))

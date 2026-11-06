@@ -61,7 +61,6 @@
     <string name="keep_changes_message">此漫画有尚未保存的更改。</string>
     <string name="discard">放弃</string>
     <string name="next">下一步</string>
-    <string name="options">选项</string>
     <string name="step_layout">布局</string>
     <string name="step_images">图片</string>
     <string name="step_balloons">对话框</string>

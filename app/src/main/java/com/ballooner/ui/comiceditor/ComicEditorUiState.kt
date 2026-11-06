@@ -70,6 +70,12 @@ sealed interface ComicEditorUiState {
         val chosenKind: LayoutKind? = null,
         /** Grid panels picked out in the Layout step, as the cells they cover. */
         val selection: List<Span> = emptyList(),
+        /**
+         * Panels picked out in the Layout step by the presets that tap panels directly (Strip and
+         * Custom), by index in reading order. Any number may be picked; the Grid keeps its own
+         * choice in [selection], by cell.
+         */
+        val selectedPanels: Set<Int> = emptySet(),
         /** The panel being placed in the Placement step, by index in reading order. */
         val activePanel: Int? = null,
         /** Panels whose picked image is still being copied in, by index in reading order. */

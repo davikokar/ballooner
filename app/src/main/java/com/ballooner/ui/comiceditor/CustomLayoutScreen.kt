@@ -63,19 +63,18 @@ fun CustomLayoutScreen(
     comic: Comic,
     images: PanelImageSource,
     canUndo: Boolean,
-    selectedPanel: Int?,
+    selectedPanels: Set<Int>,
     onCut: (from: NormalizedPoint, to: NormalizedPoint, scope: CutScope) -> Unit,
     onStartCutDrag: () -> Unit,
     onMoveCutEnd: (index: Int, start: Boolean, to: NormalizedPoint) -> Unit,
     onEndCutDrag: (index: Int) -> Unit,
-    onSelectPanel: (Int?) -> Unit,
+    onTogglePanel: (Int) -> Unit,
     onUndo: () -> Unit,
     onChange: (PageSizing) -> Unit,
     expanded: Boolean,
     onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
-    onOptions: () -> Unit,
-    onPanelOptions: (() -> Unit)?,
+    onPanelOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -86,7 +85,6 @@ fun CustomLayoutScreen(
             LayoutOptionBreadcrumb(
                 current = stringResource(R.string.preset_custom).uppercase(),
                 onBack = onBack,
-                onOptions = onOptions,
             )
         }
         Column(
@@ -107,10 +105,9 @@ fun CustomLayoutScreen(
                 hint = if (comic.layout.cuts.isEmpty()) {
                     stringResource(R.string.custom_cut_hint)
                 } else {
-                    // Any longer and it wraps under the Panel options button beside it.
+                    // Any longer and it wraps under the style button beside it.
                     stringResource(R.string.custom_handle_hint)
                 },
-                offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
                 expanded = expanded,
                 onExpanded = onExpanded,
@@ -127,12 +124,12 @@ fun CustomLayoutScreen(
                 CuttingPage(
                     comic = comic,
                     images = images,
-                    selectedPanel = selectedPanel,
+                    selectedPanels = selectedPanels,
                     onCut = onCut,
                     onStartCutDrag = onStartCutDrag,
                     onMoveCutEnd = onMoveCutEnd,
                     onEndCutDrag = onEndCutDrag,
-                    onSelectPanel = onSelectPanel,
+                    onTogglePanel = onTogglePanel,
                 )
             }
         }
@@ -147,12 +144,12 @@ private data class CutHandle(val index: Int, val start: Boolean, val point: Page
 private fun CuttingPage(
     comic: Comic,
     images: PanelImageSource,
-    selectedPanel: Int?,
+    selectedPanels: Set<Int>,
     onCut: (NormalizedPoint, NormalizedPoint, CutScope) -> Unit,
     onStartCutDrag: () -> Unit,
     onMoveCutEnd: (Int, Boolean, NormalizedPoint) -> Unit,
     onEndCutDrag: (Int) -> Unit,
-    onSelectPanel: (Int?) -> Unit,
+    onTogglePanel: (Int) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val shapes = remember(comic) { panelShapes(comic.layout, comic.pageHeight, comic.style) }
@@ -182,9 +179,9 @@ private fun CuttingPage(
                     // cutting gesture, and this only hears about it if no one else claimed it.
                     val up = waitForUpOrCancellation() ?: return@awaitEachGesture
                     val point = pageViewport(size.toSize(), latest.value.first).toPage(up.position)
-                    onSelectPanel(
-                        latestShapes.value.indexOfFirst { it.contains(point) }.takeIf { it >= 0 },
-                    )
+                    // A tap beside every panel picks nothing and lets nothing go.
+                    val index = latestShapes.value.indexOfFirst { it.contains(point) }
+                    if (index >= 0) onTogglePanel(index)
                 }
             }
             // Keyed on nothing: keying on the comic would tear the handler down the moment a cut
@@ -283,7 +280,7 @@ private fun CuttingPage(
                 }
             }
             drawPath(path, color = InkBlack, style = Stroke(width = previewBorderWidth(comic, index, viewport)))
-            if (index == selectedPanel) {
+            if (index in selectedPanels) {
                 drawPath(path, color = scheme.primary.copy(alpha = 0.3f))
                 drawPath(path, color = scheme.primary, style = Stroke(width = 8f))
             }

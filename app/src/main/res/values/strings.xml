@@ -69,7 +69,6 @@
     <string name="keep_changes_message">This comic has changes that have not been saved.</string>
     <string name="discard">Discard</string>
     <string name="next">Next</string>
-    <string name="options">Options</string>
     <string name="step_layout">Layout</string>
     <string name="step_images">Images</string>
     <string name="step_balloons">Balloons</string>

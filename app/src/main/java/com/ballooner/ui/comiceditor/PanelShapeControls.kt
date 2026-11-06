@@ -246,18 +246,16 @@ internal fun PanelPreview(
     modifier: Modifier = Modifier,
     rowWeights: List<Float> = listOf(1f),
     columnWeights: List<Float> = listOf(1f),
-    selected: Int? = null,
+    selected: Set<Int> = emptySet(),
     onSelect: ((Int) -> Unit)? = null,
     resize: PanelResize? = null,
-    offersPanelOptions: Boolean = false,
-    onPanelOptions: (() -> Unit)? = null,
+    onPanelOptions: () -> Unit,
     expanded: Boolean = false,
     onExpanded: ((Boolean) -> Unit)? = null,
     emptyMessage: String = stringResource(R.string.shape_auto_single_hint),
 ) {
     PreviewSurface(
         modifier = modifier,
-        offersPanelOptions = offersPanelOptions,
         onPanelOptions = onPanelOptions,
         expanded = expanded,
         onExpanded = onExpanded,
@@ -300,11 +298,8 @@ private const val MIN_PREVIEW_BORDER = 2f
  * What goes on the ground differs: a lattice of frames for the shape presets, the real page for
  * the grid, which has merged panels to show.
  *
- * [offersPanelOptions] says whether this preset styles panels one at a time at all; a preset
- * whose comic is a single panel does not, since styling that panel is styling the comic.
- * [onPanelOptions] opens the Panel style controls for the one panel that is selected. A null one
- * leaves the button offered but dimmed, since what is missing is a choice of panel rather than
- * the ability to style one.
+ * [onPanelOptions] opens the style controls, which restyle whichever panels are selected, or
+ * the whole comic when none or all of them are.
  *
  * [onExpanded] gives the card over to the whole screen and takes it back again; a null one means
  * this caller has no room to give and the button is not offered. An expanded card also offers to
@@ -318,8 +313,7 @@ private const val MIN_PREVIEW_BORDER = 2f
 internal fun PreviewSurface(
     modifier: Modifier = Modifier,
     hint: String? = null,
-    offersPanelOptions: Boolean = false,
-    onPanelOptions: (() -> Unit)? = null,
+    onPanelOptions: () -> Unit,
     expanded: Boolean = false,
     onExpanded: ((Boolean) -> Unit)? = null,
     floating: @Composable BoxScope.(turned: Boolean) -> Unit = {},
@@ -381,7 +375,7 @@ internal fun PreviewSurface(
                     )
                 }
             }
-            if (offersPanelOptions) PanelOptionsButton(onClick = onPanelOptions)
+            PanelOptionsButton(onClick = onPanelOptions)
         }
         Box(
             modifier = Modifier
@@ -468,33 +462,28 @@ private fun ExpandPreviewButton(expanded: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * The same gear the Comic style wears, because it opens the same kind of thing for one panel.
+ * The gear that opens the style controls for the panels below it.
  *
  * Not an `IconButton`: that reserves a 48dp touch target however small its glyph, which would
  * push the preview down the screen by more than the gear is worth.
  */
 @Composable
-private fun PanelOptionsButton(onClick: (() -> Unit)?) {
-    val scheme = MaterialTheme.colorScheme
+private fun PanelOptionsButton(onClick: () -> Unit) {
     val label = stringResource(R.string.panel_options)
     Box(
         modifier = Modifier
             .padding(start = 8.dp)
             .size(24.dp)
             // On the clickable chain, not on the icon: on the icon it becomes a node of its own
-            // and the button itself is left with no label and no enabled state to read.
+            // and the button itself is left with no label to read.
             .semantics { contentDescription = label }
-            .clickable(enabled = onClick != null) { onClick?.invoke() },
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.Default.Settings,
             contentDescription = null,
-            tint = if (onClick != null) {
-                scheme.onSurfaceVariant
-            } else {
-                scheme.onSurface.copy(alpha = 0.38f)
-            },
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp),
         )
     }
@@ -509,7 +498,7 @@ private fun PanelLattice(
     style: ComicStyle,
     rowWeights: List<Float>,
     columnWeights: List<Float>,
-    selected: Int?,
+    selected: Set<Int>,
     onSelect: ((Int) -> Unit)?,
     resize: PanelResize?,
 ) {
@@ -559,7 +548,7 @@ private fun PanelLattice(
                             images = images,
                             border = (pageWidth * frame.borderThickness).coerceAtLeast(MIN_PREVIEW_FRAME),
                             corner = pageWidth * frame.cornerRadius,
-                            selected = index == selected,
+                            selected = index in selected,
                             onSelect = onSelect?.let { select -> { select(index) } },
                             key = index,
                             modifier = Modifier.weight(columnWeights.weightAt(column)).fillMaxHeight(),
@@ -769,8 +758,8 @@ private fun PanelFrame(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(scheme.primary.copy(alpha = 0.2f), shape)
-                    .border(BorderStroke(2.dp, scheme.primary), shape),
+                    .background(scheme.primary.copy(alpha = 0.3f), shape)
+                    .border(BorderStroke(4.dp, scheme.primary), shape),
             )
         }
     }

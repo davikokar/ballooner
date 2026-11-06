@@ -112,11 +112,8 @@ the parts owned by later steps are shown dimmed and are not interactive.
 
 ### Editor toolbar controls
 
-- **Options button**: The gear at the right end of the Breadcrumb, so it sits on the same line as
-  the heading it belongs to. Opens the Comic style controls in a bottom sheet. Offered only while
-  Preset options are open — Single, Strip, Grid, or Custom — since that is the only place the
-  comic is being styled as a whole. It is not on the Preset picker or in any other step.
-- **Comic style button**: Opens the Comic style controls.
+- **Comic style button**: Opens the Comic style controls. It is the **Panel options button** when
+  no panel, or every panel, is selected.
 - **Save button**: Writes the comic to the library, confirming it with a brief "Comic saved"
   message. It asks nothing: the comic is already named in the Comic title field. Exporting is a
   separate action, offered by the share control and by the Comic card's menu.
@@ -137,10 +134,10 @@ the parts owned by later steps are shown dimmed and are not interactive.
   It is a continuation of the Preset picker, not an overlay: same ground, no frame of its own.
   Preset picker, and left by the **Step next button**, the **Step back button**, or the
   **Breadcrumb**, which continues the picker's heading — "Select panel preset / Single" — with
-  the leading part tappable to go back and the **Options button** at its far end.
+  the leading part tappable to go back. The Breadcrumb carries no controls of its own.
 - **Single panel shape**: The Single preset's options. Four **Shape tiles** — **Square**,
-  **Ratio**, **Custom**, **Auto** — over a **Panel preview**. Its preview carries no Panel
-  options button: the comic is one panel, so the Comic style is already its panel style.
+  **Ratio**, **Custom**, **Auto** — over a **Panel preview**. Its panel cannot be selected: the
+  comic is one panel, so the Panel options button always styles the comic.
 - **Strip options**: The Strip preset's options. An **Orientation** pair of icon buttons and a
   **Panels** stepper, then the Shape tiles and the Panel preview. Panels are resized by dragging
   the **Gutter grip** between them.
@@ -169,11 +166,11 @@ the parts owned by later steps are shown dimmed and are not interactive.
   the whole way across, so a drag resizes two whole rows or two whole columns and the cells always
   stay in step. While panels are unequal no Shape tile is active, and choosing one puts every
   panel back to one size.
-- **Panel options button**: The gear in the top-right corner of the Panel preview, drawn as the
-  Options button is because it opens the same kind of thing for one panel. Offered in **Strip**,
-  **Grid**, and **Custom**, and dimmed until exactly one panel is chosen. Not offered in
-  **Single**, where the comic is one panel and so styling it is styling the comic — the Options
-  button already does that. Opens the **Panel flyout**.
+- **Panel options button**: The gear in the top-right corner of the Panel preview, and the only
+  way to the style controls. Always offered and always enabled, in **Single**, **Strip**, **Grid**,
+  and **Custom**. With no panel selected, or every panel, it opens the **Comic style** controls
+  and restyles the whole comic. With only some panels selected it opens the **Panel flyout**,
+  which restyles just those panels.
 - **Expand button**: The corner brackets in the top-left corner of the Panel preview, facing out
   to give the preview the whole screen and in to hand it back. Expanding hides the Breadcrumb,
   every control above the preview, the Editor action row, the Step switch, and the comic's top
@@ -193,9 +190,10 @@ the parts owned by later steps are shown dimmed and are not interactive.
   a tall screen, which is what a horizontal **Strip** is. Offered only while expanded, and putting
   the preview away lays the page flat. Whatever floats over the page — **Merge**, **Unmerge**,
   **Undo** — keeps its own way up.
-- **Selected panel**: The one panel the Preset options are working on, which is the panel the
-  Panel flyout restyles. Chosen by tapping a panel in the Panel preview, except in **Grid**,
-  where it is the cell already picked out for merging.
+- **Selected panels**: The panels the Preset options are working on, any number of them. A panel
+  is selected by tapping it in the Panel preview and let go by tapping it again; in **Grid** they
+  are the cells already picked out for merging. None selected and all selected mean the same
+  thing: the whole comic.
 - **Reference panel**: The panel that gives the Page its height, which is the first panel of the
   Grid. For a Single comic that is the only panel.
 - **Panel shape**: The proportions the Reference panel is held at. Offered as **Square**, **2:3**,
@@ -231,9 +229,10 @@ and each slider reads its value out as that percentage beside the track.
 ### Panel style
 
 - **Panel flyout** (`PanelOptionsSheet`): The sheet the Panel options button opens from the
-  bottom. It offers only **Border thickness** and **Corner radius**, and only for the Selected
-  panel, overriding the Comic style for that panel alone. The Gutter is not here: it is the space
-  between panels and so can never belong to one of them.
+  bottom while some, but not all, panels are selected. It offers only **Border thickness** and
+  **Corner radius**, and only for the Selected panels, overriding the Comic style for those
+  panels alone. The Gutter is not here: it is the space between panels and so can never belong to
+  one of them, which is why it is offered only when the whole comic is being styled.
 - **Panel frame**: What the Panel flyout sets — one panel's own border and corners. A panel has
   none until it is given one, and every panel loses the one it was given the moment any Comic
   style control moves, since restyling the comic as a whole has the last word.

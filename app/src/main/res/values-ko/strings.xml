@@ -61,7 +61,6 @@
     <string name="keep_changes_message">이 만화에는 저장되지 않은 변경 사항이 있습니다.</string>
     <string name="discard">삭제</string>
     <string name="next">다음</string>
-    <string name="options">옵션</string>
     <string name="step_layout">레이아웃</string>
     <string name="step_images">이미지</string>
     <string name="step_balloons">말풍선</string>

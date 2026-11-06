@@ -30,7 +30,7 @@ fun SinglePanelShapeScreen(
     onExpanded: (Boolean) -> Unit,
     onChange: (PageSizing) -> Unit,
     onBack: () -> Unit,
-    onOptions: () -> Unit,
+    onPanelOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -41,7 +41,6 @@ fun SinglePanelShapeScreen(
             LayoutOptionBreadcrumb(
                 current = stringResource(R.string.preset_single).uppercase(),
                 onBack = onBack,
-                onOptions = onOptions,
             )
         }
         Column(
@@ -63,9 +62,8 @@ fun SinglePanelShapeScreen(
                 panels = listOfNotNull(panel),
                 images = images,
                 style = style,
-                // No Panel options here: the one panel is the whole comic, so styling it and
-                // styling the comic are the same thing and the Options button already does it.
                 modifier = Modifier.weight(1f),
+                onPanelOptions = onPanelOptions,
                 expanded = expanded,
                 onExpanded = onExpanded,
             )

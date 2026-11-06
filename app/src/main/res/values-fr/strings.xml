@@ -61,7 +61,6 @@
     <string name="keep_changes_message">Cette BD comporte des modifications non enregistrées.</string>
     <string name="discard">Abandonner</string>
     <string name="next">Suivant</string>
-    <string name="options">Options</string>
     <string name="step_layout">Mise en page</string>
     <string name="step_images">Images</string>
     <string name="step_balloons">Bulles</string>

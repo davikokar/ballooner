@@ -50,16 +50,15 @@ fun StripLayoutScreen(
     panels: List<Panel>,
     images: PanelImageSource,
     style: ComicStyle,
-    selectedPanel: Int?,
+    selectedPanels: Set<Int>,
     onChange: (PageSizing) -> Unit,
     onStrip: (horizontal: Boolean, count: Int) -> Unit,
-    onSelectPanel: (Int) -> Unit,
+    onTogglePanel: (Int) -> Unit,
     resize: PanelResize,
     expanded: Boolean,
     onExpanded: (Boolean) -> Unit,
     onBack: () -> Unit,
-    onOptions: () -> Unit,
-    onPanelOptions: (() -> Unit)?,
+    onPanelOptions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val horizontal = grid.rows == 1
@@ -76,7 +75,6 @@ fun StripLayoutScreen(
             LayoutOptionBreadcrumb(
                 current = stringResource(R.string.preset_strip).uppercase(),
                 onBack = onBack,
-                onOptions = onOptions,
             )
         }
         Column(
@@ -119,10 +117,9 @@ fun StripLayoutScreen(
                 modifier = Modifier.weight(1f),
                 rowWeights = if (horizontal) listOf(1f) else weights,
                 columnWeights = if (horizontal) weights else listOf(1f),
-                selected = selectedPanel,
-                onSelect = onSelectPanel,
+                selected = selectedPanels,
+                onSelect = onTogglePanel,
                 resize = resize,
-                offersPanelOptions = true,
                 onPanelOptions = onPanelOptions,
                 expanded = expanded,
                 onExpanded = onExpanded,

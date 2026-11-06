@@ -23,7 +23,7 @@ interface ComicEditorActions {
     fun discardLayoutKind()
     fun setSizing(sizing: PageSizing)
     fun setStyle(style: ComicStyle)
-    fun setPanelStyle(index: Int, style: PanelStyle)
+    fun setPanelsStyle(indices: Set<Int>, style: PanelStyle)
     fun startBoundaryDrag()
     fun moveBoundary(line: GridLine, delta: Float)
     fun endBoundaryDrag()
@@ -32,6 +32,7 @@ interface ComicEditorActions {
     fun endCutDrag(index: Int)
     fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope)
     fun selectPanel(index: Int?)
+    fun togglePanel(index: Int)
     fun expandPreview(expanded: Boolean)
     fun focusPanel(index: Int?)
     fun focusNeighbour(forward: Boolean)
@@ -80,8 +81,8 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun discardLayoutKind() = this@asActions.discardLayoutKind()
     override fun setSizing(sizing: PageSizing) = this@asActions.setSizing(sizing)
     override fun setStyle(style: ComicStyle) = this@asActions.setStyle(style)
-    override fun setPanelStyle(index: Int, style: PanelStyle) =
-        this@asActions.setPanelStyle(index, style)
+    override fun setPanelsStyle(indices: Set<Int>, style: PanelStyle) =
+        this@asActions.setPanelsStyle(indices, style)
     override fun startBoundaryDrag() = this@asActions.startBoundaryDrag()
     override fun moveBoundary(line: GridLine, delta: Float) =
         this@asActions.moveBoundary(line, delta)
@@ -93,6 +94,7 @@ fun ComicEditorViewModel.asActions(): ComicEditorActions = object : ComicEditorA
     override fun addCut(from: NormalizedPoint, to: NormalizedPoint, scope: CutScope) =
         this@asActions.addCut(from, to, scope)
     override fun selectPanel(index: Int?) = this@asActions.selectPanel(index)
+    override fun togglePanel(index: Int) = this@asActions.togglePanel(index)
     override fun expandPreview(expanded: Boolean) = this@asActions.expandPreview(expanded)
     override fun focusPanel(index: Int?) = this@asActions.focusPanel(index)
     override fun focusNeighbour(forward: Boolean) = this@asActions.focusNeighbour(forward)
