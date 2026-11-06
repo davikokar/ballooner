@@ -119,46 +119,14 @@ fun ComicEditorScreen(
             // An expanded preview is given the whole screen, chrome included; the preview's own
             // Collapse button is what gives it back.
             if (!state.expandedPreview) {
-                EditorHeader(
-                    step = state.step,
-                    onSelectStep = actions::selectStep,
-                    canUndo = state.canUndo,
-                    // The picker changes nothing until a preset is opened, so there is nothing to undo.
-                    onUndo = if (onPresetPicker) null else actions::undo,
-                    onBack = when {
-                        inLayoutOptions -> actions::discardLayoutKind
-                        // Back into the Layout step means back to the options that were left, not to
-                        // the picker: the preset has already been chosen.
-                        state.step == EditorStep.PLACEMENT -> ({
-                            actions.selectStep(EditorStep.LAYOUT)
-                            actions.selectLayoutKind(layoutKindOf(state.comic, state.chosenKind))
-                        })
-                        state.step == EditorStep.BALLOONS -> ({ actions.selectStep(EditorStep.PLACEMENT) })
-                        else -> null
-                    },
-                    onNext = when {
-                        inLayoutOptions -> ({ actions.selectStep(EditorStep.PLACEMENT) })
-                        // On the picker, moving on means opening the preset the comic already is.
-                        state.step == EditorStep.LAYOUT ->
-                            ({ actions.selectLayoutKind(layoutKindOf(state.comic, state.chosenKind)) })
-                        state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
-                        // The last step has nowhere to go but out, with the comic in hand.
-                        state.step == EditorStep.BALLOONS -> onSave
-                        else -> null
-                    },
-                    nextLabel = stringResource(
-                        if (state.step == EditorStep.BALLOONS) R.string.save else R.string.next,
-                    ),
-                    // A comic is only worth sending once it has its balloons on.
-                    onShare = if (state.step == EditorStep.BALLOONS) onShare else null,
-                    sharing = sharing,
-                )
+                EditorHeader(step = state.step, onSelectStep = actions::selectStep)
             }
             // The workspace sits on its own ground so the chrome above it reads as a separate
             // surface rather than as the top of the canvas.
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
+                    .weight(1f)
                     .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -324,6 +292,40 @@ fun ComicEditorScreen(
                     }
                 }
             }
+            if (!state.expandedPreview) {
+                EditorActionBar(
+                    canUndo = state.canUndo,
+                    // The picker changes nothing until a preset is opened, so there is nothing to undo.
+                    onUndo = if (onPresetPicker) null else actions::undo,
+                    onBack = when {
+                        inLayoutOptions -> actions::discardLayoutKind
+                        // Back into the Layout step means back to the options that were left, not to
+                        // the picker: the preset has already been chosen.
+                        state.step == EditorStep.PLACEMENT -> ({
+                            actions.selectStep(EditorStep.LAYOUT)
+                            actions.selectLayoutKind(layoutKindOf(state.comic, state.chosenKind))
+                        })
+                        state.step == EditorStep.BALLOONS -> ({ actions.selectStep(EditorStep.PLACEMENT) })
+                        else -> null
+                    },
+                    onNext = when {
+                        inLayoutOptions -> ({ actions.selectStep(EditorStep.PLACEMENT) })
+                        // On the picker, moving on means opening the preset the comic already is.
+                        state.step == EditorStep.LAYOUT ->
+                            ({ actions.selectLayoutKind(layoutKindOf(state.comic, state.chosenKind)) })
+                        state.step == EditorStep.PLACEMENT -> ({ actions.selectStep(EditorStep.BALLOONS) })
+                        // The last step has nowhere to go but out, with the comic in hand.
+                        state.step == EditorStep.BALLOONS -> onSave
+                        else -> null
+                    },
+                    nextLabel = stringResource(
+                        if (state.step == EditorStep.BALLOONS) R.string.save else R.string.next,
+                    ),
+                    // A comic is only worth sending once it has its balloons on.
+                    onShare = if (state.step == EditorStep.BALLOONS) onShare else null,
+                    sharing = sharing,
+                )
+            }
         }
     }
     val warning = (state as? ComicEditorUiState.Content)?.warning
@@ -353,14 +355,28 @@ fun ComicEditorScreen(
 }
 
 /**
- * The editor's chrome: which step is being worked on, and the actions that apply whichever it is.
+ * The editor's chrome: which step is being worked on.
  *
  * It sits on its own paper surface, above the workspace rather than on it.
  */
 @Composable
-private fun EditorHeader(
-    step: EditorStep,
-    onSelectStep: (EditorStep) -> Unit,
+private fun EditorHeader(step: EditorStep, onSelectStep: (EditorStep) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    ) {
+        StepSwitch(step, onSelectStep)
+    }
+}
+
+/**
+ * The actions that apply whichever step is being worked on, along the very bottom of the editor:
+ * Undo at the left, and the way on and back, and Share, at the right.
+ */
+@Composable
+private fun EditorActionBar(
     canUndo: Boolean,
     onUndo: (() -> Unit)?,
     onBack: (() -> Unit)?,
@@ -373,16 +389,30 @@ private fun EditorHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(scheme.surfaceContainerLowest)
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .background(scheme.surfaceContainerLowest),
     ) {
-        StepSwitch(step, onSelectStep, modifier = Modifier.padding(bottom = 8.dp))
         HorizontalDivider(color = scheme.surfaceContainerHigh)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (onUndo != null) {
+                val undoLabel = stringResource(R.string.undo)
+                IconButton(
+                    onClick = onUndo,
+                    enabled = canUndo,
+                    // The glyph is drawn, not written, so the button itself has to say what it is.
+                    modifier = Modifier.size(36.dp).semantics { contentDescription = undoLabel },
+                ) {
+                    UndoGlyph(
+                        tint = if (canUndo) scheme.onSurface else scheme.onSurface.copy(alpha = DISABLED),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+            // Keeps the other buttons at the far end whether or not Undo is there.
+            Spacer(modifier = Modifier.weight(1f))
             if (onBack != null) {
                 TextButton(
                     onClick = onBack,
@@ -415,22 +445,6 @@ private fun EditorHeader(
                             modifier = Modifier.size(18.dp),
                         )
                     }
-                }
-            }
-            // Keeps Undo at the far end whether or not the preset buttons are there.
-            Spacer(modifier = Modifier.weight(1f))
-            if (onUndo != null) {
-                val undoLabel = stringResource(R.string.undo)
-                IconButton(
-                    onClick = onUndo,
-                    enabled = canUndo,
-                    // The glyph is drawn, not written, so the button itself has to say what it is.
-                    modifier = Modifier.size(36.dp).semantics { contentDescription = undoLabel },
-                ) {
-                    UndoGlyph(
-                        tint = if (canUndo) scheme.onSurface else scheme.onSurface.copy(alpha = DISABLED),
-                        modifier = Modifier.size(18.dp),
-                    )
                 }
             }
         }
@@ -666,7 +680,7 @@ private fun StepSwitch(step: EditorStep, onSelect: (EditorStep) -> Unit, modifie
     )
 }
 
-/** A flat segmented pill: the active segment is lifted out in paper, not filled with colour. */
+/** A flat segmented pill: the active segment is filled in the app's blue with white text. */
 @Composable
 private fun <T> PillSwitch(
     options: List<T>,
@@ -690,7 +704,7 @@ private fun <T> PillSwitch(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(if (active) scheme.surfaceContainerLowest else Color.Transparent)
+                    .background(if (active) scheme.primary else Color.Transparent)
                     .clickable { onSelect(entry) }
                     .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center,
@@ -698,7 +712,7 @@ private fun <T> PillSwitch(
                 Text(
                     text = label(index, entry),
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (active) scheme.primary else scheme.onSurfaceVariant,
+                    color = if (active) scheme.onPrimary else scheme.onSurfaceVariant,
                 )
             }
         }
