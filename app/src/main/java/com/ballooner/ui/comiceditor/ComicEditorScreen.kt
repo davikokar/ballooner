@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -107,6 +108,7 @@ fun ComicEditorScreen(
     var showOptions by rememberSaveable { mutableStateOf(false) }
     var showPanelOptions by rememberSaveable { mutableStateOf(false) }
     var showBalloonStyle by rememberSaveable { mutableStateOf(false) }
+    var showInfo by rememberSaveable { mutableStateOf(false) }
     when (state) {
         ComicEditorUiState.Loading -> Box(modifier.fillMaxSize(), Alignment.Center) {
             CircularProgressIndicator()
@@ -294,6 +296,7 @@ fun ComicEditorScreen(
             }
             if (!state.expandedPreview) {
                 EditorActionBar(
+                    onInfo = { showInfo = true },
                     canUndo = state.canUndo,
                     // The picker changes nothing until a preset is opened, so there is nothing to undo.
                     onUndo = if (onPresetPicker) null else actions::undo,
@@ -333,6 +336,9 @@ fun ComicEditorScreen(
         LayoutChangeDialog(warning, actions::confirmLayoutChange, actions::cancelLayoutChange)
     }
     val content = state as? ComicEditorUiState.Content
+    if (showInfo && content != null) {
+        EditorInfoDialog(view = content.currentView(), onDismiss = { showInfo = false })
+    }
     if (showOptions && content != null) {
         ComicOptionsSheet(
             style = content.comic.style,
@@ -376,10 +382,11 @@ private fun EditorHeader(step: EditorStep, onSelectStep: (EditorStep) -> Unit) {
 
 /**
  * The actions that apply whichever step is being worked on, along the very bottom of the editor:
- * Undo at the left, and the way on and back, and Share, at the right.
+ * Info and Undo at the left, and the way on and back, and Share, at the right.
  */
 @Composable
 private fun EditorActionBar(
+    onInfo: () -> Unit,
     canUndo: Boolean,
     onUndo: (() -> Unit)?,
     onBack: (() -> Unit)?,
@@ -400,6 +407,13 @@ private fun EditorActionBar(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconButton(onClick = onInfo, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = stringResource(R.string.screen_info),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
             if (onUndo != null) {
                 val undoLabel = stringResource(R.string.undo)
                 IconButton(
