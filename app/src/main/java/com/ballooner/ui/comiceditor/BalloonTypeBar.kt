@@ -2,6 +2,7 @@ package com.ballooner.ui.comiceditor
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -22,28 +22,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.davide.seddio.ballooner.R
-import com.ballooner.domain.comic.BalloonScope
-import com.ballooner.domain.comic.newBalloon
 import com.ballooner.domain.model.BalloonType
-import com.ballooner.ui.comic.PageViewport
-import com.ballooner.ui.comic.balloonGeometry
-import com.ballooner.ui.comic.drawBalloon
-import com.ballooner.ui.theme.InkBlack
-import com.ballooner.ui.theme.PaperWhite
 import com.ballooner.ui.theme.label
 
 /**
- * The balloons that can be added, each drawn as the balloon it makes, and at the far end the
- * choice of whether the selected balloon belongs to its panel or to the whole page.
- *
- * The buttons are the same shapes the page will get, built from the same document and drawn by
- * the same renderer, so a button cannot end up advertising something the comic does not do.
+ * The balloons that can be added, each as an icon, and at the far end the choice of whether the
+ * selected balloon belongs to its panel or to the whole page.
  */
 @Composable
 internal fun BalloonTypeBar(
@@ -59,10 +54,10 @@ internal fun BalloonTypeBar(
             // into the slack underneath rather than sitting below it twice over.
             .offset(y = -HEADING_SLACK)
             .padding(start = 12.dp, end = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BalloonType.entries.forEach { type ->
+        BALLOON_BUTTON_ORDER.forEach { type ->
             BalloonTypeButton(type = type, onClick = { onAdd(type) })
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -123,49 +118,86 @@ private fun ScopeGlyph(inPanel: Boolean, tint: Color) {
     }
 }
 
+/** The order the buttons come in, which is not the order the types are declared in. */
+private val BALLOON_BUTTON_ORDER = listOf(
+    BalloonType.SPEAK,
+    BalloonType.THINK,
+    BalloonType.YELL,
+    BalloonType.WHISPER,
+    BalloonType.CAPTION,
+)
+
 @Composable
 private fun BalloonTypeButton(type: BalloonType, onClick: () -> Unit) {
-    val balloon = remember(type) {
-        // Turned off the vertical so the tail reads as a tail at this size rather than a stem.
-        newBalloon(id = 0, type = type, scope = BalloonScope.Comic)
-            .copy(tailAngleDegrees = TAIL_ANGLE, tailWidth = TAIL_WIDTH)
-    }
+    val scheme = MaterialTheme.colorScheme
     val label = stringResource(R.string.add_balloon, stringResource(type.label))
     Box(
         modifier = Modifier
             .size(BUTTON_SIZE)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary)
+            .clip(BUTTON_SHAPE)
+            .background(scheme.surfaceContainerLowest)
+            .border(1.5.dp, scheme.outlineVariant, BUTTON_SHAPE)
             .clickable(onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.size(GLYPH_SIZE)) {
-            // Sized and placed so the body and the tail it throws both land inside the glyph.
-            val scale = size.width * 0.8f / balloon.width
-            val viewport = PageViewport(
-                originX = size.width / 2f - balloon.centre.u * scale,
-                originY = size.height * 0.42f - balloon.centre.v * scale,
-                scale = scale,
+        BalloonGlyph(type = type, tint = scheme.onSurfaceVariant)
+    }
+}
+
+/** Each balloon type as an outline on a 24-unit grid. */
+@Composable
+private fun BalloonGlyph(type: BalloonType, tint: Color) {
+    val outline = remember(type) { PathParser().parsePathString(type.glyphPath()).toPath() }
+    Canvas(modifier = Modifier.size(GLYPH_SIZE)) {
+        scale(scale = size.minDimension / GLYPH_GRID, pivot = Offset.Zero) {
+            val line = Stroke(
+                width = GLYPH_STROKE,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+                pathEffect = if (type == BalloonType.WHISPER) {
+                    PathEffect.dashPathEffect(floatArrayOf(2.5f, 2f))
+                } else {
+                    null
+                },
             )
-            drawBalloon(
-                geometry = balloonGeometry(balloon, panel = null, pageHeight = 1f, viewport = viewport),
-                // Only sets the outline weight here, and an icon needs a heavier line than a page.
-                pageScale = size.minDimension * 7f,
-                bodyColor = PaperWhite,
-                outlineColor = InkBlack,
-            )
+            if (type == BalloonType.SPEAK || type == BalloonType.CAPTION) {
+                drawPath(path = outline, color = tint)
+            } else {
+                drawPath(path = outline, color = tint, style = line)
+            }
+            if (type == BalloonType.THINK) {
+                // The trail of small bubbles the thought is carried on.
+                drawCircle(color = tint, radius = 1.5f, center = Offset(7.5f, 19f))
+                drawCircle(color = tint, radius = 1f, center = Offset(5f, 21.5f))
+            }
         }
     }
 }
 
-/** Down and to the left, the way a balloon hangs over whoever is speaking. */
-private const val TAIL_ANGLE = 135f
-private const val TAIL_WIDTH = 0.45f
+private fun BalloonType.glyphPath(): String = when (this) {
+    BalloonType.SPEAK ->
+        "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"
+    BalloonType.THINK ->
+        "M18.5 7.5c-.3-2.5-2.5-4.5-5.2-4.5-2.2 0-4.1 1.3-4.8 3.2-.5-.1-1-.2-1.5-.2-2.8 0-5 2.2-5 5 " +
+            "0 2.4 1.7 4.4 4 4.9.2.8.7 1.5 1.4 2 .4.3.9.5 1.4.5h8.2c2.5 0 4.5-2 4.5-4.5 " +
+            "0-2.2-1.6-4.1-3.7-4.4-.1-.7-.7-1.4-1.3-1.8l2-.2z"
+    BalloonType.YELL ->
+        "M12 2l2.5 4.5 5-2-2 5 4.5 2.5-4.5 2.5 2 5-5-2-2.5 4.5-2.5-4.5-5 2 2-5-4.5-2.5 4.5-2.5-2-5 5 2z"
+    BalloonType.WHISPER ->
+        "M20 14c0 1.1-.9 2-2 2H7l-4 4V6c0-1.1.9-2 2-2h13c1.1 0 2 .9 2 2v8z"
+    BalloonType.CAPTION ->
+        "M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2z" +
+            "m10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z"
+}
 
-/** The balloon sits on a disc, so the button's own bounds are what the user sees. */
-private val BUTTON_SIZE = 36.dp
-private val GLYPH_SIZE = 22.dp
+private const val GLYPH_GRID = 24f
+private const val GLYPH_STROKE = 1.75f
+
+/** The button is the outlined rounded square the design's tool buttons are. */
+private val BUTTON_SHAPE = RoundedCornerShape(8.dp)
+private val BUTTON_SIZE = 48.dp
+private val GLYPH_SIZE = 24.dp
 
 /** The scope toggle is a different kind of control and keeps its own plain square. */
 private val SCOPE_BUTTON_SIZE = 40.dp

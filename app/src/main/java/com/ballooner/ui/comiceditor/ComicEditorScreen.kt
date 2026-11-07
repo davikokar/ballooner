@@ -56,12 +56,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -88,9 +89,7 @@ import com.ballooner.ui.comic.ComicPage
 import com.ballooner.ui.comic.PanelImageSource
 import com.ballooner.ui.theme.label
 import com.ballooner.ui.theme.toFontFamily
-import kotlin.math.cos
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /** The comic editor: one page, three steps over it. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -468,45 +467,21 @@ private fun EditorActionBar(
     }
 }
 
-/** An arrow curving back on itself: undo has no icon in the core set, so it is drawn. */
+/** The usual undo arrow, on a 24-unit grid; the core icon set has no undo, so it is drawn. */
 @Composable
 private fun UndoGlyph(tint: Color, modifier: Modifier = Modifier) {
+    val arrow = remember { PathParser().parsePathString(UNDO_ARROW_PATH).toPath() }
     Canvas(modifier = modifier) {
-        val thickness = size.minDimension * 0.12f
-        val radius = size.minDimension / 2f - thickness * 1.6f
-        val centre = Offset(size.width / 2f, size.height / 2f)
-        // Open at the lower left, which is where the head goes and where the arrow points.
-        val from = 200f
-        drawArc(
-            color = tint,
-            startAngle = from,
-            sweepAngle = 215f,
-            useCenter = false,
-            topLeft = Offset(centre.x - radius, centre.y - radius),
-            size = Size(radius * 2f, radius * 2f),
-            style = Stroke(width = thickness, cap = StrokeCap.Round),
-        )
-        val radians = Math.toRadians(from.toDouble())
-        val tip = Offset(
-            centre.x + radius * cos(radians).toFloat(),
-            centre.y + radius * sin(radians).toFloat(),
-        )
-        // Back down the arc: the head points the way the arrow came from.
-        val along = Offset(sin(radians).toFloat(), -cos(radians).toFloat())
-        val across = Offset(-along.y, along.x)
-        val length = thickness * 2.6f
-        val width = thickness * 1.6f
-        drawPath(
-            path = Path().apply {
-                moveTo(tip.x, tip.y)
-                lineTo(tip.x - along.x * length + across.x * width, tip.y - along.y * length + across.y * width)
-                lineTo(tip.x - along.x * length - across.x * width, tip.y - along.y * length - across.y * width)
-                close()
-            },
-            color = tint,
-        )
+        scale(scale = size.minDimension / UNDO_ARROW_GRID, pivot = Offset.Zero) {
+            drawPath(path = arrow, color = tint)
+        }
     }
 }
+
+private const val UNDO_ARROW_GRID = 24f
+private const val UNDO_ARROW_PATH =
+    "M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 " +
+        "3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"
 
 /** Comic-wide styling, kept off the controls area so it never crowds the step being worked on. */
 @OptIn(ExperimentalMaterial3Api::class)
